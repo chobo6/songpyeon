@@ -1,9 +1,13 @@
-.connecting {
+.wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 3rem 1rem;
+  gap: 1rem;
+  padding: 4rem 1rem;
   color: #fff;
   text-align: center;
+}
+
+.trophy {
+  font-size: 4rem;
 }

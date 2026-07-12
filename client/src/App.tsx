@@ -1,49 +1,20 @@
-import { useEffect, useState } from "react";
-import type { Room } from "colyseus.js";
-import { client } from "./colyseus";
+import { useMatchRoom } from "./game/useMatchRoom";
+import { Game } from "./components/Game";
 import "./App.css";
 
-type ConnectionStatus = "connecting" | "connected" | "error";
-
 function App() {
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [round, setRound] = useState(0);
+  const { room, status } = useMatchRoom();
 
-  useEffect(() => {
-    let room: Room | undefined;
-    let disposed = false;
+  if (status !== "connected" || !room) {
+    return (
+      <main className="connecting">
+        <h1>송편 만들기</h1>
+        <p>server connection: {status}</p>
+      </main>
+    );
+  }
 
-    client
-      .joinOrCreate("match")
-      .then((joinedRoom) => {
-        if (disposed) {
-          joinedRoom.leave();
-          return;
-        }
-        room = joinedRoom;
-        setStatus("connected");
-        room.onStateChange((state) => {
-          setRound((state as { round: number }).round);
-        });
-      })
-      .catch((err) => {
-        console.error("failed to join room", err);
-        setStatus("error");
-      });
-
-    return () => {
-      disposed = true;
-      room?.leave();
-    };
-  }, []);
-
-  return (
-    <main style={{ fontFamily: "sans-serif", padding: "2rem" }}>
-      <h1>송편 만들기</h1>
-      <p>server connection: {status}</p>
-      <p>round: {round}</p>
-    </main>
-  );
+  return <Game room={room} />;
 }
 
 export default App;

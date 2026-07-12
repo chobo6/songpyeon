@@ -51,19 +51,20 @@
 }
 
 #root {
-  width: 1126px;
+  width: 480px;
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: linear-gradient(180deg, #1a1b3a 0%, #0d0e24 100%);
 }
 
 body {
   margin: 0;
+  background: #0d0e24;
 }
 
 h1,

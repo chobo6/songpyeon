@@ -1,0 +1,30 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fff;
+  padding: 1rem;
+}
+
+.round {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.myTurn {
+  font-weight: 700;
+  color: #f2c94c;
+}
+
+.spectating {
+  opacity: 0.8;
+}
+
+.boardArea {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
