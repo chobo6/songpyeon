@@ -200,4 +200,13 @@ describe("MatchRoom", () => {
 
     await expect(colyseus.connectTo(room)).rejects.toThrow();
   });
+
+  test("a room still rejects new connections after a player leaves (maxClients lock can be auto-unlocked by Colyseus)", async () => {
+    const { room, clients } = await fillRolesAndStart();
+
+    await clients[0].leave();
+    await flush();
+
+    await expect(colyseus.connectTo(room)).rejects.toThrow();
+  });
 });
