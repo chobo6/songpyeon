@@ -3,7 +3,7 @@ import { Game } from "./components/Game";
 import "./App.css";
 
 function App() {
-  const { room, status } = useMatchRoom();
+  const { room, status, leaveAndRejoin } = useMatchRoom();
 
   if (status !== "connected" || !room) {
     return (
@@ -14,7 +14,7 @@ function App() {
     );
   }
 
-  return <Game room={room} />;
+  return <Game room={room} onLeave={leaveAndRejoin} />;
 }
 
 export default App;

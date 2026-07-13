@@ -3,14 +3,11 @@ import type { MatchState } from "../game/matchTypes";
 import { RoleSelect } from "./RoleSelect";
 import { MyTurnScreen } from "./MyTurnScreen";
 import { SpectatorScreen } from "./SpectatorScreen";
-import { WinnerScreen } from "./WinnerScreen";
 
-export function Game({ room }: { room: Room<MatchState> }) {
+export function Game({ room, onLeave }: { room: Room<MatchState>; onLeave: () => void }) {
   const { phase } = room.state;
 
   if (phase === "lobby") return <RoleSelect room={room} />;
-
-  if (phase === "finished") return <WinnerScreen winnerTeamId={room.state.winnerTeamId} />;
 
   const me = room.state.players.get(room.sessionId);
   const activeTeam = room.state.teams[room.state.activeTeamIndex];
@@ -20,7 +17,15 @@ export function Game({ room }: { room: Room<MatchState> }) {
     return <MyTurnScreen room={room} me={me} activeTeam={activeTeam} />;
   }
   if (activeTeam) {
-    return <SpectatorScreen room={room} activeTeam={activeTeam} />;
+    const myTeam = room.state.teams.find((t) => t.id === me?.teamId);
+    return (
+      <SpectatorScreen
+        room={room}
+        activeTeam={activeTeam}
+        eliminated={myTeam?.eliminated ?? false}
+        onLeave={onLeave}
+      />
+    );
   }
   return null;
 }
