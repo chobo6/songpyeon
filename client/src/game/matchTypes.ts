@@ -3,7 +3,7 @@ import type { Color, Role } from "./colors";
 // Manually mirrors server/src/rooms/MatchState.ts — client and server are
 // separate npm workspaces with no shared-types package yet, so these two
 // must be kept in sync by hand.
-export type Phase = "lobby" | "playing" | "finished";
+export type Phase = "lobby" | "playing";
 export type RoleChoice = Role | "";
 export type TurnOutcome = "pending" | "success" | "fail";
 
@@ -31,5 +31,4 @@ export interface MatchState {
   cursor: number;
   turnEndsAt: number;
   turnOutcome: TurnOutcome;
-  winnerTeamId: string;
 }
