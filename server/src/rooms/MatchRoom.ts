@@ -183,6 +183,12 @@ export class MatchRoom extends Room<MatchState> {
     }
 
     this.state.activeTeamIndex = nextActiveTeamIndex(teamsSnapshot, this.state.activeTeamIndex);
+
+    // nextActiveTeamIndex falls back to the current index when every team is
+    // eliminated (nothing left to skip to) — freeze here instead of starting
+    // a phantom turn for a team that's already out.
+    if (this.state.teams[this.state.activeTeamIndex].eliminated) return;
+
     this.startTurn();
   }
 }

@@ -209,4 +209,30 @@ describe("MatchRoom", () => {
 
     await expect(colyseus.connectTo(room)).rejects.toThrow();
   });
+
+  test(
+    "the room freezes once every team is eliminated, instead of looping phantom turns",
+    async () => {
+      const { room } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+
+      // let every turn time out for both teams until both are eliminated.
+      while (room.state.teams.some((t) => !t.eliminated)) {
+        await wait(SHORT_TURN_MS + 200);
+      }
+
+      // turnEndsAt is only ever reassigned by startTurn(); if a phantom turn
+      // kept starting for the wiped-out room, this timestamp would keep
+      // advancing. cursor/turnOutcome are NOT used here — they reset to the
+      // same "0"/"pending"-then-"fail" values every single turn regardless
+      // of the bug, so they can't distinguish frozen from still-looping.
+      const frozenTurnEndsAt = room.state.turnEndsAt;
+
+      // no further turn should start — state stays frozen, not looping.
+      await wait(SHORT_TURN_MS + 200);
+
+      expect(room.state.phase).toBe("playing");
+      expect(room.state.turnEndsAt).toBe(frozenTurnEndsAt);
+    },
+    15000,
+  );
 });
