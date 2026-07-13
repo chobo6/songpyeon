@@ -96,6 +96,14 @@ export class MatchRoom extends Room<MatchState> {
 
     this.state.phase = "playing";
     this.maxClients = this.clients.length;
+    // Colyseus auto-unlocks a maxClients-triggered lock the moment any
+    // client leaves (see _decrementClientCount), which would put this room
+    // back in joinOrCreate's matchmaking pool the instant an eliminated
+    // player leaves — exactly when we most need it hidden. An explicit
+    // lock() is not undone by that auto-unlock (it only fires when
+    // !_lockedExplicitly), so it's the real defense; maxClients above still
+    // helps cap direct joinById attempts.
+    this.lock();
     this.state.round = 1;
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;

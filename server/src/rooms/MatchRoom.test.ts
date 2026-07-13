@@ -210,6 +210,16 @@ describe("MatchRoom", () => {
     await expect(colyseus.connectTo(room)).rejects.toThrow();
   });
 
+  test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {
+    const { room, clients } = await fillRolesAndStart();
+
+    await clients[0].leave();
+    await flush();
+
+    const newRoom = await colyseus.sdk.joinOrCreate("match");
+    expect(newRoom.roomId).not.toBe(room.roomId);
+  });
+
   test(
     "the room freezes once every team is eliminated, instead of looping phantom turns",
     async () => {
