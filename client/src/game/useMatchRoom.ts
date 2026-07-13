@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useState } from "react";
 import type { Room } from "colyseus.js";
-import { joinMatch } from "../colyseus";
+import { joinMatch, leaveMatch } from "../colyseus";
 import type { MatchState } from "./matchTypes";
 
 export type ConnectionStatus = "connecting" | "connected" | "error";
@@ -8,6 +8,7 @@ export type ConnectionStatus = "connecting" | "connected" | "error";
 export function useMatchRoom() {
   const [room, setRoom] = useState<Room<MatchState> | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [generation, setGeneration] = useState(0);
   const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
@@ -38,7 +39,14 @@ export function useMatchRoom() {
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [generation]);
 
-  return { room, status };
+  async function leaveAndRejoin() {
+    setStatus("connecting");
+    setRoom(null);
+    await leaveMatch();
+    setGeneration((g) => g + 1);
+  }
+
+  return { room, status, leaveAndRejoin };
 }

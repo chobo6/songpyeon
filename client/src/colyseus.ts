@@ -17,3 +17,14 @@ export function joinMatch<T>(): Promise<Room<T>> {
   }
   return roomPromise as Promise<Room<T>>;
 }
+
+// Leaves the currently cached match (if any) and clears the cache, so the
+// next joinMatch() call actually opens a fresh connection instead of
+// returning the (now-left) stale room.
+export async function leaveMatch(): Promise<void> {
+  const current = roomPromise;
+  roomPromise = null;
+  if (!current) return;
+  const room = await current;
+  await room.leave();
+}
