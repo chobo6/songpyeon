@@ -44,7 +44,11 @@ export function useMatchRoom() {
   async function leaveAndRejoin() {
     setStatus("connecting");
     setRoom(null);
-    await leaveMatch();
+    try {
+      await leaveMatch();
+    } catch (err) {
+      console.error("failed to leave match", err);
+    }
     setGeneration((g) => g + 1);
   }
 
