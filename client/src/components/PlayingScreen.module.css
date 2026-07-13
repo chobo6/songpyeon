@@ -28,3 +28,14 @@
   display: flex;
   justify-content: center;
 }
+
+.leaveButton {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6b7280, #374151);
+}
