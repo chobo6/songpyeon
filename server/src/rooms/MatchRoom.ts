@@ -4,7 +4,7 @@ import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated } from "../game/mortar";
-import { nextActiveTeamIndex, winningTeam, type TeamStatus } from "../game/rotation";
+import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
@@ -169,13 +169,6 @@ export class MatchRoom extends Room<MatchState> {
       id: t.id,
       eliminated: t.eliminated,
     }));
-
-    const winner = winningTeam(teamsSnapshot);
-    if (winner) {
-      this.state.phase = "finished";
-      this.state.winnerTeamId = winner.id;
-      return;
-    }
 
     this.turnsThisRound++;
     const aliveCount = teamsSnapshot.filter((t) => !t.eliminated).length;

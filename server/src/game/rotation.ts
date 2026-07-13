@@ -10,8 +10,3 @@ export function nextActiveTeamIndex(teams: TeamStatus[], currentIndex: number): 
   }
   return currentIndex;
 }
-
-export function winningTeam(teams: TeamStatus[]): TeamStatus | null {
-  const alive = teams.filter((team) => !team.eliminated);
-  return alive.length === 1 ? alive[0] : null;
-}

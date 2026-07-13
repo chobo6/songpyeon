@@ -56,6 +56,17 @@ describe("MatchRoom", () => {
     return { activeTeam, dueColor, actingClient: clients.find((c) => c.sessionId === actingSessionId)! };
   }
 
+  async function completeActiveTurn(room: ServerRoom<MatchState>, clients: ClientRoom<MatchState>[]) {
+    while (room.state.cursor < room.state.sequence.length - 1) {
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+    }
+    const { dueColor, actingClient } = actingClientFor(room, clients);
+    actingClient.send("pressButton", { color: dueColor });
+    await flush();
+  }
+
   test("game starts once both teams have a pig and a rabbit", async () => {
     const { room } = await fillRolesAndStart();
 
@@ -145,4 +156,42 @@ describe("MatchRoom", () => {
 
     expect(room.state.cursor).toBe(1);
   });
+
+  test(
+    "the surviving team keeps receiving turns after the other team is eliminated",
+    { timeout: 20000 },
+    async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+      const teamAId = room.state.teams[0].id;
+      const teamBId = room.state.teams[1].id;
+
+      // drive turns: complete team A's turns correctly, deliberately fail team
+      // B's turns (wrong button) until B's 5 mortars are gone.
+      while (!room.state.teams.find((t) => t.id === teamBId)!.eliminated) {
+        const activeId = room.state.teams[room.state.activeTeamIndex].id;
+        if (activeId === teamAId) {
+          await completeActiveTurn(room, clients);
+        } else {
+          const { dueColor, actingClient } = actingClientFor(room, clients);
+          const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+          actingClient.send("pressButton", { color: wrongColor });
+          await flush();
+          await wait(SHORT_TURN_MS + 200);
+        }
+      }
+
+      // team B is eliminated but the match keeps going, unlike before.
+      expect(room.state.phase).toBe("playing");
+      expect(room.state.teams.find((t) => t.id === teamAId)!.eliminated).toBe(false);
+      expect(room.state.teams[room.state.activeTeamIndex].id).toBe(teamAId);
+
+      // the surviving team keeps receiving turns indefinitely.
+      const roundBeforeExtraTurn = room.state.round;
+      await completeActiveTurn(room, clients);
+
+      expect(room.state.phase).toBe("playing");
+      expect(room.state.teams[room.state.activeTeamIndex].id).toBe(teamAId);
+      expect(room.state.round).toBeGreaterThan(roundBeforeExtraTurn);
+    }
+  );
 });

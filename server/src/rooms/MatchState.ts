@@ -1,7 +1,7 @@
 import { Schema, type, ArraySchema, MapSchema } from "@colyseus/schema";
 import { STARTING_MORTARS } from "../game/mortar";
 
-export type Phase = "lobby" | "playing" | "finished";
+export type Phase = "lobby" | "playing";
 export type RoleChoice = "pig" | "rabbit" | "";
 export type TurnOutcome = "pending" | "success" | "fail";
 
@@ -29,5 +29,4 @@ export class MatchState extends Schema {
   @type("number") cursor: number = 0;
   @type("number") turnEndsAt: number = 0;
   @type("string") turnOutcome: TurnOutcome = "pending";
-  @type("string") winnerTeamId: string = "";
 }

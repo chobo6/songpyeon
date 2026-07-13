@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { nextActiveTeamIndex, winningTeam, type TeamStatus } from "./rotation";
+import { nextActiveTeamIndex, type TeamStatus } from "./rotation";
 
 describe("nextActiveTeamIndex", () => {
   test("advances to the next team", () => {
@@ -28,17 +28,5 @@ describe("nextActiveTeamIndex", () => {
       { id: "c", eliminated: false },
     ];
     expect(nextActiveTeamIndex(teams, 2)).toBe(1);
-  });
-});
-
-describe("winningTeam", () => {
-  test("no winner while two or more teams remain", () => {
-    const teams: TeamStatus[] = [{ id: "a", eliminated: false }, { id: "b", eliminated: false }];
-    expect(winningTeam(teams)).toBeNull();
-  });
-
-  test("the last team standing wins", () => {
-    const teams: TeamStatus[] = [{ id: "a", eliminated: false }, { id: "b", eliminated: true }];
-    expect(winningTeam(teams)).toEqual({ id: "a", eliminated: false });
   });
 });
