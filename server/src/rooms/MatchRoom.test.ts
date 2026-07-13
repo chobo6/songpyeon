@@ -194,4 +194,10 @@ describe("MatchRoom", () => {
       expect(room.state.round).toBeGreaterThan(roundBeforeExtraTurn);
     }
   );
+
+  test("a room in progress rejects a new connection attempt", async () => {
+    const { room } = await fillRolesAndStart();
+
+    await expect(colyseus.connectTo(room)).rejects.toThrow();
+  });
 });

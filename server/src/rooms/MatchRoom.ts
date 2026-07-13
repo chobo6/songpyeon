@@ -46,6 +46,10 @@ export class MatchRoom extends Room<MatchState> {
   onJoin(client: Client) {
     if (this.state.players.has(client.sessionId)) return;
 
+    if (this.state.phase !== "lobby") {
+      throw new Error("Match already in progress");
+    }
+
     const player = new PlayerState();
     player.sessionId = client.sessionId;
     this.state.players.set(client.sessionId, player);
@@ -91,6 +95,7 @@ export class MatchRoom extends Room<MatchState> {
     if (!ready) return;
 
     this.state.phase = "playing";
+    this.maxClients = this.clients.length;
     this.state.round = 1;
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;
