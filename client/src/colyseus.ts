@@ -12,12 +12,31 @@ export const client = new Client(endpoint);
 // to leave.
 let roomPromise: Promise<Room<unknown>> | null = null;
 
+// sessionStorage access can throw (Safari private mode, storage disabled by
+// policy) — swallow that so a storage restriction never blocks joining a
+// match, it just falls back to "no saved token" behavior.
+function getSavedReconnectionToken(): string | null {
+  try {
+    return sessionStorage.getItem(RECONNECTION_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function saveReconnectionToken(token: string) {
-  sessionStorage.setItem(RECONNECTION_TOKEN_KEY, token);
+  try {
+    sessionStorage.setItem(RECONNECTION_TOKEN_KEY, token);
+  } catch {
+    // best-effort — a refresh just won't be able to reconnect this session.
+  }
 }
 
 function clearReconnectionToken() {
-  sessionStorage.removeItem(RECONNECTION_TOKEN_KEY);
+  try {
+    sessionStorage.removeItem(RECONNECTION_TOKEN_KEY);
+  } catch {
+    // best-effort, see saveReconnectionToken.
+  }
 }
 
 // Tries to resume the previous session (survives a page refresh mid-match)
@@ -27,7 +46,7 @@ function clearReconnectionToken() {
 // which gives no reconnection grace during "lobby"), so the fallback path
 // is the common case there, not an error.
 async function connectToMatch<T>(): Promise<Room<T>> {
-  const savedToken = sessionStorage.getItem(RECONNECTION_TOKEN_KEY);
+  const savedToken = getSavedReconnectionToken();
   if (savedToken) {
     try {
       const room = await client.reconnect<T>(savedToken);
