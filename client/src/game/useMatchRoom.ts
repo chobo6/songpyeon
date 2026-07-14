@@ -13,6 +13,9 @@ export function useMatchRoom(nickname: string) {
 
   useEffect(() => {
     let disposed = false;
+    // joinOrCreate() resolving only means the room handshake finished — the
+    // initial full state arrives via a separate patch shortly after, so we
+    // wait for the first onStateChange before trusting room.state is populated.
     let hasReceivedState = false;
 
     joinMatch<MatchState>(nickname)
