@@ -11,3 +11,18 @@ export const COLOR_HEX: Record<Color, string> = {
   blue: "#3b82f6",
   pink: "#f472b6",
 };
+
+// Illustrated per-color button tokens lifted from the original game's asset
+// pack (see client/public/game-assets/README.md) — used by ButtonPanel for
+// the actual press buttons. COLOR_HEX above stays in use for SequenceBoard's
+// smaller board tokens, which don't need the full illustration.
+export const COLOR_TOKEN: Record<Color, string> = {
+  red: "/game-assets/tokens/thanksgiving2024_room_command1.webp",
+  orange: "/game-assets/tokens/thanksgiving2024_room_command2.webp",
+  yellow: "/game-assets/tokens/thanksgiving2024_room_command3.webp",
+  purple: "/game-assets/tokens/thanksgiving2024_room_command6.webp",
+  mint: "/game-assets/tokens/thanksgiving_room_command4.webp",
+  blue: "/game-assets/tokens/thanksgiving_room_command5.webp",
+  pink: "/game-assets/tokens/thanksgiving_room_command7.webp",
+  green: "/game-assets/tokens/thanksgiving_room_command8.webp",
+};

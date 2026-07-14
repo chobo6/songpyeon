@@ -1,5 +1,5 @@
 import type { Color, Role } from "../game/colors";
-import { COLOR_HEX } from "../game/colors";
+import { COLOR_TOKEN } from "../game/colors";
 import { SLOT_ORDER, buttonPanelSlots } from "../game/buttonPanel";
 import styles from "./ButtonPanel.module.css";
 
@@ -32,7 +32,7 @@ export function ButtonPanel({
             disabled={disabled}
             onClick={() => onPress(color)}
             className={isDue ? `${styles.button} ${styles.due}` : styles.button}
-            style={{ background: COLOR_HEX[color] }}
+            style={{ backgroundImage: `url(${COLOR_TOKEN[color]})` }}
           />
         );
       })}
