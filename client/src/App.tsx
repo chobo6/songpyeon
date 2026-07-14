@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
 import { Game } from "./components/Game";
 import { ModeSelect } from "./components/ModeSelect";
+import { NicknameEntry } from "./components/NicknameEntry";
 import { SoloRoleSelect } from "./components/SoloRoleSelect";
 import { SoloPlayScreen } from "./components/SoloPlayScreen";
 import type { Role } from "./game/colors";
@@ -9,8 +10,8 @@ import "./App.css";
 
 type Mode = "select" | "online" | "offline";
 
-function OnlineFlow({ onExit }: { onExit: () => void }) {
-  const { room, status, leaveAndRejoin, cancelAndExit } = useMatchRoom();
+function ConnectedOnlineFlow({ nickname, onExit }: { nickname: string; onExit: () => void }) {
+  const { room, status, leaveAndRejoin, cancelAndExit } = useMatchRoom(nickname);
 
   async function handleExit() {
     await cancelAndExit();
@@ -28,6 +29,16 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
   }
 
   return <Game room={room} onLeave={leaveAndRejoin} onExit={handleExit} />;
+}
+
+function OnlineFlow({ onExit }: { onExit: () => void }) {
+  const [nickname, setNickname] = useState<string | null>(null);
+
+  if (!nickname) {
+    return <NicknameEntry onSubmit={setNickname} />;
+  }
+
+  return <ConnectedOnlineFlow nickname={nickname} onExit={onExit} />;
 }
 
 function OfflineFlow({ onExit }: { onExit: () => void }) {

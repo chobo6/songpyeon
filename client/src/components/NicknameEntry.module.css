@@ -1,0 +1,52 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+  justify-content: center;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.hint {
+  opacity: 0.8;
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.input {
+  width: 100%;
+  max-width: 16rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  font-size: 1.1rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.submit {
+  padding: 0.6rem 2rem;
+  font-size: 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f2994a, #e5484d);
+}
+
+.submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
