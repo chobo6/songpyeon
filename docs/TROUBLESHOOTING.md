@@ -136,3 +136,62 @@ export function joinMatch<T>(): Promise<Room<T>> {
 ### 관련 파일
 - `client/src/colyseus.ts`
 - `client/src/game/useMatchRoom.ts`
+
+---
+
+## #5 팀 탈락 후에도 매치를 계속 진행하게 바꾸자, 모든 팀이 탈락하면 유령 턴이 무한 생성됨
+
+### 증상
+
+한 팀이 탈락해도 매치를 끝내지 않고 생존 팀이 계속 진행하도록 바꾼 뒤(§`docs/superpowers/specs/2026-07-14-elimination-continue-design.md`), 브라우저에서 4개 탭을 전부 방치해 양 팀이 동시에 탈락하는 상황을 재현했더니 서버가 죽은 방에 계속 새 턴을 생성하며 멈추지 않음.
+
+### 원인 분석
+
+`rotation.ts`의 `nextActiveTeamIndex(teams, currentIndex)`는 건너뛸 수 있는(탈락하지 않은) 팀을 순회해서 찾는데, **모든 팀이 탈락하면 아무것도 못 찾고 `currentIndex`를 그대로 반환**하는 폴백이 있음. `MatchRoom.ts`의 `advanceToNextTurn()`은 이 반환값을 확인 없이 항상 `this.startTurn()`을 호출했기 때문에, 이미 전멸한 방에서도 4초 타이머 → `onTurnTimerExpired` → `advanceToNextTurn` → 다시 `startTurn`이 무한 반복됨 (매번 새 랜덤 시퀀스를 만들며 CPU를 계속 소모).
+
+### 해결
+
+`advanceToNextTurn()`에서 `nextActiveTeamIndex`가 반환한 인덱스의 팀이 이미 탈락 상태면 `startTurn()`을 호출하지 않고 그대로 멈추도록 가드 추가. 회귀 테스트는 `turnEndsAt`(오직 `startTurn()`에서만 갱신됨)이 더 이상 바뀌지 않는지로 검증 — `cursor`/`turnOutcome`은 매 턴 리셋되는 값이라 "멈춤"과 "계속 도는데 우연히 같은 값" 상태를 구분하지 못함.
+
+### 관련 파일
+- `server/src/rooms/MatchRoom.ts` — `advanceToNextTurn()`
+- `server/src/rooms/MatchRoom.test.ts` — "the room freezes once every team is eliminated" 테스트
+
+---
+
+## #6 "나가기" 클릭 직후 재입장이 방금 나간 그 방에 다시 매칭되어 에러 화면에 멈춤
+
+### 증상
+
+탈락한 팀이 "나가기" 버튼을 누르면 방을 나가고 새 매치에 재참가해야 하는데, 실제로는 클라이언트가 `"server connection: error"` 화면에 멈춤. 콘솔에는 `ServerError: Match already in progress`.
+
+### 원인 분석
+
+게임 시작 시 `this.maxClients = this.clients.length`로 방을 "꽉 찬 것"처럼 보이게 해서 `joinOrCreate` 매치메이킹 후보에서 제외시켰는데, 이건 Colyseus 내부적으로 **`maxClients` 도달로 인한 암묵적 잠금**일 뿐이었음. `@colyseus/core`의 `_decrementClientCount`는 클라이언트가 나가면 `#_maxClientsReached && !_lockedExplicitly`일 때 자동으로 `unlock()`을 호출함 — 즉 탈락자가 나가는 바로 그 순간 방이 다시 매치메이킹 풀에 노출됨. 이 타이밍에 클라이언트가 곧바로 `joinMatch()`(새 `joinOrCreate`)를 호출하면 방금 나간 그 방에 재매칭되고, `onJoin`의 `phase !== "lobby"` 가드에 거부당해 join이 실패함.
+
+### 해결
+
+`maybeStartGame()`에서 `this.lock()`을 명시적으로 호출. 인자 없이 호출하면 `_lockedExplicitly = true`로 표시되어 위 자동 unlock 로직(`!_lockedExplicitly` 조건)을 타지 않게 됨 — `maxClients`는 `joinById` 같은 직접 접근에 대한 2차 방어로 남겨둠.
+
+### 관련 파일
+- `server/src/rooms/MatchRoom.ts` — `maybeStartGame()`
+- `server/src/rooms/MatchRoom.test.ts` — "joinOrCreate matchmaking does not route a fresh client..." 테스트
+
+---
+
+## #7 `display:flex` 부모 안의 버튼 그리드가 점처럼 작게 렌더링됨
+
+### 증상
+
+`ButtonPanel`을 단색 원 대신 캐릭터 토큰 이미지로 바꾸면서 `.panel`에 `display:grid; grid-template-columns: repeat(N, 1fr)`을 쓰고 각 버튼에 `width: 100%`를 줬는데, 브라우저에서 실제로 보면 버튼이 의도한 크기(약 5rem)가 아니라 점처럼 작게 나옴.
+
+### 원인 분석
+
+`.panel`의 부모(`PlayingScreen.module.css`의 `.wrap`)가 `display:flex; flex-direction:column; align-items:center`임. flex의 cross-axis(`align-items:center`)에서는 자식이 기본적으로 **shrink-to-fit**되므로, `.panel`에 `max-width`만 있고 명시적 `width`가 없으면 grid 자체가 "정해진 너비"를 못 받고, `1fr` 컬럼들이 콘텐츠 기준 최소 크기로 쪼그라듦. 버튼의 `width:100%`는 "쪼그라든 컬럼의 100%"라서 결과적으로 아주 작아짐.
+
+### 해결
+
+`.panel`에 `width: 100%`를 `max-width`와 함께 명시. flex 자식에게 실제로 채울 너비를 줘야 grid의 `1fr` 트랙이 의도대로 분배됨.
+
+### 관련 파일
+- `client/src/components/ButtonPanel.module.css`
