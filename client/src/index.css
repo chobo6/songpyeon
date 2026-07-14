@@ -74,9 +74,19 @@ body {
 /* Mobile browsers (esp. Android Chrome) flash a solid color over tapped
    elements by default until the tap resolves — distinct from any CSS
    :active style we set ourselves. Off everywhere since this is a touch-
-   first game where every button gets tapped constantly. */
+   first game where every button gets tapped constantly.
+
+   touch-action: manipulation disables the browser's double-tap-to-zoom
+   gesture detection on buttons. Without it, the browser holds each tap in
+   a short disambiguation window to decide "is this the first half of a
+   double-tap?" — when a second, different button is tapped inside that
+   window (this game's whole point, e.g. pig's color-then-purple pairs
+   pressed as fast as possible), the gesture recognizer can fail to
+   synthesize a click for it at all, which reads as "the press didn't
+   register" even though the finger clearly touched the button. */
 button {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 h1,

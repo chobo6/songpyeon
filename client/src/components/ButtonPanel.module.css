@@ -52,6 +52,10 @@
   aspect-ratio: 65 / 67;
   transform: translate(-50%, -50%);
   border: none;
+  /* These handle pointerdown directly (see ButtonPanel.tsx) instead of
+     relying on the browser's touch->click synthesis, so there's no default
+     touch gesture (scroll/pan) we want it attempting here at all. */
+  touch-action: none;
   background-color: transparent;
   background-size: contain;
   background-repeat: no-repeat;
