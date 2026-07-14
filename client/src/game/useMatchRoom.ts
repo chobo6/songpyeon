@@ -52,5 +52,17 @@ export function useMatchRoom() {
     setGeneration((g) => g + 1);
   }
 
-  return { room, status, leaveAndRejoin };
+  // Leaves without rejoining — used by the new back/exit buttons (connecting
+  // screen, lobby) to return to mode select. Unlike leaveAndRejoin, this does
+  // NOT bump `generation`, so no new join is triggered; the caller unmounts
+  // this hook right after by switching App's mode away from "online".
+  async function cancelAndExit() {
+    try {
+      await leaveMatch();
+    } catch (err) {
+      console.error("failed to leave match", err);
+    }
+  }
+
+  return { room, status, leaveAndRejoin, cancelAndExit };
 }

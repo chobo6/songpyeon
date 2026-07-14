@@ -1,6 +1,7 @@
 import { Client, type Room } from "colyseus.js";
 
 const endpoint = import.meta.env.VITE_SERVER_URL ?? "ws://localhost:2567";
+const RECONNECTION_TOKEN_KEY = "songpyeon:reconnectionToken";
 
 export const client = new Client(endpoint);
 
@@ -11,19 +12,52 @@ export const client = new Client(endpoint);
 // to leave.
 let roomPromise: Promise<Room<unknown>> | null = null;
 
+function saveReconnectionToken(token: string) {
+  sessionStorage.setItem(RECONNECTION_TOKEN_KEY, token);
+}
+
+function clearReconnectionToken() {
+  sessionStorage.removeItem(RECONNECTION_TOKEN_KEY);
+}
+
+// Tries to resume the previous session (survives a page refresh mid-match)
+// before falling back to normal matchmaking. A saved token can fail to
+// redeem (grace period expired, room gone) — that's expected whenever the
+// player was in the lobby (see server/src/rooms/MatchRoom.ts's onLeave,
+// which gives no reconnection grace during "lobby"), so the fallback path
+// is the common case there, not an error.
+async function connectToMatch<T>(): Promise<Room<T>> {
+  const savedToken = sessionStorage.getItem(RECONNECTION_TOKEN_KEY);
+  if (savedToken) {
+    try {
+      const room = await client.reconnect<T>(savedToken);
+      saveReconnectionToken(room.reconnectionToken);
+      return room;
+    } catch {
+      clearReconnectionToken();
+    }
+  }
+
+  const room = await client.joinOrCreate<T>("match");
+  saveReconnectionToken(room.reconnectionToken);
+  return room;
+}
+
 export function joinMatch<T>(): Promise<Room<T>> {
   if (!roomPromise) {
-    roomPromise = client.joinOrCreate<T>("match") as Promise<Room<unknown>>;
+    roomPromise = connectToMatch<T>() as Promise<Room<unknown>>;
   }
   return roomPromise as Promise<Room<T>>;
 }
 
-// Leaves the currently cached match (if any) and clears the cache, so the
-// next joinMatch() call actually opens a fresh connection instead of
-// returning the (now-left) stale room.
+// Leaves the currently cached match (if any), clears the cache and the
+// saved reconnection token, so the next joinMatch() call actually opens a
+// fresh connection instead of returning the (now-left) stale room or
+// trying to reconnect into a match we just deliberately left.
 export async function leaveMatch(): Promise<void> {
   const current = roomPromise;
   roomPromise = null;
+  clearReconnectionToken();
   if (!current) return;
   const room = await current;
   await room.leave();
