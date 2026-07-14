@@ -1,6 +1,10 @@
 import { Client, type Room } from "colyseus.js";
 
-const endpoint = import.meta.env.VITE_SERVER_URL ?? "ws://localhost:2567";
+const endpoint =
+  import.meta.env.VITE_SERVER_URL ??
+  (import.meta.env.PROD
+    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
+    : "ws://localhost:2567");
 const RECONNECTION_TOKEN_KEY = "songpyeon:reconnectionToken";
 
 export const client = new Client(endpoint);
