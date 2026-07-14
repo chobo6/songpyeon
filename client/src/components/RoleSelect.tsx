@@ -6,14 +6,14 @@ import styles from "./RoleSelect.module.css";
 export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: () => void }) {
   const me = room.state.players.get(room.sessionId);
   const myRole = me?.role;
-
   const teams = room.state.teams;
-  const pigCount = teams.filter((t) => t.pigSessionId !== "").length;
-  const rabbitCount = teams.filter((t) => t.rabbitSessionId !== "").length;
-  const teamCount = teams.length;
 
   function choose(role: Role) {
     room.send("chooseRole", { role });
+  }
+
+  function nicknameFor(sessionId: string): string {
+    return sessionId ? (room.state.players.get(sessionId)?.nickname ?? "?") : "대기 중";
   }
 
   return (
@@ -43,9 +43,15 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
           </button>
         </div>
       )}
-      <p className={styles.status}>
-        돼지 {pigCount}/{teamCount} · 토끼 {rabbitCount}/{teamCount}
-      </p>
+      <div className={styles.roster}>
+        {teams.map((team) => (
+          <div key={team.id} className={styles.rosterTeam}>
+            <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
+            <span className={styles.rosterSep}>·</span>
+            <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
+          </div>
+        ))}
+      </div>
       <button className={styles.leaveButton} onClick={onExit}>
         나가기
       </button>

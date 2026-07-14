@@ -74,10 +74,27 @@
   opacity: 0.9;
 }
 
-.status {
-  opacity: 0.75;
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  opacity: 0.85;
   font-size: 0.9rem;
   padding-bottom: 2rem;
+}
+
+.rosterTeam {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.rosterName {
+  min-width: 3.5rem;
+}
+
+.rosterSep {
+  opacity: 0.5;
 }
 
 .leaveButton {
