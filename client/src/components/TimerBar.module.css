@@ -1,0 +1,35 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+.icon {
+  width: 1.4rem;
+  aspect-ratio: 54 / 53;
+  flex-shrink: 0;
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 0.65rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background-image: url("/game-assets/ui/thanksgiving_room_time_bar.png");
+  background-size: 100% 100%;
+}
+
+.gauge {
+  position: absolute;
+  inset: 0;
+  background-image: url("/game-assets/ui/thanksgiving_room_time_gauge.png");
+  background-size: 100% 100%;
+  transform-origin: left center;
+  transition: transform 0.1s linear;
+}

@@ -28,7 +28,14 @@
 }
 
 .mortars {
+  display: flex;
+  gap: 0.1rem;
   opacity: 0.9;
+}
+
+.heart {
+  width: 0.85rem;
+  aspect-ratio: 54 / 70;
 }
 
 .eliminated {

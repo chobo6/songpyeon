@@ -5,6 +5,7 @@ import { SequenceBoard } from "./SequenceBoard";
 import { ButtonPanel } from "./ButtonPanel";
 import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
 import { TeamStatusBar } from "./TeamStatusBar";
+import { TimerBar } from "./TimerBar";
 import styles from "./PlayingScreen.module.css";
 
 export function MyTurnScreen({
@@ -16,7 +17,7 @@ export function MyTurnScreen({
   me: PlayerState;
   activeTeam: TeamState;
 }) {
-  const { sequence, cursor, turnOutcome, round, teams } = room.state;
+  const { sequence, cursor, turnOutcome, round, teams, turnEndsAt } = room.state;
   const dueColor = cursor < sequence.length ? (sequence[cursor] as Color) : undefined;
   const disabled = turnOutcome !== "pending";
 
@@ -27,6 +28,7 @@ export function MyTurnScreen({
   return (
     <div className={styles.wrap}>
       <p className={styles.round}>ROUND {round}</p>
+      <TimerBar turnEndsAt={turnEndsAt} />
       <TeamStatusBar teams={teams} activeTeamId={activeTeam.id} />
       <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
       <div className={styles.boardArea}>

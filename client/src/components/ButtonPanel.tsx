@@ -20,8 +20,9 @@ export function ButtonPanel({
     <div className={styles.panel}>
       {SLOT_ORDER.map((position) => {
         const color = slots[position];
+        const positionClass = styles[position];
         if (!color) {
-          return <div key={position} className={styles.empty} />;
+          return <div key={position} className={`${styles.empty} ${positionClass}`} />;
         }
         const isDue = color === dueColor;
         return (
@@ -31,7 +32,11 @@ export function ButtonPanel({
             aria-label={color}
             disabled={disabled}
             onClick={() => onPress(color)}
-            className={isDue ? `${styles.button} ${styles.due}` : styles.button}
+            className={
+              isDue
+                ? `${styles.button} ${positionClass} ${styles.due}`
+                : `${styles.button} ${positionClass}`
+            }
             style={{ backgroundImage: `url(${COLOR_TOKEN[color]})` }}
           />
         );

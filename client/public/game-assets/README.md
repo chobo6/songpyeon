@@ -7,11 +7,15 @@
 | thanksgiving2024_room_command1(_off) | 빨강 (red) | 돼지 |
 | thanksgiving2024_room_command2(_off) | 주황 (orange) | 돼지 |
 | thanksgiving2024_room_command3(_off) | 노랑 (yellow) | 돼지 |
-| thanksgiving_room_command4(_off) | 민트 (mint) | 토끼 |
+| thanksgiving_room_command4(_off) | 초록 (green) | 토끼 |
 | thanksgiving_room_command5(_off) | 파랑 (blue) | 토끼 |
 | thanksgiving2024_room_command6(_off) | 보라 (purple) | 돼지 |
 | thanksgiving_room_command7(_off) | 분홍 (pink) | 토끼 |
-| thanksgiving_room_command8(_off) | 초록 (green) | 토끼 |
+| thanksgiving_room_command8(_off) | 민트 (mint) | 토끼 |
+
+> 원래 이 표는 command4=민트, command8=초록으로 적혀 있었으나 실제 배지 색을
+> 보면 반대(command4=초록 배지, command8=민트/틸 배지)라 정정함
+> (`client/src/game/colors.ts`의 `COLOR_TOKEN`도 같이 수정됨).
 
 `_off`가 없는 쪽은 대기(시퀀스 보드에 표시되는 기본 상태), `_off`가 눌림/처리 완료 상태.
 

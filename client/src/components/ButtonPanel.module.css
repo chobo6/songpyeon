@@ -1,10 +1,17 @@
+/* Two triangles side by side, matching the original game's layout:
+   left triangle (▲) = apex top, base bottom-left/bottom-right;
+   right triangle (▽, inverted) = base top-left/top-right, apex bottom.
+   A 4-column grid lets the apex slots span 2 columns and center over
+   their triangle's base pair. */
 .panel {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem 0.6rem;
-  padding: 0.5rem 1.25rem 1.25rem;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: auto auto;
+  row-gap: 0.6rem;
+  column-gap: 0.4rem;
+  padding: 0.5rem 1rem 1.25rem;
   width: 100%;
-  max-width: 18rem;
+  max-width: 20rem;
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -14,8 +21,9 @@
    button's own shape now follows the asset's natural ratio and the image
    is "contain"-fit instead of "cover"-cropped. */
 .button {
-  width: 100%;
+  width: 4.6rem;
   aspect-ratio: 140 / 160;
+  justify-self: center;
   border: none;
   background-color: transparent;
   background-size: contain;
@@ -41,10 +49,37 @@
 }
 
 .empty {
+  width: 2.6rem;
   aspect-ratio: 140 / 160;
-  align-self: center;
-  width: 55%;
-  margin: 0 auto;
+  justify-self: center;
   border-radius: 999px;
   border: 3px dashed rgba(255, 255, 255, 0.2);
+}
+
+/* left triangle (▲) */
+.topLeft {
+  grid-column: 1 / 3;
+  grid-row: 1;
+}
+.bottomLeft {
+  grid-column: 1 / 2;
+  grid-row: 2;
+}
+.bottomMid {
+  grid-column: 2 / 3;
+  grid-row: 2;
+}
+
+/* right triangle (▽, inverted) */
+.topMid {
+  grid-column: 3 / 4;
+  grid-row: 1;
+}
+.topRight {
+  grid-column: 4 / 5;
+  grid-row: 1;
+}
+.bottomRight {
+  grid-column: 3 / 5;
+  grid-row: 2;
 }

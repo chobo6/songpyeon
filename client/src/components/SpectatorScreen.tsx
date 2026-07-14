@@ -2,6 +2,7 @@ import type { Room } from "colyseus.js";
 import type { MatchState, TeamState } from "../game/matchTypes";
 import { SequenceBoard } from "./SequenceBoard";
 import { TeamStatusBar } from "./TeamStatusBar";
+import { TimerBar } from "./TimerBar";
 import styles from "./PlayingScreen.module.css";
 
 export function SpectatorScreen({
@@ -15,11 +16,12 @@ export function SpectatorScreen({
   eliminated: boolean;
   onLeave: () => void;
 }) {
-  const { sequence, cursor, round, teams } = room.state;
+  const { sequence, cursor, round, teams, turnEndsAt } = room.state;
 
   return (
     <div className={styles.wrap}>
       <p className={styles.round}>ROUND {round}</p>
+      <TimerBar turnEndsAt={turnEndsAt} />
       <TeamStatusBar teams={teams} activeTeamId={activeTeam.id} />
       {eliminated ? (
         <>
