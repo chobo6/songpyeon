@@ -1,5 +1,5 @@
 import type { Color } from "../game/colors";
-import { COLOR_HEX } from "../game/colors";
+import { COLOR_TOKEN } from "../game/colors";
 import styles from "./SequenceBoard.module.css";
 
 const TOKENS_PER_ROW = 6;
@@ -23,7 +23,11 @@ export function SequenceBoard({ sequence, cursor }: { sequence: Color[]; cursor:
           {row.map((color, i) => (
             <div key={i} className={styles.tokenWrap}>
               {rowIndex === 0 && i === 0 && <div className={styles.cursor} />}
-              <div className={styles.token} data-color={color} style={{ background: COLOR_HEX[color] }} />
+              <div
+                className={styles.token}
+                data-color={color}
+                style={{ backgroundImage: `url(${COLOR_TOKEN[color]})` }}
+              />
               {i < row.length - 1 && <div className={styles.link} />}
             </div>
           ))}
