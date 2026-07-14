@@ -45,7 +45,7 @@ function clearReconnectionToken() {
 // player was in the lobby (see server/src/rooms/MatchRoom.ts's onLeave,
 // which gives no reconnection grace during "lobby"), so the fallback path
 // is the common case there, not an error.
-async function connectToMatch<T>(): Promise<Room<T>> {
+async function connectToMatch<T>(nickname: string): Promise<Room<T>> {
   const savedToken = getSavedReconnectionToken();
   if (savedToken) {
     try {
@@ -57,14 +57,14 @@ async function connectToMatch<T>(): Promise<Room<T>> {
     }
   }
 
-  const room = await client.joinOrCreate<T>("match");
+  const room = await client.joinOrCreate<T>("match", { nickname });
   saveReconnectionToken(room.reconnectionToken);
   return room;
 }
 
-export function joinMatch<T>(): Promise<Room<T>> {
+export function joinMatch<T>(nickname: string): Promise<Room<T>> {
   if (!roomPromise) {
-    roomPromise = connectToMatch<T>() as Promise<Room<unknown>>;
+    roomPromise = connectToMatch<T>(nickname) as Promise<Room<unknown>>;
   }
   return roomPromise as Promise<Room<T>>;
 }

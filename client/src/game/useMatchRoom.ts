@@ -5,7 +5,7 @@ import type { MatchState } from "./matchTypes";
 
 export type ConnectionStatus = "connecting" | "connected" | "error";
 
-export function useMatchRoom() {
+export function useMatchRoom(nickname: string) {
   const [room, setRoom] = useState<Room<MatchState> | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [generation, setGeneration] = useState(0);
@@ -13,12 +13,9 @@ export function useMatchRoom() {
 
   useEffect(() => {
     let disposed = false;
-    // joinOrCreate() resolving only means the room handshake finished — the
-    // initial full state arrives via a separate patch shortly after, so we
-    // wait for the first onStateChange before trusting room.state is populated.
     let hasReceivedState = false;
 
-    joinMatch<MatchState>()
+    joinMatch<MatchState>(nickname)
       .then((joined) => {
         if (disposed) return;
         joined.onStateChange(() => {
@@ -39,6 +36,7 @@ export function useMatchRoom() {
     return () => {
       disposed = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generation]);
 
   async function leaveAndRejoin() {

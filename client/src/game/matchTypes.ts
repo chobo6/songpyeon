@@ -9,6 +9,7 @@ export type TurnOutcome = "pending" | "success" | "fail";
 
 export interface PlayerState {
   sessionId: string;
+  nickname: string;
   role: RoleChoice;
   teamId: string;
 }
