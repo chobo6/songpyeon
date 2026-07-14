@@ -11,7 +11,11 @@ export function Game({ room, onLeave }: { room: Room<MatchState>; onLeave: () =>
 
   const me = room.state.players.get(room.sessionId);
   const activeTeam = room.state.teams[room.state.activeTeamIndex];
-  const isMyTeamActive = me?.teamId === activeTeam?.id;
+  // activeTeam can itself be eliminated once every team has been wiped out
+  // (the server freezes turns at that point instead of ending the match) —
+  // that team's own players fall through to SpectatorScreen too, since
+  // there's no turn left for anyone to take.
+  const isMyTeamActive = me?.teamId === activeTeam?.id && !activeTeam?.eliminated;
 
   if (me && activeTeam && isMyTeamActive) {
     return <MyTurnScreen room={room} me={me} activeTeam={activeTeam} />;

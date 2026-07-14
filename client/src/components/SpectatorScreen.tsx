@@ -24,7 +24,9 @@ export function SpectatorScreen({
       {eliminated ? (
         <>
           <p className={styles.spectating}>
-            당신의 팀은 탈락했습니다. {activeTeam.id} 팀이 계속 플레이 중입니다.
+            {activeTeam.eliminated
+              ? "모든 팀이 탈락했습니다."
+              : `당신의 팀은 탈락했습니다. ${activeTeam.id} 팀이 계속 플레이 중입니다.`}
           </p>
           <button className={styles.leaveButton} onClick={onLeave}>
             나가기
