@@ -3,7 +3,7 @@ import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
 import styles from "./RoleSelect.module.css";
 
-export function RoleSelect({ room }: { room: Room<MatchState> }) {
+export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: () => void }) {
   const me = room.state.players.get(room.sessionId);
   const myRole = me?.role;
 
@@ -46,6 +46,9 @@ export function RoleSelect({ room }: { room: Room<MatchState> }) {
       <p className={styles.status}>
         돼지 {pigCount}/{teamCount} · 토끼 {rabbitCount}/{teamCount}
       </p>
+      <button className={styles.leaveButton} onClick={onExit}>
+        나가기
+      </button>
     </div>
   );
 }

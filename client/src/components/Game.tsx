@@ -4,10 +4,18 @@ import { RoleSelect } from "./RoleSelect";
 import { MyTurnScreen } from "./MyTurnScreen";
 import { SpectatorScreen } from "./SpectatorScreen";
 
-export function Game({ room, onLeave }: { room: Room<MatchState>; onLeave: () => void }) {
+export function Game({
+  room,
+  onLeave,
+  onExit,
+}: {
+  room: Room<MatchState>;
+  onLeave: () => void;
+  onExit: () => void;
+}) {
   const { phase } = room.state;
 
-  if (phase === "lobby") return <RoleSelect room={room} />;
+  if (phase === "lobby") return <RoleSelect room={room} onExit={onExit} />;
 
   const me = room.state.players.get(room.sessionId);
   const activeTeam = room.state.teams[room.state.activeTeamIndex];
