@@ -57,8 +57,11 @@ export function joinMatch<T>(): Promise<Room<T>> {
 export async function leaveMatch(): Promise<void> {
   const current = roomPromise;
   roomPromise = null;
-  clearReconnectionToken();
-  if (!current) return;
+  if (!current) {
+    clearReconnectionToken();
+    return;
+  }
   const room = await current;
   await room.leave();
+  clearReconnectionToken();
 }
