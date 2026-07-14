@@ -11,7 +11,7 @@ export function SoloRoleSelect({
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
-        <h1 className={styles.title}>혼자 연습</h1>
+        <h1 className={styles.title}>송편 만들기</h1>
       </div>
       <div className={styles.choices}>
         <button className={`${styles.roleButton} ${styles.pigButton}`} onClick={() => onChoose("pig")}>

@@ -47,7 +47,6 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
         {teams.map((team) => (
           <div key={team.id} className={styles.rosterTeam}>
             <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
-            <span className={styles.rosterSep}>·</span>
             <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
           </div>
         ))}

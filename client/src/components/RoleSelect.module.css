@@ -76,8 +76,9 @@
 
 .roster {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  flex-direction: row;
+  justify-content: center;
+  gap: 2.5rem;
   opacity: 0.85;
   font-size: 0.9rem;
   padding-bottom: 2rem;
@@ -85,16 +86,13 @@
 
 .rosterTeam {
   display: flex;
-  justify-content: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .rosterName {
   min-width: 3.5rem;
-}
-
-.rosterSep {
-  opacity: 0.5;
 }
 
 .leaveButton {

@@ -17,8 +17,7 @@ export function NicknameEntry({ onSubmit }: { onSubmit: (nickname: string) => vo
 
   return (
     <form className={styles.wrap} onSubmit={handleSubmit}>
-      <h1 className={styles.title}>송편 만들기</h1>
-      <p className={styles.hint}>이번 판에서 쓸 닉네임을 입력하세요</p>
+      <p className={styles.hint}>닉네임을 입력하세요</p>
       <input
         className={styles.input}
         value={value}
