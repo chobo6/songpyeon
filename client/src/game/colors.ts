@@ -14,16 +14,21 @@ export const COLOR_HEX: Record<Color, string> = {
 
 // Illustrated per-color button tokens lifted from the original game's asset
 // pack (see client/public/game-assets/README.md) — used by both ButtonPanel
-// and SequenceBoard.
+// and SequenceBoard. Uses the "_unpressed" variant: the base (no-suffix)
+// command1/2/3/6 art (pig colors) each have a small gray connector tab
+// jutting past the circle's right edge, meant to tuck behind the next
+// button in the original app's tightly packed row — our layout doesn't
+// replicate that overlap so the tab shows floating loose. "_unpressed" is
+// higher-contrast and doesn't have that tab, for all 8 colors.
 export const COLOR_TOKEN: Record<Color, string> = {
-  red: "/game-assets/tokens/thanksgiving2024_room_command1.webp",
-  orange: "/game-assets/tokens/thanksgiving2024_room_command2.webp",
-  yellow: "/game-assets/tokens/thanksgiving2024_room_command3.webp",
-  purple: "/game-assets/tokens/thanksgiving2024_room_command6.webp",
-  mint: "/game-assets/tokens/thanksgiving_room_command8.webp",
-  blue: "/game-assets/tokens/thanksgiving_room_command5.webp",
-  pink: "/game-assets/tokens/thanksgiving_room_command7.webp",
-  green: "/game-assets/tokens/thanksgiving_room_command4.webp",
+  red: "/game-assets/tokens/thanksgiving2024_room_command1_unpressed.webp",
+  orange: "/game-assets/tokens/thanksgiving2024_room_command2_unpressed.webp",
+  yellow: "/game-assets/tokens/thanksgiving2024_room_command3_unpressed.webp",
+  purple: "/game-assets/tokens/thanksgiving2024_room_command6_unpressed.webp",
+  mint: "/game-assets/tokens/thanksgiving_room_command8_unpressed.webp",
+  blue: "/game-assets/tokens/thanksgiving_room_command5_unpressed.webp",
+  pink: "/game-assets/tokens/thanksgiving_room_command7_unpressed.webp",
+  green: "/game-assets/tokens/thanksgiving_room_command4_unpressed.webp",
 };
 
 // "_off" variant — shown on SequenceBoard once a token has been correctly

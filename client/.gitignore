@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Decompiled from 연습.apk (see public/game-assets/README.md) — kept locally,
+# not tracked in git.
+public/game-assets/

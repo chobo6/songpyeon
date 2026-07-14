@@ -18,7 +18,6 @@ export function MyTurnScreen({
   activeTeam: TeamState;
 }) {
   const { sequence, cursor, turnOutcome, round, teams, turnEndsAt } = room.state;
-  const dueColor = cursor < sequence.length ? (sequence[cursor] as Color) : undefined;
   const disabled = turnOutcome !== "pending";
 
   function press(color: Color) {
@@ -35,7 +34,7 @@ export function MyTurnScreen({
         <SequenceBoard sequence={sequence} cursor={cursor} />
         <TurnOutcomeBanner outcome={turnOutcome} />
       </div>
-      <ButtonPanel role={me.role as "pig" | "rabbit"} dueColor={dueColor} disabled={disabled} onPress={press} />
+      <ButtonPanel role={me.role as "pig" | "rabbit"} disabled={disabled} onPress={press} />
     </div>
   );
 }

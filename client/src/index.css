@@ -71,6 +71,14 @@ body {
   background: #0d0e24;
 }
 
+/* Mobile browsers (esp. Android Chrome) flash a solid color over tapped
+   elements by default until the tap resolves — distinct from any CSS
+   :active style we set ourselves. Off everywhere since this is a touch-
+   first game where every button gets tapped constantly. */
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 h1,
 h2 {
   font-family: var(--heading);
