@@ -56,16 +56,29 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   async onLeave(client: Client, consented: boolean) {
-    if (consented) {
-      this.state.players.delete(client.sessionId);
-      return;
+    if (this.state.phase === "playing" && !consented) {
+      try {
+        await this.allowReconnection(client, RECONNECTION_GRACE_SECONDS);
+        return;
+      } catch {
+        // grace period expired without a reconnect — fall through to removal.
+      }
     }
 
-    try {
-      await this.allowReconnection(client, RECONNECTION_GRACE_SECONDS);
-    } catch {
-      this.state.players.delete(client.sessionId);
+    this.removePlayer(client.sessionId);
+  }
+
+  private removePlayer(sessionId: string) {
+    const player = this.state.players.get(sessionId);
+    if (!player) return;
+
+    if (player.role !== "") {
+      const team = this.state.teams.find((t) => t.id === player.teamId);
+      if (team?.pigSessionId === sessionId) team.pigSessionId = "";
+      if (team?.rabbitSessionId === sessionId) team.rabbitSessionId = "";
     }
+
+    this.state.players.delete(sessionId);
   }
 
   private handleChooseRole(client: Client, role: "pig" | "rabbit") {

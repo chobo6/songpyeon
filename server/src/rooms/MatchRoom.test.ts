@@ -157,6 +157,39 @@ describe("MatchRoom", () => {
     expect(room.state.cursor).toBe(1);
   });
 
+  test("a dropped connection during the lobby is removed immediately, freeing the role slot", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room);
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+
+    const sessionId = client.sessionId;
+    expect(room.state.players.has(sessionId)).toBe(true);
+    expect(room.state.teams[0].pigSessionId).toBe(sessionId);
+
+    await client.leave(false); // simulated drop, not a deliberate leave
+    await flush();
+
+    expect(room.state.phase).toBe("lobby");
+    expect(room.state.players.has(sessionId)).toBe(false);
+    expect(room.state.teams[0].pigSessionId).toBe("");
+  });
+
+  test("leaving the lobby deliberately after choosing a role frees that role slot immediately", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room);
+    client.send("chooseRole", { role: "rabbit" });
+    await flush();
+
+    expect(room.state.teams[0].rabbitSessionId).toBe(client.sessionId);
+
+    await client.leave(); // deliberate leave (the new back button), not a drop
+    await flush();
+
+    expect(room.state.players.has(client.sessionId)).toBe(false);
+    expect(room.state.teams[0].rabbitSessionId).toBe("");
+  });
+
   test(
     "the surviving team keeps receiving turns after the other team is eliminated",
     { timeout: 20000 },
