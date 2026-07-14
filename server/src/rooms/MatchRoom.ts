@@ -26,6 +26,17 @@ export class MatchRoom extends Room<MatchState> {
   onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
 
+    // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
+    // advancing, turnOutcome, a new turn starting) only reach clients on
+    // this tick, not the instant they happen server-side. This game is
+    // reflex-timing-sensitive (buttons disable/enable based on turnOutcome),
+    // so a slow patch rate directly costs input responsiveness: a press
+    // timed right at a turn boundary can land while the client is still
+    // showing the previous turn's disabled button, silently dropping the
+    // click. Small state (4 players, ~24-token sequence), 4 clients per
+    // room — the bandwidth/CPU cost of a much faster tick is negligible.
+    this.patchRate = 16;
+
     const state = new MatchState();
     for (let i = 0; i < TEAM_COUNT; i++) {
       const team = new TeamState();
