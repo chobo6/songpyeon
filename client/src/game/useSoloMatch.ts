@@ -18,11 +18,13 @@ export function useSoloMatch(role: Role) {
   const roundRef = useRef(1);
   const turnDecidedRef = useRef(false);
   const turnTokenRef = useRef(0);
+  const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function scheduleExpiry() {
+    if (timeoutIdRef.current !== null) clearTimeout(timeoutIdRef.current);
     turnTokenRef.current += 1;
     const token = turnTokenRef.current;
-    setTimeout(() => {
+    timeoutIdRef.current = setTimeout(() => {
       if (token === turnTokenRef.current) onTimerExpired();
     }, TURN_DURATION_MS);
   }
@@ -53,6 +55,9 @@ export function useSoloMatch(role: Role) {
     // useState initializers above) — startTurn() itself arms the timer for
     // every subsequent round.
     scheduleExpiry();
+    return () => {
+      if (timeoutIdRef.current !== null) clearTimeout(timeoutIdRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
