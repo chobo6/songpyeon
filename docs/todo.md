@@ -4,7 +4,6 @@
 
 ## 다음에 먼저 볼 것
 
-- [ ] **양 팀 동시 탈락 시 탈출구 없음**: `docs/superpowers/specs/2026-07-14-elimination-continue-design.md` 구현 중(2026-07-14) 발견. 한 팀만 탈락하면 정상 동작하지만, 두 팀이 동시에 탈락하면 `activeTeamIndex`가 탈락한 팀에 멈춰있는 채로 그 팀 플레이어들이 `Game.tsx`에서 여전히 `isMyTeamActive`로 판정되어 `MyTurnScreen`(나가기 버튼 없음, 입력도 막힘)에 갇힘. 새로고침으로만 복구 가능. 최종 리뷰에서 "머지 막을 정도는 아니지만 빠르게 후속 조치할 것" 권고. 고치는 법: `Game.tsx`에서 `isMyTeamActive && !myTeam.eliminated`일 때만 `MyTurnScreen`으로 보내고, 나머지는 `SpectatorScreen`으로 폴백 + "아무도 플레이 중이 아님" 문구 분기 추가.
 - [ ] **매치메이킹/방 코드**: 지금은 모든 클라이언트가 `joinOrCreate("match")`로 아무 방에나 quick-join함. "친구 4명이 같은 방에 들어가기"가 안 되는 구조라, 실제로 여러 명이 같이 하려면 방 코드 생성/공유 또는 룸 리스트 UI가 필요함.
 
 ## 확인 필요 (명세 확정 대기)
