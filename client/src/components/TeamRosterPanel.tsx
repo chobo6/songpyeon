@@ -2,6 +2,9 @@ import type { PlayerState, TeamState } from "../game/matchTypes";
 import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./TeamRosterPanel.module.css";
 
+// Mirrors server/src/game/mortar.ts's STARTING_MORTARS — client and server
+// are separate npm workspaces with no shared-types package, kept in sync by
+// hand (see client/src/game/matchTypes.ts for the same pattern).
 const MAX_MORTARS = 5;
 
 function Seat({
