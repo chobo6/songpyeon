@@ -1,0 +1,61 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+}
+
+.header {
+  width: 100%;
+  background-image: url("/game-assets/ui/thanksgiving_room_header.webp");
+  background-size: cover;
+  background-position: center;
+  padding: 2.5rem 1rem 1.75rem;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 235, 180, 0.55);
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  width: 100%;
+  max-width: 18rem;
+  box-sizing: border-box;
+}
+
+.modeButton {
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f2994a, #e5484d);
+  transition: transform 0.15s ease;
+}
+
+.modeButton:hover {
+  transform: translateY(-2px);
+}
+
+.modeButton:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.offline {
+  background: linear-gradient(135deg, #2ec4b6, #3b82f6);
+}

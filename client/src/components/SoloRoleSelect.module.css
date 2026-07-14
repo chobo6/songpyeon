@@ -1,0 +1,84 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+}
+
+.header {
+  width: 100%;
+  background-image: url("/game-assets/ui/thanksgiving_room_header.webp");
+  background-size: cover;
+  background-position: center;
+  padding: 2.5rem 1rem 1.75rem;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 235, 180, 0.55);
+}
+
+.choices {
+  display: flex;
+  gap: 2.5rem;
+  padding: 1rem;
+}
+
+.roleButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0.5rem;
+  transition: transform 0.15s ease;
+}
+
+.roleButton:hover {
+  transform: translateY(-4px);
+}
+
+.roleButton:active {
+  transform: translateY(-1px) scale(0.97);
+}
+
+.roleIcon {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+}
+
+.pigButton .roleIcon {
+  filter: drop-shadow(0 0 14px rgba(242, 153, 74, 0.65));
+}
+
+.rabbitButton .roleIcon {
+  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.65));
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: #fff;
+  opacity: 0.75;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding-bottom: 2rem;
+}
+
+.backLink:hover {
+  opacity: 1;
+}
