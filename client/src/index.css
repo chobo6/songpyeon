@@ -59,7 +59,11 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background: linear-gradient(180deg, #1a1b3a 0%, #0d0e24 100%);
+  background-color: #0d0e24;
+  background-image: url("/game-assets/ui/thanksgiving_room_bg.webp");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
 }
 
 body {

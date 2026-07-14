@@ -28,6 +28,12 @@
 .gauge {
   position: absolute;
   inset: 0;
+  /* The gauge art itself is a near-transparent highlight (its palette tops
+     out around 36% alpha) — meant to sit on a solid fill, not stand alone.
+     Without a backing color it's invisible against the dark track, which
+     made the shrink motion imperceptible even though it was animating
+     correctly. The color carries the visible fill; the art adds sheen. */
+  background-color: #f2c94c;
   background-image: url("/game-assets/ui/thanksgiving_room_time_gauge.png");
   background-size: 100% 100%;
   transform-origin: left center;
