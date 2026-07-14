@@ -19,6 +19,15 @@ export function useSoloMatch(role: Role) {
   const turnDecidedRef = useRef(false);
   const turnTokenRef = useRef(0);
   const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // press() must judge against the true current sequence/cursor even when a
+  // second press fires before React has re-rendered from the first (e.g.
+  // two taps landing in the same event-loop turn) — reading the `sequence`/
+  // `cursor` state closures directly can still see the pre-press values in
+  // that window, misjudging an objectively-correct second press as wrong.
+  // Refs stay synchronously accurate across rapid calls the same way
+  // turnDecidedRef already does above.
+  const sequenceRef = useRef(sequence);
+  const cursorRef = useRef(cursor);
 
   function scheduleExpiry() {
     if (timeoutIdRef.current !== null) clearTimeout(timeoutIdRef.current);
@@ -32,7 +41,10 @@ export function useSoloMatch(role: Role) {
   function startTurn(nextRound: number) {
     roundRef.current = nextRound;
     setRound(nextRound);
-    setSequence(generateSoloSequence(sequenceLengthForRound(nextRound), Math.random, role));
+    const nextSequence = generateSoloSequence(sequenceLengthForRound(nextRound), Math.random, role);
+    sequenceRef.current = nextSequence;
+    cursorRef.current = 0;
+    setSequence(nextSequence);
     setCursor(0);
     setTurnOutcome("pending");
     setTurnEndsAt(Date.now() + TURN_DURATION_MS);
@@ -64,7 +76,7 @@ export function useSoloMatch(role: Role) {
   function press(color: Color) {
     if (turnDecidedRef.current) return;
 
-    const result = attemptSoloPress(sequence, cursor, color);
+    const result = attemptSoloPress(sequenceRef.current, cursorRef.current, color);
     if (!result.correct) {
       turnDecidedRef.current = true;
       setTurnOutcome("fail");
@@ -74,6 +86,7 @@ export function useSoloMatch(role: Role) {
       return;
     }
 
+    cursorRef.current = result.nextCursor;
     setCursor(result.nextCursor);
     if (result.complete) {
       turnDecidedRef.current = true;
