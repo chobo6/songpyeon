@@ -1,23 +1,14 @@
 import type { Room } from "colyseus.js";
-import type { MatchState, PlayerState, TeamState } from "../game/matchTypes";
+import type { MatchState, PlayerState } from "../game/matchTypes";
 import type { Color } from "../game/colors";
 import { SequenceBoard } from "./SequenceBoard";
 import { ButtonPanel } from "./ButtonPanel";
 import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
-import { TeamStatusBar } from "./TeamStatusBar";
 import { TimerBar } from "./TimerBar";
 import styles from "./PlayingScreen.module.css";
 
-export function MyTurnScreen({
-  room,
-  me,
-  activeTeam,
-}: {
-  room: Room<MatchState>;
-  me: PlayerState;
-  activeTeam: TeamState;
-}) {
-  const { sequence, cursor, turnOutcome, round, teams, turnEndsAt } = room.state;
+export function MyTurnScreen({ room, me }: { room: Room<MatchState>; me: PlayerState }) {
+  const { sequence, cursor, turnOutcome, round, turnEndsAt } = room.state;
   const disabled = turnOutcome !== "pending";
 
   function press(color: Color) {
@@ -28,7 +19,6 @@ export function MyTurnScreen({
     <div className={styles.wrap}>
       <p className={styles.round}>ROUND {round}</p>
       <TimerBar turnEndsAt={turnEndsAt} />
-      <TeamStatusBar teams={teams} activeTeamId={activeTeam.id} />
       <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
       <div className={styles.boardArea}>
         <SequenceBoard sequence={sequence} cursor={cursor} />

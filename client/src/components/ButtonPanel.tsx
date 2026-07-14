@@ -2,6 +2,7 @@ import { useRef } from "react";
 import type { Color, Role } from "../game/colors";
 import { COLOR_TOKEN } from "../game/colors";
 import { SLOT_ORDER, buttonPanelSlots } from "../game/buttonPanel";
+import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./ButtonPanel.module.css";
 
 // How long after a touch's pointerdown fires that we still trust a
@@ -60,7 +61,7 @@ export function ButtonPanel({
   }
 
   return (
-    <div className={styles.panelBg}>
+    <div className={panelBg.panelBg}>
       <div className={styles.panel}>
         {SLOT_ORDER.map((position) => {
           const color = slots[position];

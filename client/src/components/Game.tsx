@@ -26,7 +26,7 @@ export function Game({
   const isMyTeamActive = me?.teamId === activeTeam?.id && !activeTeam?.eliminated;
 
   if (me && activeTeam && isMyTeamActive) {
-    return <MyTurnScreen room={room} me={me} activeTeam={activeTeam} />;
+    return <MyTurnScreen room={room} me={me} />;
   }
   if (activeTeam) {
     const myTeam = room.state.teams.find((t) => t.id === me?.teamId);

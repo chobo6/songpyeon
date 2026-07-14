@@ -1,0 +1,52 @@
+.roster {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.seatIcon {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 999px;
+}
+
+.seatName {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  max-width: 5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mortars {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.heart {
+  width: 0.85rem;
+  aspect-ratio: 54 / 70;
+}
+
+.eliminated {
+  font-size: 0.85rem;
+  color: #fff;
+  opacity: 0.6;
+  text-decoration: line-through;
+}

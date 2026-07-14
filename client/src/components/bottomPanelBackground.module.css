@@ -1,0 +1,20 @@
+/* The original app's game.xml lays a full-width "container" panel across
+   the bottom of the screen (ImageView, match_parent, scaleType fitXY),
+   capped by a "container_top" strip where it meets the sequence board
+   above — not a box hugging just the buttons. This wrapper reproduces that:
+   full-bleed background, with content centered on top of it. Shared by
+   ButtonPanel (my turn) and TeamRosterPanel (spectating), which swap in the
+   same screen position so the background must not visibly change between
+   them. */
+.panelBg {
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 1.75rem 1rem 1.5rem;
+  box-sizing: border-box;
+  background-image:
+    url("/game-assets/ui/thanksgiving_room_container_top.webp"),
+    url("/game-assets/ui/thanksgiving_room_container.png");
+  background-position: top center, top center;
+  background-size: 100% auto, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+}
