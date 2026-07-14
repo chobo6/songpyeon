@@ -81,6 +81,15 @@ describe("MatchRoom", () => {
     expect(room.state.round).toBe(1);
   });
 
+  test("onJoin stores a sanitized nickname from join options", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const clean = await colyseus.connectTo(room, { nickname: "  둘리  " });
+    const dirty = await colyseus.connectTo(room, { nickname: 12345 });
+
+    expect(room.state.players.get(clean.sessionId)?.nickname).toBe("둘리");
+    expect(room.state.players.get(dirty.sessionId)?.nickname).toBe("플레이어");
+  });
+
   test("the correct button advances the cursor", async () => {
     const { room, clients } = await fillRolesAndStart();
     const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);

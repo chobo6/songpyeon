@@ -6,6 +6,7 @@ import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated } from "../game/mortar";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
+import { sanitizeNickname } from "../game/nickname";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
 const RECONNECTION_GRACE_SECONDS = 60;
@@ -54,7 +55,7 @@ export class MatchRoom extends Room<MatchState> {
     });
   }
 
-  onJoin(client: Client) {
+  onJoin(client: Client, options: { nickname?: unknown } = {}) {
     if (this.state.players.has(client.sessionId)) return;
 
     if (this.state.phase !== "lobby") {
@@ -63,6 +64,7 @@ export class MatchRoom extends Room<MatchState> {
 
     const player = new PlayerState();
     player.sessionId = client.sessionId;
+    player.nickname = sanitizeNickname(options.nickname);
     this.state.players.set(client.sessionId, player);
   }
 

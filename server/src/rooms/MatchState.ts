@@ -7,6 +7,7 @@ export type TurnOutcome = "pending" | "success" | "fail";
 
 export class PlayerState extends Schema {
   @type("string") sessionId: string = "";
+  @type("string") nickname: string = "";
   @type("string") role: RoleChoice = "";
   @type("string") teamId: string = "";
 }
