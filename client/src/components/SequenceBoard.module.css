@@ -1,9 +1,24 @@
-.board {
+.viewport {
+  --token-width: 2.1rem;
+  --token-height: calc(var(--token-width) * 160 / 140);
+  --row-gap: 0.75rem;
+  --row-step: calc(var(--token-height) + var(--row-gap));
+
+  overflow: hidden;
+  /* Always shows exactly 3 rows worth of height — later rounds add more
+     rows below and the stack scrolls up through them one row at a time. */
+  height: calc(var(--token-height) * 3 + var(--row-gap) * 2);
+  padding: 1rem;
+  box-sizing: content-box;
+  display: flex;
+  justify-content: center;
+}
+
+.stack {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 1rem;
+  gap: var(--row-gap);
+  transition: transform 0.3s ease;
 }
 
 .row {
@@ -20,12 +35,17 @@
 /* Token art is 140x160 (see client/public/game-assets/README.md) — keep
    its natural ratio instead of forcing a square crop. */
 .token {
-  width: 2.1rem;
+  width: var(--token-width);
   aspect-ratio: 140 / 160;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center bottom;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  transition: opacity 0.15s ease;
+}
+
+.done {
+  opacity: 0.55;
 }
 
 .link {

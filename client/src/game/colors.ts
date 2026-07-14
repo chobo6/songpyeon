@@ -25,3 +25,16 @@ export const COLOR_TOKEN: Record<Color, string> = {
   pink: "/game-assets/tokens/thanksgiving_room_command7.webp",
   green: "/game-assets/tokens/thanksgiving_room_command4.webp",
 };
+
+// "_off" variant — shown on SequenceBoard once a token has been correctly
+// pressed (see client/public/game-assets/README.md).
+export const COLOR_TOKEN_OFF: Record<Color, string> = {
+  red: "/game-assets/tokens/thanksgiving2024_room_command1_off.webp",
+  orange: "/game-assets/tokens/thanksgiving2024_room_command2_off.webp",
+  yellow: "/game-assets/tokens/thanksgiving2024_room_command3_off.webp",
+  purple: "/game-assets/tokens/thanksgiving2024_room_command6_off.webp",
+  mint: "/game-assets/tokens/thanksgiving_room_command8_off.webp",
+  blue: "/game-assets/tokens/thanksgiving_room_command5_off.webp",
+  pink: "/game-assets/tokens/thanksgiving_room_command7_off.webp",
+  green: "/game-assets/tokens/thanksgiving_room_command4_off.webp",
+};
