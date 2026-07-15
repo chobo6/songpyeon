@@ -4,6 +4,7 @@ import { SequenceBoard } from "./SequenceBoard";
 import { ButtonPanel } from "./ButtonPanel";
 import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
 import { TimerBar } from "./TimerBar";
+import { BgmPlayer } from "./BgmPlayer";
 import styles from "./PlayingScreen.module.css";
 
 export function SoloPlayScreen({ role, onExit }: { role: Role; onExit: () => void }) {
@@ -12,6 +13,7 @@ export function SoloPlayScreen({ role, onExit }: { role: Role; onExit: () => voi
 
   return (
     <div className={styles.wrap}>
+      <BgmPlayer />
       <p className={styles.round}>ROUND {round}</p>
       <TimerBar turnEndsAt={turnEndsAt} />
       <button className={styles.leaveButton} onClick={onExit}>
