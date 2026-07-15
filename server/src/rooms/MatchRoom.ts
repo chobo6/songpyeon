@@ -14,6 +14,7 @@ const TEAM_COUNT = 2;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
+  nickname?: unknown;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -26,6 +27,7 @@ export class MatchRoom extends Room<MatchState> {
 
   onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
+    this.setMetadata({ hostNickname: sanitizeNickname(options.nickname) });
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -69,7 +71,7 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   async onLeave(client: Client, consented: boolean) {
-    if (this.state.phase === "playing" && !consented) {
+    if (!consented) {
       try {
         await this.allowReconnection(client, RECONNECTION_GRACE_SECONDS);
         return;

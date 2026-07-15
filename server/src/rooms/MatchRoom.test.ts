@@ -90,6 +90,12 @@ describe("MatchRoom", () => {
     expect(room.state.players.get(dirty.sessionId)?.nickname).toBe("플레이어");
   });
 
+  test("onCreate stores a sanitized host nickname in room metadata, for the room list", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { nickname: "  방장  " });
+
+    expect(room.metadata?.hostNickname).toBe("방장");
+  });
+
   test("the correct button advances the cursor", async () => {
     const { room, clients } = await fillRolesAndStart();
     const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
@@ -166,9 +172,10 @@ describe("MatchRoom", () => {
     expect(room.state.cursor).toBe(1);
   });
 
-  test("a dropped connection during the lobby is removed immediately, freeing the role slot", async () => {
+  test("a dropped connection during the lobby keeps the role slot, and reconnecting restores it", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
     const client = await colyseus.connectTo(room);
+    const reconnectionToken = client.reconnectionToken;
     client.send("chooseRole", { role: "pig" });
     await flush();
 
@@ -179,9 +186,16 @@ describe("MatchRoom", () => {
     await client.leave(false); // simulated drop, not a deliberate leave
     await flush();
 
+    // mobile networks drop briefly (wifi/LTE handoff, screen off) — the lobby
+    // now grants the same reconnection grace as mid-match, so the role slot
+    // must survive the drop instead of vanishing from other players' rosters.
     expect(room.state.phase).toBe("lobby");
-    expect(room.state.players.has(sessionId)).toBe(false);
-    expect(room.state.teams[0].pigSessionId).toBe("");
+    expect(room.state.players.has(sessionId)).toBe(true);
+    expect(room.state.teams[0].pigSessionId).toBe(sessionId);
+
+    const reconnectedClient = await colyseus.sdk.reconnect<MatchState>(reconnectionToken);
+    expect(reconnectedClient.sessionId).toBe(sessionId);
+    expect(room.state.teams[0].pigSessionId).toBe(sessionId);
   });
 
   test("leaving the lobby deliberately after choosing a role frees that role slot immediately", async () => {
