@@ -9,6 +9,29 @@ const RECONNECTION_TOKEN_KEY = "songpyeon:reconnectionToken";
 
 export const client = new Client(endpoint);
 
+// /api/rooms is a plain HTTP route (see server/src/createServer.ts), not part
+// of the colyseus.js Client — this Colyseus version has no
+// client.getAvailableRooms(). Reuse `endpoint`'s host (it always points at
+// the same server, dev or prod) and just swap the protocol.
+const apiBase = endpoint.replace(/^ws/, "http");
+
+export interface RoomListEntry {
+  roomId: string;
+  clients: number;
+  maxClients: number;
+  locked: boolean;
+  hostNickname: string;
+}
+
+export async function listRooms(): Promise<RoomListEntry[]> {
+  const res = await fetch(`${apiBase}/api/rooms`);
+  return res.json();
+}
+
+export type JoinSpec =
+  | { type: "create"; nickname: string }
+  | { type: "joinById"; roomId: string; nickname: string };
+
 // Cached at module scope (not component/ref scope) so React StrictMode's
 // dev-only double-invoke of effects (mount -> cleanup -> mount) reuses the
 // same in-flight/resolved join instead of opening a second real connection
@@ -43,13 +66,12 @@ function clearReconnectionToken() {
   }
 }
 
-// Tries to resume the previous session (survives a page refresh mid-match)
-// before falling back to normal matchmaking. A saved token can fail to
-// redeem (grace period expired, room gone) — that's expected whenever the
-// player was in the lobby (see server/src/rooms/MatchRoom.ts's onLeave,
-// which gives no reconnection grace during "lobby"), so the fallback path
-// is the common case there, not an error.
-async function connectToMatch<T>(nickname: string): Promise<Room<T>> {
+// Tries to resume the previous session (survives a page refresh mid-match or
+// mid-lobby-wait — see MatchRoom.ts's onLeave, which now grants the same
+// reconnection grace in the lobby as during play) before falling back to the
+// requested join spec. A saved token can still fail to redeem (grace period
+// expired, room gone) — that's expected, not an error.
+async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   const savedToken = getSavedReconnectionToken();
   if (savedToken) {
     try {
@@ -61,14 +83,17 @@ async function connectToMatch<T>(nickname: string): Promise<Room<T>> {
     }
   }
 
-  const room = await client.joinOrCreate<T>("match", { nickname });
+  const room =
+    spec.type === "create"
+      ? await client.create<T>("match", { nickname: spec.nickname })
+      : await client.joinById<T>(spec.roomId, { nickname: spec.nickname });
   saveReconnectionToken(room.reconnectionToken);
   return room;
 }
 
-export function joinMatch<T>(nickname: string): Promise<Room<T>> {
+export function joinMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   if (!roomPromise) {
-    roomPromise = connectToMatch<T>(nickname) as Promise<Room<unknown>>;
+    roomPromise = connectToMatch<T>(spec) as Promise<Room<unknown>>;
   }
   return roomPromise as Promise<Room<T>>;
 }

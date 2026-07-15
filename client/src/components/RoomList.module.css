@@ -1,0 +1,87 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.createButton {
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f2994a, #e5484d);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 20rem;
+}
+
+.empty {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cardName {
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.joinButton {
+  padding: 0.4rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  white-space: nowrap;
+}
+
+.joinButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: #4b5563;
+}
+
+.exitButton {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6b7280, #374151);
+}

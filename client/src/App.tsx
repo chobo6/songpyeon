@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
+import type { JoinSpec } from "./colyseus";
 import { Game } from "./components/Game";
 import { ModeSelect } from "./components/ModeSelect";
 import { NicknameEntry } from "./components/NicknameEntry";
+import { RoomList } from "./components/RoomList";
 import { SoloRoleSelect } from "./components/SoloRoleSelect";
 import { SoloPlayScreen } from "./components/SoloPlayScreen";
 import type { Role } from "./game/colors";
@@ -10,8 +12,8 @@ import "./App.css";
 
 type Mode = "select" | "online" | "offline";
 
-function ConnectedOnlineFlow({ nickname, onExit }: { nickname: string; onExit: () => void }) {
-  const { room, status, leaveAndRejoin, cancelAndExit } = useMatchRoom(nickname);
+function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit: () => void }) {
+  const { room, status, cancelAndExit } = useMatchRoom(joinSpec);
 
   async function handleExit() {
     await cancelAndExit();
@@ -28,17 +30,31 @@ function ConnectedOnlineFlow({ nickname, onExit }: { nickname: string; onExit: (
     );
   }
 
-  return <Game room={room} onLeave={leaveAndRejoin} onExit={handleExit} />;
+  // Both the lobby's "나가기" and the spectator's "나가기" return to the room
+  // list (not out of online mode entirely) — picking a different room is the
+  // whole point of the list, so there's no separate "rejoin same room" path.
+  return <Game room={room} onLeave={handleExit} onExit={handleExit} />;
 }
 
 function OnlineFlow({ onExit }: { onExit: () => void }) {
   const [nickname, setNickname] = useState<string | null>(null);
+  const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(null);
 
   if (!nickname) {
     return <NicknameEntry onSubmit={setNickname} />;
   }
 
-  return <ConnectedOnlineFlow nickname={nickname} onExit={onExit} />;
+  if (!joinSpec) {
+    return (
+      <RoomList
+        onCreateRoom={() => setJoinSpec({ type: "create", nickname })}
+        onJoinRoom={(roomId) => setJoinSpec({ type: "joinById", roomId, nickname })}
+        onExit={onExit}
+      />
+    );
+  }
+
+  return <ConnectedOnlineFlow joinSpec={joinSpec} onExit={() => setJoinSpec(null)} />;
 }
 
 function OfflineFlow({ onExit }: { onExit: () => void }) {
