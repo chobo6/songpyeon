@@ -198,6 +198,36 @@ describe("MatchRoom", () => {
     expect(room.state.teams[0].pigSessionId).toBe(sessionId);
   });
 
+  test("starting the game locks maxClients at 4 even if a role-holder is mid-grace (not actually connected) at that moment", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const pig1 = await colyseus.connectTo(room);
+    pig1.send("chooseRole", { role: "pig" });
+    await flush();
+    const rabbit1 = await colyseus.connectTo(room);
+    rabbit1.send("chooseRole", { role: "rabbit" });
+    await flush();
+    const pig2 = await colyseus.connectTo(room);
+    pig2.send("chooseRole", { role: "pig" });
+    await flush();
+
+    // pig1's role slot survives the drop (lobby reconnection grace), but
+    // pig1 is no longer in room.clients — only 3 real connections remain
+    // when the 4th role gets filled below.
+    await pig1.leave(false);
+    await flush();
+
+    const rabbit2 = await colyseus.connectTo(room);
+    rabbit2.send("chooseRole", { role: "rabbit" });
+    await flush();
+
+    expect(room.state.phase).toBe("playing");
+    // Bug regression: maxClients must stay the fixed team size (4), not
+    // whatever room.clients.length happened to be at start time — that
+    // count is now unreliable once lobby grace can leave a filled role slot
+    // held by a currently-disconnected sessionId.
+    expect(room.maxClients).toBe(4);
+  });
+
   test("leaving the lobby deliberately after choosing a role frees that role slot immediately", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
     const client = await colyseus.connectTo(room);
