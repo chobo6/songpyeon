@@ -3,6 +3,7 @@ import type { MatchState } from "../game/matchTypes";
 import { RoleSelect } from "./RoleSelect";
 import { MyTurnScreen } from "./MyTurnScreen";
 import { SpectatorScreen } from "./SpectatorScreen";
+import { BgmPlayer } from "./BgmPlayer";
 
 export function Game({
   room,
@@ -25,12 +26,12 @@ export function Game({
   // there's no turn left for anyone to take.
   const isMyTeamActive = me?.teamId === activeTeam?.id && !activeTeam?.eliminated;
 
+  let screen = null;
   if (me && activeTeam && isMyTeamActive) {
-    return <MyTurnScreen room={room} me={me} />;
-  }
-  if (activeTeam) {
+    screen = <MyTurnScreen room={room} me={me} />;
+  } else if (activeTeam) {
     const myTeam = room.state.teams.find((t) => t.id === me?.teamId);
-    return (
+    screen = (
       <SpectatorScreen
         room={room}
         activeTeam={activeTeam}
@@ -39,5 +40,15 @@ export function Game({
       />
     );
   }
-  return null;
+
+  // BgmPlayer stays at this fixed position in the tree across every
+  // MyTurnScreen <-> SpectatorScreen switch (every turn), so React never
+  // remounts it while phase stays "playing" — that's what keeps the BGM
+  // from restarting each turn.
+  return (
+    <>
+      <BgmPlayer />
+      {screen}
+    </>
+  );
 }
