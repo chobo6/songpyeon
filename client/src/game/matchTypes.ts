@@ -22,6 +22,12 @@ export interface TeamState {
   eliminated: boolean;
 }
 
+export interface ChatMessage {
+  nickname: string;
+  text: string;
+  sentAt: number;
+}
+
 export interface MatchState {
   phase: Phase;
   round: number;
@@ -32,4 +38,6 @@ export interface MatchState {
   cursor: number;
   turnEndsAt: number;
   turnOutcome: TurnOutcome;
+  lobbyChat: ChatMessage[];
+  matchChat: ChatMessage[];
 }

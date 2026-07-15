@@ -1,6 +1,7 @@
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
+import { ChatBox } from "./ChatBox";
 import styles from "./RoleSelect.module.css";
 
 export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: () => void }) {
@@ -10,6 +11,10 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
 
   function choose(role: Role) {
     room.send("chooseRole", { role });
+  }
+
+  function sendChat(text: string) {
+    room.send("sendChat", { text });
   }
 
   function nicknameFor(sessionId: string): string {
@@ -38,6 +43,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
           <span>토끼</span>
         </button>
       </div>
+      <ChatBox messages={room.state.lobbyChat} onSend={sendChat} />
       <div className={styles.roster}>
         {teams.map((team) => (
           <div key={team.id} className={styles.rosterTeam}>

@@ -1,0 +1,77 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 20rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.list {
+  height: 6rem;
+  overflow-y: auto;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+}
+
+.empty {
+  margin: auto;
+  opacity: 0.6;
+  font-size: 0.8rem;
+}
+
+.line {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.nickname {
+  font-weight: 700;
+  opacity: 0.85;
+  margin-right: 0.35rem;
+}
+
+.text {
+  opacity: 0.95;
+}
+
+.inputRow {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.4rem;
+  border: none;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.sendButton {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  white-space: nowrap;
+}
+
+.sendButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: #4b5563;
+}

@@ -1,5 +1,6 @@
 import type { Room } from "colyseus.js";
 import type { MatchState, TeamState } from "../game/matchTypes";
+import { ChatBox } from "./ChatBox";
 import { SequenceBoard } from "./SequenceBoard";
 import { TeamRosterPanel } from "./TeamRosterPanel";
 import { TimerBar } from "./TimerBar";
@@ -16,7 +17,11 @@ export function SpectatorScreen({
   eliminated: boolean;
   onLeave: () => void;
 }) {
-  const { sequence, cursor, round, teams, turnEndsAt, players } = room.state;
+  const { sequence, cursor, round, teams, turnEndsAt, players, matchChat } = room.state;
+
+  function sendChat(text: string) {
+    room.send("sendChat", { text });
+  }
 
   return (
     <div className={styles.wrap}>
@@ -40,6 +45,7 @@ export function SpectatorScreen({
         <div className={styles.boardArea}>
           <SequenceBoard sequence={sequence} cursor={cursor} />
         </div>
+        <ChatBox messages={matchChat} onSend={sendChat} />
       </div>
       <TeamRosterPanel teams={teams} players={players} />
     </div>
