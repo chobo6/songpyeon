@@ -13,6 +13,7 @@ export type ConnectionStatus = "connecting" | "connected" | "error";
 export function useMatchRoom(spec: JoinSpec) {
   const [room, setRoom] = useState<Room<MatchState> | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
@@ -36,7 +37,9 @@ export function useMatchRoom(spec: JoinSpec) {
         });
       })
       .catch((err) => {
+        if (disposed) return;
         console.error("failed to join room", err);
+        setErrorMessage(spec.type === "resume" ? null : "입장할 수 없어요 (방이 꽉 찼거나 이미 시작됐을 수 있어요)");
         setStatus("error");
       });
 
@@ -58,5 +61,5 @@ export function useMatchRoom(spec: JoinSpec) {
     }
   }
 
-  return { room, status, cancelAndExit };
+  return { room, status, errorMessage, cancelAndExit };
 }

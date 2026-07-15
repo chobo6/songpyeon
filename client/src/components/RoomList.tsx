@@ -44,20 +44,23 @@ export function RoomList({
       <div className={styles.list}>
         {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
         {rooms.map((room) => {
-          const inProgress = room.locked;
-          const full = !room.locked && room.clients >= room.maxClients;
-          const disabled = inProgress || full;
+          // `locked` is the only reliable "can't join" signal here — Colyseus
+          // flips it to true the same instant a room's live client count
+          // reaches maxClients (see MatchRoom.ts's onLeave/lock() comments),
+          // so a separate "room.clients >= room.maxClients" check can never
+          // be true when `locked` isn't already true too. This listing can
+          // still be stale in the other direction (a role slot held by a
+          // reconnection-grace session doesn't count toward `clients`, so a
+          // room can look joinable here for a couple seconds after it's
+          // actually full) — that residual race is handled by
+          // ConnectedOnlineFlow's error screen, not predicted here.
           return (
             <div key={room.roomId} className={styles.card}>
               <span className={styles.cardName}>
                 {room.hostNickname}의 방 ({room.clients}/{room.maxClients})
               </span>
-              <button
-                className={styles.joinButton}
-                disabled={disabled}
-                onClick={() => onJoinRoom(room.roomId)}
-              >
-                {inProgress ? "게임 중" : full ? "가득 참" : "입장"}
+              <button className={styles.joinButton} disabled={room.locked} onClick={() => onJoinRoom(room.roomId)}>
+                {room.locked ? "게임 중" : "입장"}
               </button>
             </div>
           );

@@ -30,7 +30,8 @@ export async function listRooms(): Promise<RoomListEntry[]> {
 
 export type JoinSpec =
   | { type: "create"; nickname: string }
-  | { type: "joinById"; roomId: string; nickname: string };
+  | { type: "joinById"; roomId: string; nickname: string }
+  | { type: "resume" };
 
 // Cached at module scope (not component/ref scope) so React StrictMode's
 // dev-only double-invoke of effects (mount -> cleanup -> mount) reuses the
@@ -66,20 +67,33 @@ function clearReconnectionToken() {
   }
 }
 
-// Tries to resume the previous session (survives a page refresh mid-match or
-// mid-lobby-wait — see MatchRoom.ts's onLeave, which now grants the same
-// reconnection grace in the lobby as during play) before falling back to the
-// requested join spec. A saved token can still fail to redeem (grace period
-// expired, room gone) — that's expected, not an error.
+// Whether a resumable session (page refresh mid-match or mid-lobby-wait —
+// see MatchRoom.ts's onLeave, which grants the same reconnection grace in
+// the lobby as during play) exists. Checked once, right after nickname
+// entry (see App.tsx's OnlineFlow), to offer an automatic "resume" attempt
+// BEFORE the room list renders — deliberately NOT consulted inside
+// connectToMatch() itself, so an explicit "새 방 만들기"/"입장" pick from the
+// room list can never be silently overridden by a stale token.
+export function hasSavedSession(): boolean {
+  return getSavedReconnectionToken() !== null;
+}
+
+// `spec.type === "resume"` is only ever reached via the automatic
+// hasSavedSession() check above — never as a fallback inside another spec —
+// so a failed resume throws instead of silently falling through to
+// create/joinById (there's nothing sensible to fall back to; App.tsx's
+// resumeAttempted flag routes the user to the room list after a failure).
 async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
-  const savedToken = getSavedReconnectionToken();
-  if (savedToken) {
+  if (spec.type === "resume") {
+    const savedToken = getSavedReconnectionToken();
+    if (!savedToken) throw new Error("no resumable session");
     try {
       const room = await client.reconnect<T>(savedToken);
       saveReconnectionToken(room.reconnectionToken);
       return room;
-    } catch {
+    } catch (err) {
       clearReconnectionToken();
+      throw err;
     }
   }
 

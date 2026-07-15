@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
-import type { JoinSpec } from "./colyseus";
+import { hasSavedSession, type JoinSpec } from "./colyseus";
 import { Game } from "./components/Game";
 import { ModeSelect } from "./components/ModeSelect";
 import { NicknameEntry } from "./components/NicknameEntry";
@@ -13,7 +13,7 @@ import "./App.css";
 type Mode = "select" | "online" | "offline";
 
 function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit: () => void }) {
-  const { room, status, cancelAndExit } = useMatchRoom(joinSpec);
+  const { room, status, errorMessage, cancelAndExit } = useMatchRoom(joinSpec);
 
   async function handleExit() {
     await cancelAndExit();
@@ -24,8 +24,8 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
     return (
       <main className="connecting">
         <h1>송편 만들기</h1>
-        <p>server connection: {status}</p>
-        <button onClick={handleExit}>나가기</button>
+        <p>{status === "error" ? (errorMessage ?? "연결에 실패했어요") : `server connection: ${status}`}</p>
+        <button onClick={handleExit}>{status === "error" ? "방 목록으로" : "나가기"}</button>
       </main>
     );
   }
@@ -39,9 +39,20 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
 function OnlineFlow({ onExit }: { onExit: () => void }) {
   const [nickname, setNickname] = useState<string | null>(null);
   const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(null);
+  // A saved reconnection token (page refresh mid-match/mid-lobby) is offered
+  // exactly once, automatically, right after nickname entry — before the
+  // room list ever renders. Once that attempt resolves (success or failure)
+  // this flips true and the room list takes over; every subsequent
+  // create/join is an explicit user pick that must never be silently
+  // overridden by the token again (see colyseus.ts's hasSavedSession doc).
+  const [resumeAttempted, setResumeAttempted] = useState(false);
 
   if (!nickname) {
     return <NicknameEntry onSubmit={setNickname} />;
+  }
+
+  if (!resumeAttempted && !joinSpec && hasSavedSession()) {
+    return <ConnectedOnlineFlow joinSpec={{ type: "resume" }} onExit={() => setResumeAttempted(true)} />;
   }
 
   if (!joinSpec) {
