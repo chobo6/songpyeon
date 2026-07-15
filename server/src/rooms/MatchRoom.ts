@@ -100,12 +100,25 @@ export class MatchRoom extends Room<MatchState> {
     if (this.state.phase !== "lobby") return;
 
     const player = this.state.players.get(client.sessionId);
-    if (!player || player.role !== "") return;
+    // Re-picking the role you already have is a no-op — without this guard
+    // it would fall through to the "find an open slot for this role" search
+    // below, which skips your OWN (currently non-empty) slot and can hop you
+    // onto a different team's matching slot instead of doing nothing.
+    if (!player || player.role === role) return;
 
     const team = this.state.teams.find((t) =>
       role === "pig" ? t.pigSessionId === "" : t.rabbitSessionId === "",
     );
     if (!team) return;
+
+    // Switching roles/teams mid-lobby (allowed any time before the match
+    // starts) must free the slot you're leaving before claiming the new
+    // one, or your old sessionId lingers in both team slots at once.
+    if (player.role !== "") {
+      const previousTeam = this.state.teams.find((t) => t.id === player.teamId);
+      if (previousTeam?.pigSessionId === client.sessionId) previousTeam.pigSessionId = "";
+      if (previousTeam?.rabbitSessionId === client.sessionId) previousTeam.rabbitSessionId = "";
+    }
 
     player.role = role;
     player.teamId = team.id;

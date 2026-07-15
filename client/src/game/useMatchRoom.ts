@@ -39,7 +39,7 @@ export function useMatchRoom(spec: JoinSpec) {
       .catch((err) => {
         if (disposed) return;
         console.error("failed to join room", err);
-        setErrorMessage(spec.type === "resume" ? null : "입장할 수 없어요 (방이 꽉 찼거나 이미 시작됐을 수 있어요)");
+        setErrorMessage("입장할 수 없어요 (방이 꽉 찼거나 이미 시작됐을 수 있어요)");
         setStatus("error");
       });
 

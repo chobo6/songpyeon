@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
-import { hasSavedSession, type JoinSpec } from "./colyseus";
+import type { JoinSpec } from "./colyseus";
 import { Game } from "./components/Game";
 import { ModeSelect } from "./components/ModeSelect";
 import { NicknameEntry } from "./components/NicknameEntry";
@@ -39,22 +39,16 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
 function OnlineFlow({ onExit }: { onExit: () => void }) {
   const [nickname, setNickname] = useState<string | null>(null);
   const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(null);
-  // A saved reconnection token (page refresh mid-match/mid-lobby) is offered
-  // exactly once, automatically, right after nickname entry — before the
-  // room list ever renders. Once that attempt resolves (success or failure)
-  // this flips true and the room list takes over; every subsequent
-  // create/join is an explicit user pick that must never be silently
-  // overridden by the token again (see colyseus.ts's hasSavedSession doc).
-  const [resumeAttempted, setResumeAttempted] = useState(false);
 
   if (!nickname) {
     return <NicknameEntry onSubmit={setNickname} />;
   }
 
-  if (!resumeAttempted && !joinSpec && hasSavedSession()) {
-    return <ConnectedOnlineFlow joinSpec={{ type: "resume" }} onExit={() => setResumeAttempted(true)} />;
-  }
-
+  // A refresh or a dropped connection always lands back on the room list —
+  // no automatic resume into whatever room you were last in. Combined with
+  // RoleSelect now allowing free role changes without leaving the room,
+  // there's no scenario left where losing your place mid-lobby is costly
+  // enough to need a silent resume.
   if (!joinSpec) {
     return (
       <RoomList

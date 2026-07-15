@@ -5,7 +5,6 @@ const endpoint =
   (import.meta.env.PROD
     ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
     : "ws://localhost:2567");
-const RECONNECTION_TOKEN_KEY = "songpyeon:reconnectionToken";
 
 export const client = new Client(endpoint);
 
@@ -30,8 +29,7 @@ export async function listRooms(): Promise<RoomListEntry[]> {
 
 export type JoinSpec =
   | { type: "create"; nickname: string }
-  | { type: "joinById"; roomId: string; nickname: string }
-  | { type: "resume" };
+  | { type: "joinById"; roomId: string; nickname: string };
 
 // Cached at module scope (not component/ref scope) so React StrictMode's
 // dev-only double-invoke of effects (mount -> cleanup -> mount) reuses the
@@ -40,69 +38,16 @@ export type JoinSpec =
 // to leave.
 let roomPromise: Promise<Room<unknown>> | null = null;
 
-// sessionStorage access can throw (Safari private mode, storage disabled by
-// policy) — swallow that so a storage restriction never blocks joining a
-// match, it just falls back to "no saved token" behavior.
-function getSavedReconnectionToken(): string | null {
-  try {
-    return sessionStorage.getItem(RECONNECTION_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function saveReconnectionToken(token: string) {
-  try {
-    sessionStorage.setItem(RECONNECTION_TOKEN_KEY, token);
-  } catch {
-    // best-effort — a refresh just won't be able to reconnect this session.
-  }
-}
-
-function clearReconnectionToken() {
-  try {
-    sessionStorage.removeItem(RECONNECTION_TOKEN_KEY);
-  } catch {
-    // best-effort, see saveReconnectionToken.
-  }
-}
-
-// Whether a resumable session (page refresh mid-match or mid-lobby-wait —
-// see MatchRoom.ts's onLeave, which grants the same reconnection grace in
-// the lobby as during play) exists. Checked once, right after nickname
-// entry (see App.tsx's OnlineFlow), to offer an automatic "resume" attempt
-// BEFORE the room list renders — deliberately NOT consulted inside
-// connectToMatch() itself, so an explicit "새 방 만들기"/"입장" pick from the
-// room list can never be silently overridden by a stale token.
-export function hasSavedSession(): boolean {
-  return getSavedReconnectionToken() !== null;
-}
-
-// `spec.type === "resume"` is only ever reached via the automatic
-// hasSavedSession() check above — never as a fallback inside another spec —
-// so a failed resume throws instead of silently falling through to
-// create/joinById (there's nothing sensible to fall back to; App.tsx's
-// resumeAttempted flag routes the user to the room list after a failure).
+// No reconnection-token persistence here on purpose — a refresh or dropped
+// connection always lands back on the room list (see App.tsx's OnlineFlow),
+// never a silent resume into whatever room you were last in. RoleSelect lets
+// you freely change roles without leaving the room, so there's no "lost
+// progress" a resume would need to protect against in the lobby; a genuine
+// mid-match drop just means rejoining fresh from the room list.
 async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
-  if (spec.type === "resume") {
-    const savedToken = getSavedReconnectionToken();
-    if (!savedToken) throw new Error("no resumable session");
-    try {
-      const room = await client.reconnect<T>(savedToken);
-      saveReconnectionToken(room.reconnectionToken);
-      return room;
-    } catch (err) {
-      clearReconnectionToken();
-      throw err;
-    }
-  }
-
-  const room =
-    spec.type === "create"
-      ? await client.create<T>("match", { nickname: spec.nickname })
-      : await client.joinById<T>(spec.roomId, { nickname: spec.nickname });
-  saveReconnectionToken(room.reconnectionToken);
-  return room;
+  return spec.type === "create"
+    ? await client.create<T>("match", { nickname: spec.nickname })
+    : await client.joinById<T>(spec.roomId, { nickname: spec.nickname });
 }
 
 export function joinMatch<T>(spec: JoinSpec): Promise<Room<T>> {
@@ -112,18 +57,13 @@ export function joinMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   return roomPromise as Promise<Room<T>>;
 }
 
-// Leaves the currently cached match (if any), clears the cache and the
-// saved reconnection token, so the next joinMatch() call actually opens a
-// fresh connection instead of returning the (now-left) stale room or
-// trying to reconnect into a match we just deliberately left.
+// Leaves the currently cached match (if any) and clears the cache, so the
+// next joinMatch() call opens a genuinely fresh connection instead of
+// returning the (now-left) stale room.
 export async function leaveMatch(): Promise<void> {
   const current = roomPromise;
   roomPromise = null;
-  if (!current) {
-    clearReconnectionToken();
-    return;
-  }
+  if (!current) return;
   const room = await current;
   await room.leave();
-  clearReconnectionToken();
 }

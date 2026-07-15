@@ -81,6 +81,34 @@ describe("MatchRoom", () => {
     expect(room.state.round).toBe(1);
   });
 
+  test("choosing a different role in the lobby switches you instead of being blocked", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room);
+
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+    expect(room.state.teams[0].pigSessionId).toBe(client.sessionId);
+
+    client.send("chooseRole", { role: "rabbit" });
+    await flush();
+    expect(room.state.teams[0].pigSessionId).toBe("");
+    expect(room.state.teams[0].rabbitSessionId).toBe(client.sessionId);
+    expect(room.state.players.get(client.sessionId)?.role).toBe("rabbit");
+  });
+
+  test("re-choosing the same role you already have is a no-op, not a hop to the other team", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room);
+
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+
+    expect(room.state.teams[0].pigSessionId).toBe(client.sessionId);
+    expect(room.state.teams[1].pigSessionId).toBe("");
+  });
+
   test("onJoin stores a sanitized nickname from join options", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
     const clean = await colyseus.connectTo(room, { nickname: "  둘리  " });
