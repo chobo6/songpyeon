@@ -5,9 +5,11 @@ import styles from "./ChatBox.module.css";
 export function ChatBox({
   messages,
   onSend,
+  fill = false,
 }: {
   messages: ChatMessage[];
   onSend: (text: string) => void;
+  fill?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -26,7 +28,7 @@ export function ChatBox({
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={fill ? `${styles.wrap} ${styles.fill}` : styles.wrap}>
       <div className={styles.list} ref={listRef}>
         {messages.length === 0 && <p className={styles.empty}>아직 채팅이 없어요</p>}
         {messages.map((m, i) => (

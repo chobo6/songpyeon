@@ -1,7 +1,17 @@
+/* Same box (width cap + aspect-ratio) as ButtonPanel.module.css's .panel —
+   these two swap in the same screen position sharing bottomPanelBackground's
+   panelBg, so they must match or its background stretches differently
+   between "my turn" and "spectating". */
 .roster {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 2rem;
+  width: 100%;
+  max-width: 20rem;
+  aspect-ratio: 360 / 205;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .column {

@@ -47,7 +47,7 @@ export function SpectatorScreen({
         <div className={styles.boardArea}>
           <SequenceBoard sequence={sequence} cursor={cursor} />
         </div>
-        <ChatBox messages={matchChat} onSend={sendChat} />
+        <ChatBox messages={matchChat} onSend={sendChat} fill />
       </div>
       <TeamRosterPanel teams={teams} players={players} />
     </div>

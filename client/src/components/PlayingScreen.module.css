@@ -19,6 +19,13 @@
   gap: 0.5rem;
   padding: 1rem;
   width: 100%;
+  /* Grows to fill the space between the top content and the bottom panel
+     (instead of leaving that space as a gap after .content, absorbed by the
+     panel's margin-top: auto below) — needed so a flex-growing child like
+     ChatBox's fill variant can actually reach down and sit flush above the
+     panel rather than floating near the top with dead space beneath it. */
+  flex: 1;
+  min-height: 0;
   box-sizing: border-box;
 }
 

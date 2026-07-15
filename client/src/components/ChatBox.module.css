@@ -2,10 +2,24 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 20rem;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 0.6rem;
   overflow: hidden;
+}
+
+/* Used where the chat sits above a bottom panel that's pinned to the
+   viewport's bottom edge (e.g. SpectatorScreen) — grows to fill the leftover
+   vertical space so the input row ends up flush against the panel instead of
+   floating near the top with dead space beneath it. Left off the lobby's
+   chat (RoleSelect), which just wants its natural compact size. */
+.fill {
+  flex: 1;
+  min-height: 0;
+}
+
+.fill .list {
+  flex: 1;
+  height: auto;
 }
 
 .list {
