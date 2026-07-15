@@ -1,5 +1,6 @@
 import { Room, Client } from "colyseus";
-import { MatchState, PlayerState, TeamState } from "./MatchState";
+import type { ArraySchema } from "@colyseus/schema";
+import { MatchState, PlayerState, TeamState, ChatMessage } from "./MatchState";
 import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
@@ -8,9 +9,11 @@ import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
 import { sanitizeNickname } from "../game/nickname";
 import { sanitizeTeamCount } from "../game/teamCount";
+import { sanitizeChatText } from "../game/chat";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
 const RECONNECTION_GRACE_SECONDS = 60;
+const MAX_CHAT_MESSAGES = 50;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
@@ -63,6 +66,10 @@ export class MatchRoom extends Room<MatchState> {
     this.onMessage("pressButton", (client, message: { color: Color }) => {
       this.handlePressButton(client, message.color);
     });
+
+    this.onMessage("sendChat", (client, message: { text?: unknown }) => {
+      this.handleSendChat(client, message.text);
+    });
   }
 
   onJoin(client: Client, options: { nickname?: unknown } = {}) {
@@ -102,6 +109,26 @@ export class MatchRoom extends Room<MatchState> {
     }
 
     this.state.players.delete(sessionId);
+  }
+
+  private handleSendChat(client: Client, rawText: unknown) {
+    const text = sanitizeChatText(rawText);
+    if (!text) return;
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    const list = this.state.phase === "lobby" ? this.state.lobbyChat : this.state.matchChat;
+    this.pushChat(list, player.nickname, text);
+  }
+
+  private pushChat(list: ArraySchema<ChatMessage>, nickname: string, text: string) {
+    const message = new ChatMessage();
+    message.nickname = nickname;
+    message.text = text;
+    message.sentAt = Date.now();
+    list.push(message);
+    if (list.length > MAX_CHAT_MESSAGES) list.shift();
   }
 
   private handleChooseRole(client: Client, role: "pig" | "rabbit") {

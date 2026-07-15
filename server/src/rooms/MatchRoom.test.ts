@@ -130,6 +130,50 @@ describe("MatchRoom", () => {
     expect(room.state.players.get(dirty.sessionId)?.nickname).toBe("플레이어");
   });
 
+  test("sendChat routes to lobbyChat during the lobby and matchChat during play, independently", async () => {
+    const { room, clients } = await fillRolesAndStart();
+    const [firstClient] = clients;
+
+    firstClient.send("sendChat", { text: "게임 중 메시지" });
+    await flush();
+
+    expect(room.state.matchChat).toHaveLength(1);
+    expect(room.state.matchChat[0].text).toBe("게임 중 메시지");
+    expect(room.state.matchChat[0].nickname).toBe(
+      room.state.players.get(firstClient.sessionId)?.nickname,
+    );
+    expect(room.state.lobbyChat).toHaveLength(0);
+  });
+
+  test("sendChat in the lobby goes to lobbyChat, and ignores blank/invalid text", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room, { nickname: "채팅유저" });
+
+    client.send("sendChat", { text: "  로비 메시지  " });
+    client.send("sendChat", { text: "   " });
+    client.send("sendChat", {});
+    await flush();
+
+    expect(room.state.lobbyChat).toHaveLength(1);
+    expect(room.state.lobbyChat[0].text).toBe("로비 메시지");
+    expect(room.state.lobbyChat[0].nickname).toBe("채팅유저");
+    expect(room.state.matchChat).toHaveLength(0);
+  });
+
+  test("chat history caps at 50 messages, dropping the oldest first", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room);
+
+    for (let i = 0; i < 55; i++) {
+      client.send("sendChat", { text: `msg${i}` });
+    }
+    await flush();
+
+    expect(room.state.lobbyChat).toHaveLength(50);
+    expect(room.state.lobbyChat[0].text).toBe("msg5");
+    expect(room.state.lobbyChat[49].text).toBe("msg54");
+  });
+
   test("onCreate stores a sanitized host nickname in room metadata, for the room list", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { nickname: "  방장  " });
 

@@ -20,6 +20,12 @@ export class TeamState extends Schema {
   @type("boolean") eliminated: boolean = false;
 }
 
+export class ChatMessage extends Schema {
+  @type("string") nickname: string = "";
+  @type("string") text: string = "";
+  @type("number") sentAt: number = 0;
+}
+
 export class MatchState extends Schema {
   @type("string") phase: Phase = "lobby";
   @type("number") round: number = 1;
@@ -30,4 +36,8 @@ export class MatchState extends Schema {
   @type("number") cursor: number = 0;
   @type("number") turnEndsAt: number = 0;
   @type("string") turnOutcome: TurnOutcome = "pending";
+  // Independent histories (spec decision — lobby banter and in-match
+  // commentary don't mix), each capped at MAX_CHAT_MESSAGES in MatchRoom.ts.
+  @type([ChatMessage]) lobbyChat = new ArraySchema<ChatMessage>();
+  @type([ChatMessage]) matchChat = new ArraySchema<ChatMessage>();
 }
