@@ -52,7 +52,7 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
   if (!joinSpec) {
     return (
       <RoomList
-        onCreateRoom={() => setJoinSpec({ type: "create", nickname })}
+        onCreateRoom={(teamCount) => setJoinSpec({ type: "create", nickname, teamCount })}
         onJoinRoom={(roomId) => setJoinSpec({ type: "joinById", roomId, nickname })}
         onExit={onExit}
       />

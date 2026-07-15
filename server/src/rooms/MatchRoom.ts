@@ -7,14 +7,15 @@ import { loseMortar, isEliminated } from "../game/mortar";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
 import { sanitizeNickname } from "../game/nickname";
+import { sanitizeTeamCount } from "../game/teamCount";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
 const RECONNECTION_GRACE_SECONDS = 60;
-const TEAM_COUNT = 2;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
   nickname?: unknown;
+  teamCount?: unknown;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -40,8 +41,15 @@ export class MatchRoom extends Room<MatchState> {
     // room — the bandwidth/CPU cost of a much faster tick is negligible.
     this.patchRate = 16;
 
+    const teamCount = sanitizeTeamCount(options.teamCount);
+    // 2 players (pig + rabbit) per team — must stay in sync with
+    // maybeStartGame()'s readiness check and handleChooseRole()'s slot
+    // search, both of which assume every team has exactly one pig and one
+    // rabbit slot.
+    this.maxClients = teamCount * 2;
+
     const state = new MatchState();
-    for (let i = 0; i < TEAM_COUNT; i++) {
+    for (let i = 0; i < teamCount; i++) {
       const team = new TeamState();
       team.id = `team-${i + 1}`;
       state.teams.push(team);
@@ -207,7 +215,10 @@ export class MatchRoom extends Room<MatchState> {
     if (result.complete) {
       this.turnDecided = true;
       this.state.turnOutcome = "success";
-      this.advanceToNextTurn();
+      // Same deferral as the fail path above: wait for the already-scheduled
+      // 4s timer (onTurnTimerExpired) to advance, so the success state stays
+      // on screen for the rest of the turn instead of the next turn's fresh
+      // state overwriting it on the very next tick.
     }
   }
 

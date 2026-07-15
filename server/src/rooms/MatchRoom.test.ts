@@ -8,6 +8,13 @@ import type { MatchState } from "./MatchState";
 
 const ALL_COLORS: Color[] = [...PIG_COLORS, ...RABBIT_COLORS];
 const SHORT_TURN_MS = 500;
+// A completed turn now waits out the full turn timer before handing off
+// (see MatchRoom.ts's handlePressButton), so any test that presses through
+// a full ~18-color sequence via completeActiveTurn() needs a turn long
+// enough to fit that many real message round-trips before its own timer
+// would fire — SHORT_TURN_MS is tuned for single-press tests and is too
+// tight for that.
+const PRESS_HEAVY_TURN_MS = 3000;
 
 // `room` in these tests is the live server-side Room instance (see
 // ColyseusTestServer.createRoom), not a client-synced copy — so we only
@@ -56,7 +63,11 @@ describe("MatchRoom", () => {
     return { activeTeam, dueColor, actingClient: clients.find((c) => c.sessionId === actingSessionId)! };
   }
 
-  async function completeActiveTurn(room: ServerRoom<MatchState>, clients: ClientRoom<MatchState>[]) {
+  async function completeActiveTurn(
+    room: ServerRoom<MatchState>,
+    clients: ClientRoom<MatchState>[],
+    turnDurationMs: number,
+  ) {
     while (room.state.cursor < room.state.sequence.length - 1) {
       const { dueColor, actingClient } = actingClientFor(room, clients);
       actingClient.send("pressButton", { color: dueColor });
@@ -65,6 +76,7 @@ describe("MatchRoom", () => {
     const { dueColor, actingClient } = actingClientFor(room, clients);
     actingClient.send("pressButton", { color: dueColor });
     await flush();
+    await wait(turnDurationMs + 200);
   }
 
   test("game starts once both teams have a pig and a rabbit", async () => {
@@ -124,6 +136,61 @@ describe("MatchRoom", () => {
     expect(room.metadata?.hostNickname).toBe("방장");
   });
 
+  test("onCreate builds the requested number of teams and sizes maxClients to match", async () => {
+    const oneTeam = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+    expect(oneTeam.state.teams).toHaveLength(1);
+    expect(oneTeam.maxClients).toBe(2);
+
+    const threeTeams = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
+    expect(threeTeams.state.teams.map((t) => t.id)).toEqual(["team-1", "team-2", "team-3"]);
+    expect(threeTeams.maxClients).toBe(6);
+  });
+
+  test("onCreate defaults to 2 teams for a missing or out-of-range teamCount", async () => {
+    const missing = await colyseus.createRoom<MatchState>("match");
+    expect(missing.state.teams).toHaveLength(2);
+    expect(missing.maxClients).toBe(4);
+
+    const outOfRange = await colyseus.createRoom<MatchState>("match", { teamCount: 7 });
+    expect(outOfRange.state.teams).toHaveLength(2);
+    expect(outOfRange.maxClients).toBe(4);
+  });
+
+  test("a 3-team room starts once all 3 teams have a pig and a rabbit", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
+    for (const role of ["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const) {
+      const client = await colyseus.connectTo(room);
+      client.send("chooseRole", { role });
+    }
+    await flush();
+
+    expect(room.state.phase).toBe("playing");
+    room.state.teams.forEach((team) => {
+      expect(team.pigSessionId).not.toBe("");
+      expect(team.rabbitSessionId).not.toBe("");
+    });
+  });
+
+  test("a 1-team room starts once its single team has a pig and a rabbit, and keeps rotating to itself", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: PRESS_HEAVY_TURN_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const role of ["pig", "rabbit"] as const) {
+      const client = await colyseus.connectTo(room);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+
+    expect(room.state.phase).toBe("playing");
+
+    const soloTeamId = room.state.teams[0].id;
+    await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+    // no rival team to hand off to — the lone team just keeps getting turns.
+    expect(room.state.phase).toBe("playing");
+    expect(room.state.teams[room.state.activeTeamIndex].id).toBe(soloTeamId);
+  });
+
   test("the correct button advances the cursor", async () => {
     const { room, clients } = await fillRolesAndStart();
     const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
@@ -159,8 +226,8 @@ describe("MatchRoom", () => {
     expect(room.state.cursor).toBe(0);
   });
 
-  test("a correct-completing button hands off to the next team right away", async () => {
-    const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+  test("completing the sequence keeps the success state on screen until the original timer, then hands off", async () => {
+    const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
 
     const activeTeamId = room.state.teams[room.state.activeTeamIndex].id;
     while (room.state.cursor < room.state.sequence.length - 1) {
@@ -172,6 +239,14 @@ describe("MatchRoom", () => {
     actingClient.send("pressButton", { color: dueColor });
     await flush();
 
+    // the completing press resolves immediately...
+    expect(room.state.turnOutcome).toBe("success");
+    // ...but the turn hasn't handed off yet — same team still active.
+    expect(room.state.teams[room.state.activeTeamIndex].id).toBe(activeTeamId);
+
+    await wait(PRESS_HEAVY_TURN_MS + 200);
+
+    // only now, once the original 4s(-equivalent) timer elapses, does it move on.
     expect(room.state.turnOutcome).toBe("pending");
     expect(room.state.teams[room.state.activeTeamIndex].id).not.toBe(activeTeamId);
   });
@@ -273,9 +348,9 @@ describe("MatchRoom", () => {
 
   test(
     "the surviving team keeps receiving turns after the other team is eliminated",
-    { timeout: 20000 },
+    { timeout: 45000 },
     async () => {
-      const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const teamAId = room.state.teams[0].id;
       const teamBId = room.state.teams[1].id;
 
@@ -284,13 +359,13 @@ describe("MatchRoom", () => {
       while (!room.state.teams.find((t) => t.id === teamBId)!.eliminated) {
         const activeId = room.state.teams[room.state.activeTeamIndex].id;
         if (activeId === teamAId) {
-          await completeActiveTurn(room, clients);
+          await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
         } else {
           const { dueColor, actingClient } = actingClientFor(room, clients);
           const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
           actingClient.send("pressButton", { color: wrongColor });
           await flush();
-          await wait(SHORT_TURN_MS + 200);
+          await wait(PRESS_HEAVY_TURN_MS + 200);
         }
       }
 
@@ -301,7 +376,7 @@ describe("MatchRoom", () => {
 
       // the surviving team keeps receiving turns indefinitely.
       const roundBeforeExtraTurn = room.state.round;
-      await completeActiveTurn(room, clients);
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
 
       expect(room.state.phase).toBe("playing");
       expect(room.state.teams[room.state.activeTeamIndex].id).toBe(teamAId);

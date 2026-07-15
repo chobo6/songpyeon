@@ -4,12 +4,14 @@ import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
 
+const TEAM_COUNT_CHOICES = [1, 2, 3];
+
 export function RoomList({
   onCreateRoom,
   onJoinRoom,
   onExit,
 }: {
-  onCreateRoom: () => void;
+  onCreateRoom: (teamCount: number) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
 }) {
@@ -38,9 +40,16 @@ export function RoomList({
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>송편 만들기</h1>
-      <button className={styles.createButton} onClick={onCreateRoom}>
-        새 방 만들기
-      </button>
+      <div className={styles.createSection}>
+        <span className={styles.createLabel}>새 방 만들기</span>
+        <div className={styles.teamCountButtons}>
+          {TEAM_COUNT_CHOICES.map((count) => (
+            <button key={count} className={styles.createButton} onClick={() => onCreateRoom(count)}>
+              {count}팀
+            </button>
+          ))}
+        </div>
+      </div>
       <div className={styles.list}>
         {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
         {rooms.map((room) => {

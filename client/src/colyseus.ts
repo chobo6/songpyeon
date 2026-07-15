@@ -28,7 +28,7 @@ export async function listRooms(): Promise<RoomListEntry[]> {
 }
 
 export type JoinSpec =
-  | { type: "create"; nickname: string }
+  | { type: "create"; nickname: string; teamCount: number }
   | { type: "joinById"; roomId: string; nickname: string };
 
 // Cached at module scope (not component/ref scope) so React StrictMode's
@@ -46,7 +46,7 @@ let roomPromise: Promise<Room<unknown>> | null = null;
 // mid-match drop just means rejoining fresh from the room list.
 async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   return spec.type === "create"
-    ? await client.create<T>("match", { nickname: spec.nickname })
+    ? await client.create<T>("match", { nickname: spec.nickname, teamCount: spec.teamCount })
     : await client.joinById<T>(spec.roomId, { nickname: spec.nickname });
 }
 
