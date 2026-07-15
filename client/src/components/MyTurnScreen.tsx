@@ -17,12 +17,14 @@ export function MyTurnScreen({ room, me }: { room: Room<MatchState>; me: PlayerS
 
   return (
     <div className={styles.wrap}>
-      <p className={styles.round}>ROUND {round}</p>
-      <TimerBar turnEndsAt={turnEndsAt} />
-      <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
-      <div className={styles.boardArea}>
-        <SequenceBoard sequence={sequence} cursor={cursor} />
-        <TurnOutcomeBanner outcome={turnOutcome} />
+      <div className={styles.content}>
+        <p className={styles.round}>ROUND {round}</p>
+        <TimerBar turnEndsAt={turnEndsAt} />
+        <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
+        <div className={styles.boardArea}>
+          <SequenceBoard sequence={sequence} cursor={cursor} />
+          <TurnOutcomeBanner outcome={turnOutcome} />
+        </div>
       </div>
       <ButtonPanel role={me.role as "pig" | "rabbit"} disabled={disabled} onPress={press} />
     </div>

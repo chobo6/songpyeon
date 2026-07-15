@@ -20,24 +20,26 @@ export function SpectatorScreen({
 
   return (
     <div className={styles.wrap}>
-      <p className={styles.round}>ROUND {round}</p>
-      <TimerBar turnEndsAt={turnEndsAt} />
-      {eliminated ? (
-        <>
-          <p className={styles.spectating}>
-            {activeTeam.eliminated
-              ? "모든 팀이 탈락했습니다."
-              : `당신의 팀은 탈락했습니다. ${activeTeam.id} 팀이 계속 플레이 중입니다.`}
-          </p>
-          <button className={styles.leaveButton} onClick={onLeave}>
-            나가기
-          </button>
-        </>
-      ) : (
-        <p className={styles.spectating}>{activeTeam.id} 팀의 차례입니다</p>
-      )}
-      <div className={styles.boardArea}>
-        <SequenceBoard sequence={sequence} cursor={cursor} />
+      <div className={styles.content}>
+        <p className={styles.round}>ROUND {round}</p>
+        <TimerBar turnEndsAt={turnEndsAt} />
+        {eliminated ? (
+          <>
+            <p className={styles.spectating}>
+              {activeTeam.eliminated
+                ? "모든 팀이 탈락했습니다."
+                : `당신의 팀은 탈락했습니다. ${activeTeam.id} 팀이 계속 플레이 중입니다.`}
+            </p>
+            <button className={styles.leaveButton} onClick={onLeave}>
+              나가기
+            </button>
+          </>
+        ) : (
+          <p className={styles.spectating}>{activeTeam.id} 팀의 차례입니다</p>
+        )}
+        <div className={styles.boardArea}>
+          <SequenceBoard sequence={sequence} cursor={cursor} />
+        </div>
       </div>
       <TeamRosterPanel teams={teams} players={players} />
     </div>
