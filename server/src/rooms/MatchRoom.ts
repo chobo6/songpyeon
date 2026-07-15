@@ -70,6 +70,15 @@ export class MatchRoom extends Room<MatchState> {
     this.onMessage("sendChat", (client, message: { text?: unknown }) => {
       this.handleSendChat(client, message.text);
     });
+
+    // Lets each client measure its clock offset from the server (see
+    // client/src/game/clockSync.ts) so turnEndsAt — an absolute server
+    // timestamp — can be compared against a locally-corrected "now" instead
+    // of the client's raw, possibly-skewed system clock.
+    this.onMessage("ping", (client, clientSentAt: unknown) => {
+      if (typeof clientSentAt !== "number") return;
+      client.send("pong", { clientSentAt, serverTime: Date.now() });
+    });
   }
 
   onJoin(client: Client, options: { nickname?: unknown } = {}) {

@@ -10,11 +10,13 @@ export function SpectatorScreen({
   room,
   activeTeam,
   eliminated,
+  clockOffsetMs,
   onLeave,
 }: {
   room: Room<MatchState>;
   activeTeam: TeamState;
   eliminated: boolean;
+  clockOffsetMs: number;
   onLeave: () => void;
 }) {
   const { sequence, cursor, round, teams, turnEndsAt, players, matchChat } = room.state;
@@ -27,7 +29,7 @@ export function SpectatorScreen({
     <div className={styles.wrap}>
       <div className={styles.content}>
         <p className={styles.round}>ROUND {round}</p>
-        <TimerBar turnEndsAt={turnEndsAt} />
+        <TimerBar turnEndsAt={turnEndsAt} clockOffsetMs={clockOffsetMs} />
         {eliminated ? (
           <>
             <p className={styles.spectating}>

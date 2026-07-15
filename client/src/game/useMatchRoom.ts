@@ -2,6 +2,7 @@ import { useEffect, useReducer, useState } from "react";
 import type { Room } from "colyseus.js";
 import { joinMatch, leaveMatch, type JoinSpec } from "../colyseus";
 import type { MatchState } from "./matchTypes";
+import { estimateClockOffset } from "./clockSync";
 
 export type ConnectionStatus = "connecting" | "connected" | "error";
 
@@ -14,6 +15,7 @@ export function useMatchRoom(spec: JoinSpec) {
   const [room, setRoom] = useState<Room<MatchState> | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
@@ -26,6 +28,11 @@ export function useMatchRoom(spec: JoinSpec) {
     joinMatch<MatchState>(spec)
       .then((joined) => {
         if (disposed) return;
+
+        estimateClockOffset(joined).then((offset) => {
+          if (!disposed) setClockOffsetMs(offset);
+        });
+
         joined.onStateChange(() => {
           if (!hasReceivedState) {
             hasReceivedState = true;
@@ -61,5 +68,5 @@ export function useMatchRoom(spec: JoinSpec) {
     }
   }
 
-  return { room, status, errorMessage, cancelAndExit };
+  return { room, status, errorMessage, clockOffsetMs, cancelAndExit };
 }

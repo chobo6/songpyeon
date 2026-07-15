@@ -7,7 +7,15 @@ import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
 import { TimerBar } from "./TimerBar";
 import styles from "./PlayingScreen.module.css";
 
-export function MyTurnScreen({ room, me }: { room: Room<MatchState>; me: PlayerState }) {
+export function MyTurnScreen({
+  room,
+  me,
+  clockOffsetMs,
+}: {
+  room: Room<MatchState>;
+  me: PlayerState;
+  clockOffsetMs: number;
+}) {
   const { sequence, cursor, turnOutcome, round, turnEndsAt } = room.state;
   const disabled = turnOutcome !== "pending";
 
@@ -19,7 +27,7 @@ export function MyTurnScreen({ room, me }: { room: Room<MatchState>; me: PlayerS
     <div className={styles.wrap}>
       <div className={styles.content}>
         <p className={styles.round}>ROUND {round}</p>
-        <TimerBar turnEndsAt={turnEndsAt} />
+        <TimerBar turnEndsAt={turnEndsAt} clockOffsetMs={clockOffsetMs} />
         <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
         <div className={styles.boardArea}>
           <SequenceBoard sequence={sequence} cursor={cursor} />

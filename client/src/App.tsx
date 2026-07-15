@@ -13,7 +13,7 @@ import "./App.css";
 type Mode = "select" | "online" | "offline";
 
 function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit: () => void }) {
-  const { room, status, errorMessage, cancelAndExit } = useMatchRoom(joinSpec);
+  const { room, status, errorMessage, clockOffsetMs, cancelAndExit } = useMatchRoom(joinSpec);
 
   async function handleExit() {
     await cancelAndExit();
@@ -33,7 +33,7 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
   // Both the lobby's "나가기" and the spectator's "나가기" return to the room
   // list (not out of online mode entirely) — picking a different room is the
   // whole point of the list, so there's no separate "rejoin same room" path.
-  return <Game room={room} onLeave={handleExit} onExit={handleExit} />;
+  return <Game room={room} clockOffsetMs={clockOffsetMs} onLeave={handleExit} onExit={handleExit} />;
 }
 
 function OnlineFlow({ onExit }: { onExit: () => void }) {

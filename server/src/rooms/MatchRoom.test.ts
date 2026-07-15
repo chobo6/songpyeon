@@ -174,6 +174,19 @@ describe("MatchRoom", () => {
     expect(room.state.lobbyChat[49].text).toBe("msg54");
   });
 
+  test("ping replies with pong carrying the original timestamp and the server's current time", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room);
+
+    const pong = await new Promise<{ clientSentAt: number; serverTime: number }>((resolve) => {
+      client.onMessage("pong", resolve);
+      client.send("ping", 12345);
+    });
+
+    expect(pong.clientSentAt).toBe(12345);
+    expect(pong.serverTime).toBeGreaterThan(0);
+  });
+
   test("onCreate stores a sanitized host nickname in room metadata, for the room list", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { nickname: "  방장  " });
 

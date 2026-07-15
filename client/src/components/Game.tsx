@@ -7,10 +7,12 @@ import { BgmPlayer } from "./BgmPlayer";
 
 export function Game({
   room,
+  clockOffsetMs,
   onLeave,
   onExit,
 }: {
   room: Room<MatchState>;
+  clockOffsetMs: number;
   onLeave: () => void;
   onExit: () => void;
 }) {
@@ -28,7 +30,7 @@ export function Game({
 
   let screen = null;
   if (me && activeTeam && isMyTeamActive) {
-    screen = <MyTurnScreen room={room} me={me} />;
+    screen = <MyTurnScreen room={room} me={me} clockOffsetMs={clockOffsetMs} />;
   } else if (activeTeam) {
     const myTeam = room.state.teams.find((t) => t.id === me?.teamId);
     screen = (
@@ -36,6 +38,7 @@ export function Game({
         room={room}
         activeTeam={activeTeam}
         eliminated={myTeam?.eliminated ?? false}
+        clockOffsetMs={clockOffsetMs}
         onLeave={onLeave}
       />
     );

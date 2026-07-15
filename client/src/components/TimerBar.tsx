@@ -6,7 +6,13 @@ import styles from "./TimerBar.module.css";
 // safe to hardcode for display purposes.
 const TURN_DURATION_MS = 4000;
 
-export function TimerBar({ turnEndsAt }: { turnEndsAt: number }) {
+// `clockOffsetMs` corrects for this client's system clock disagreeing with
+// the server's (see client/src/game/clockSync.ts) — `turnEndsAt` is an
+// absolute server timestamp, so comparing it against raw client Date.now()
+// makes the gauge visibly out of phase with when the server actually ends
+// the turn. Solo mode has no server and no skew, so it doesn't pass this
+// prop; 0 is the correct no-op default there.
+export function TimerBar({ turnEndsAt, clockOffsetMs = 0 }: { turnEndsAt: number; clockOffsetMs?: number }) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -14,7 +20,8 @@ export function TimerBar({ turnEndsAt }: { turnEndsAt: number }) {
     return () => clearInterval(id);
   }, []);
 
-  const remaining = Math.max(0, turnEndsAt - now);
+  const serverNow = now + clockOffsetMs;
+  const remaining = Math.max(0, turnEndsAt - serverNow);
   const fraction = Math.min(1, remaining / TURN_DURATION_MS);
 
   return (
