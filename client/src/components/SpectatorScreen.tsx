@@ -25,6 +25,22 @@ export function SpectatorScreen({
     room.send("sendChat", { text });
   }
 
+  // Once every team is wiped out the match itself is over (not just this
+  // player's team) — "나가기" here returns everyone in the room to this same
+  // room's lobby (server resets phase to "lobby") instead of leaving to the
+  // room list, so the same group can play again without re-sharing a room
+  // code. That's only correct once the whole match has concluded; while
+  // other teams are still playing, "나가기" must still actually leave.
+  const matchOver = activeTeam.eliminated;
+
+  function handleLeaveClick() {
+    if (matchOver) {
+      room.send("rematch");
+      return;
+    }
+    onLeave();
+  }
+
   return (
     <div className={styles.wrap}>
       <div className={styles.content}>
@@ -33,11 +49,11 @@ export function SpectatorScreen({
         {eliminated ? (
           <>
             <p className={styles.spectating}>
-              {activeTeam.eliminated
+              {matchOver
                 ? "모든 팀이 탈락했습니다."
                 : `당신의 팀은 탈락했습니다. ${activeTeam.id} 팀이 계속 플레이 중입니다.`}
             </p>
-            <button className={styles.leaveButton} onClick={onLeave}>
+            <button className={styles.leaveButton} onClick={handleLeaveClick}>
               나가기
             </button>
           </>

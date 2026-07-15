@@ -5,9 +5,9 @@
   --row-step: calc(var(--token-height) + var(--row-gap));
 
   overflow: hidden;
-  /* Always shows exactly 3 rows worth of height — later rounds add more
+  /* Always shows exactly 4 rows worth of height — later rounds add more
      rows below and the stack scrolls up through them one row at a time. */
-  height: calc(var(--token-height) * 3 + var(--row-gap) * 2);
+  height: calc(var(--token-height) * 4 + var(--row-gap) * 3);
   padding: 1rem;
   box-sizing: content-box;
   display: flex;

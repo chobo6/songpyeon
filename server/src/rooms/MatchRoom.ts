@@ -4,7 +4,7 @@ import { MatchState, PlayerState, TeamState, ChatMessage } from "./MatchState";
 import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
-import { loseMortar, isEliminated } from "../game/mortar";
+import { loseMortar, isEliminated, STARTING_MORTARS } from "../game/mortar";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
 import { sanitizeNickname } from "../game/nickname";
@@ -69,6 +69,10 @@ export class MatchRoom extends Room<MatchState> {
 
     this.onMessage("sendChat", (client, message: { text?: unknown }) => {
       this.handleSendChat(client, message.text);
+    });
+
+    this.onMessage("rematch", () => {
+      this.handleRematch();
     });
 
     // Lets each client measure its clock offset from the server (see
@@ -200,6 +204,47 @@ export class MatchRoom extends Room<MatchState> {
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;
     this.startTurn();
+  }
+
+  private isMatchOver(): boolean {
+    return this.state.teams.every((t) => t.eliminated);
+  }
+
+  // Resets this same room back to its lobby state (teams/roles cleared) once
+  // every team has been wiped out, instead of players having to leave and
+  // find/create a fresh room to play again together. Guarded to only fire
+  // once the match has actually concluded — advanceToNextTurn() freezes
+  // (stops scheduling turn timers) exactly when isMatchOver() becomes true,
+  // so there's no in-flight timer left to invalidate here.
+  private handleRematch() {
+    if (this.state.phase !== "playing" || !this.isMatchOver()) return;
+
+    this.turnDecided = false;
+    this.turnsThisRound = 0;
+
+    this.state.phase = "lobby";
+    this.state.round = 1;
+    this.state.activeTeamIndex = 0;
+    this.state.cursor = 0;
+    this.state.sequence.clear();
+    this.state.turnOutcome = "pending";
+    this.state.turnEndsAt = 0;
+
+    for (const team of this.state.teams) {
+      team.mortars = STARTING_MORTARS;
+      team.eliminated = false;
+      team.pigSessionId = "";
+      team.rabbitSessionId = "";
+    }
+    for (const player of this.state.players.values()) {
+      player.role = "";
+      player.teamId = "";
+    }
+
+    // maybeStartGame()'s lock() from the match that just ended is still in
+    // effect — undo it so a freed slot (e.g. someone left mid-match) can be
+    // backfilled by a new joiner while the room sits in "lobby" again.
+    this.unlock();
   }
 
   private startTurn() {
