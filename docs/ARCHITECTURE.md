@@ -6,7 +6,7 @@
 |---|---|---|
 | 프론트엔드 | React + TypeScript + Vite | 정보/생태계가 가장 풍부, 빠른 개발 서버 |
 | 실시간 서버 | Node.js + TypeScript + **Colyseus** | 방(room) 단위 서버 권위형 상태 동기화가 이 게임(팀 4명, 공유 시퀀스, 절구, 4초 타이머)의 요구사항과 정확히 일치. 상태 diff 브로드캐스트·재연결·룸 생명주기를 프레임워크가 처리 |
-| 배포 | 미정 (추후 결정) | 일단 로컬 개발/스캐폴딩 먼저 진행, 배포는 게임이 어느 정도 완성된 뒤 논의 |
+| 배포 | AWS EC2 단일 인스턴스 + Docker 컨테이너 하나 + Caddy(자동 HTTPS) | omok의 kind→EKS 학습 경로와 별개로, 이 프로젝트는 친구들과의 캐주얼 테스트가 목적이라 k8s는 오버킬 — 자세한 내용은 `docs/superpowers/specs/2026-07-15-aws-light-deploy-test-design.md` 참고 |
 
 ## 2. 왜 서버 권위형(authoritative)인가
 
@@ -44,8 +44,5 @@ songpyeon/
 
 ## 5. 다음 단계
 
-1. 모노레포 스캐폴딩 (workspaces, client, server 뼈대)
-2. 로컬 dev 환경에서 client↔server 연결 확인 (빈 방 입장 정도의 헬로월드)
-3. 코어 게임 로직(§REQUIREMENTS.md §4~§8) 서버 Schema/Room으로 구현
-4. 클라이언트 화면(§REQUIREMENTS.md §12) 구현
-5. 배포 방식 결정 (이 시점에 논의)
+완료: 모노레포 스캐폴딩, 로컬 dev 연결, 코어 게임 로직, 클라이언트 화면, 배포(AWS EC2+Docker+Caddy).
+앞으로 할 일은 `docs/todo.md` 참고.
