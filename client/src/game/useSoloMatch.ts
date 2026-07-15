@@ -91,7 +91,11 @@ export function useSoloMatch(role: Role) {
     if (result.complete) {
       turnDecidedRef.current = true;
       setTurnOutcome("success");
-      startTurn(roundRef.current + 1);
+      // Turn hand-off is deferred to the already-armed scheduleExpiry timeout
+      // (onTimerExpired), same as the wrong-press path above — calling
+      // startTurn() synchronously here would batch its setTurnOutcome("pending")
+      // together with this one, so "success" would never actually render.
+      // Mirrors MatchRoom.handlePressButton on the server.
     }
   }
 
