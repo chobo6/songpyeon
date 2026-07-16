@@ -31,12 +31,21 @@ export function ChatBox({
     <div className={fill ? `${styles.wrap} ${styles.fill}` : styles.wrap}>
       <div className={styles.list} ref={listRef}>
         {messages.length === 0 && <p className={styles.empty}>아직 채팅이 없어요</p>}
-        {messages.map((m, i) => (
-          <p key={i} className={styles.line}>
-            <span className={styles.nickname}>{m.nickname}</span>
-            <span className={styles.text}>{m.text}</span>
-          </p>
-        ))}
+        {messages.map((m, i) =>
+          m.nickname ? (
+            <p key={i} className={styles.line}>
+              <span className={styles.nickname}>{m.nickname}</span>
+              <span className={styles.text}>{m.text}</span>
+            </p>
+          ) : (
+            // Server-pushed system notices (join/leave) carry an empty
+            // nickname — rendered without the bold name prefix, dimmed to
+            // read as a notice rather than something a player said.
+            <p key={i} className={`${styles.line} ${styles.system}`}>
+              {m.text}
+            </p>
+          ),
+        )}
       </div>
       <form className={styles.inputRow} onSubmit={handleSubmit}>
         <input

@@ -96,6 +96,7 @@ export class MatchRoom extends Room<MatchState> {
     player.sessionId = client.sessionId;
     player.nickname = sanitizeNickname(options.nickname);
     this.state.players.set(client.sessionId, player);
+    this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
   }
 
   async onLeave(client: Client, consented: boolean) {
@@ -122,6 +123,13 @@ export class MatchRoom extends Room<MatchState> {
     }
 
     this.state.players.delete(sessionId);
+
+    // Scoped to the lobby specifically (the requested "대기실" behavior) — a
+    // mid-match leave doesn't get a matchChat announcement, since that's a
+    // separate, not-yet-requested feature.
+    if (this.state.phase === "lobby") {
+      this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 퇴장했습니다`);
+    }
   }
 
   private handleSendChat(client: Client, rawText: unknown) {

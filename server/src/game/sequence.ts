@@ -4,13 +4,12 @@ import { pick, type Rng } from "./rng";
 
 type FragmentChoice = () => Color[];
 
-function fragmentChoices(remaining: number, rng: Rng): FragmentChoice[] {
-  const choices: FragmentChoice[] = [];
+// User-requested online-mode mix: pig-pattern fragments should come up
+// roughly 7 times for every 3 rabbit-pattern fragments.
+const PIG_FRAGMENT_WEIGHT = 0.7;
 
-  if (remaining >= 2) {
-    choices.push(() => generatePigFragment(rng));
-    choices.push(() => generateRabbitPairFragment(rng));
-  }
+function rabbitFragmentChoices(remaining: number, rng: Rng): FragmentChoice[] {
+  const choices: FragmentChoice[] = [() => generateRabbitPairFragment(rng)];
 
   const validMintLengths = MINT_RUN_LENGTHS.filter((length) => length <= remaining);
   if (validMintLengths.length > 0) {
@@ -25,8 +24,10 @@ export function generateSequence(totalLength: number, rng: Rng): Color[] {
   let remaining = totalLength;
 
   while (remaining > 0) {
-    const choices = fragmentChoices(remaining, rng);
-    const fragment = pick(choices, rng)();
+    const fragment =
+      rng() < PIG_FRAGMENT_WEIGHT
+        ? generatePigFragment(rng)
+        : pick(rabbitFragmentChoices(remaining, rng), rng)();
     sequence.push(...fragment);
     remaining -= fragment.length;
   }

@@ -55,6 +55,11 @@
   opacity: 0.95;
 }
 
+.system {
+  opacity: 0.6;
+  font-style: italic;
+}
+
 .inputRow {
   display: flex;
   gap: 0.4rem;

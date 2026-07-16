@@ -133,6 +133,9 @@ describe("MatchRoom", () => {
   test("sendChat routes to lobbyChat during the lobby and matchChat during play, independently", async () => {
     const { room, clients } = await fillRolesAndStart();
     const [firstClient] = clients;
+    // fillRolesAndStart's 4 connects each announce a join into lobbyChat
+    // before the match starts — capture that count instead of assuming 0.
+    const lobbyChatCountBeforeMatch = room.state.lobbyChat.length;
 
     firstClient.send("sendChat", { text: "게임 중 메시지" });
     await flush();
@@ -142,7 +145,7 @@ describe("MatchRoom", () => {
     expect(room.state.matchChat[0].nickname).toBe(
       room.state.players.get(firstClient.sessionId)?.nickname,
     );
-    expect(room.state.lobbyChat).toHaveLength(0);
+    expect(room.state.lobbyChat).toHaveLength(lobbyChatCountBeforeMatch);
   });
 
   test("sendChat in the lobby goes to lobbyChat, and ignores blank/invalid text", async () => {
@@ -154,10 +157,46 @@ describe("MatchRoom", () => {
     client.send("sendChat", {});
     await flush();
 
-    expect(room.state.lobbyChat).toHaveLength(1);
-    expect(room.state.lobbyChat[0].text).toBe("로비 메시지");
-    expect(room.state.lobbyChat[0].nickname).toBe("채팅유저");
+    // connecting itself already announced a join message before any of these.
+    expect(room.state.lobbyChat).toHaveLength(2);
+    expect(room.state.lobbyChat[0].text).toBe("채팅유저님이 입장했습니다");
+    expect(room.state.lobbyChat[1].text).toBe("로비 메시지");
+    expect(room.state.lobbyChat[1].nickname).toBe("채팅유저");
     expect(room.state.matchChat).toHaveLength(0);
+  });
+
+  test("a player joining the lobby gets a system message announcing it in lobbyChat", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    await colyseus.connectTo(room, { nickname: "둘리" });
+    await flush();
+
+    expect(room.state.lobbyChat).toHaveLength(1);
+    expect(room.state.lobbyChat[0].nickname).toBe("");
+    expect(room.state.lobbyChat[0].text).toBe("둘리님이 입장했습니다");
+  });
+
+  test("a player deliberately leaving the lobby gets a system message announcing it in lobbyChat", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    const client = await colyseus.connectTo(room, { nickname: "또치" });
+    await flush();
+
+    await client.leave(); // deliberate leave
+    await flush();
+
+    expect(room.state.lobbyChat).toHaveLength(2);
+    expect(room.state.lobbyChat[1].nickname).toBe("");
+    expect(room.state.lobbyChat[1].text).toBe("또치님이 퇴장했습니다");
+  });
+
+  test("a mid-match leave does not announce into lobbyChat (scoped to the lobby only)", async () => {
+    const { room, clients } = await fillRolesAndStart();
+    const lobbyChatCountBeforeLeave = room.state.lobbyChat.length;
+
+    await clients[0].leave();
+    await flush();
+
+    expect(room.state.phase).toBe("playing");
+    expect(room.state.lobbyChat).toHaveLength(lobbyChatCountBeforeLeave);
   });
 
   test("chat history caps at 50 messages, dropping the oldest first", async () => {

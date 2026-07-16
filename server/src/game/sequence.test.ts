@@ -9,10 +9,21 @@ function queueRng(values: number[]): () => number {
 
 describe("generateSequence", () => {
   test("assembles a pig fragment then a rabbit-pair fragment to hit the exact length", () => {
-    // step1 (remaining=4): pick kind index0 (pig) -> pick base color index0 (red)
-    // step2 (remaining=2): pick kind index1 (rabbitPair) -> pick color index0 (green), index2 (pink)
-    const rng = queueRng([0, 0, 0.34, 0, 0.99]);
+    // step1 (remaining=4): weight roll 0 (<0.7) -> pig -> base color index0 (red)
+    // step2 (remaining=2): weight roll 0.99 (>=0.7) -> rabbit -> pick(choices) index0 (pair) -> green, pink
+    const rng = queueRng([0, 0, 0.99, 0, 0, 0.99]);
     expect(generateSequence(4, rng)).toEqual(["red", "purple", "green", "pink"]);
+  });
+
+  test("a weight roll just below 0.7 selects a pig fragment", () => {
+    const rng = queueRng([0.69, 0]);
+    expect(generateSequence(2, rng)).toEqual(["red", "purple"]);
+  });
+
+  test("a weight roll at/above 0.7 selects a rabbit fragment", () => {
+    // weight roll 0.7 -> rabbit; choice roll 0.99 -> mint run; length roll (only option) -> 2
+    const rng = queueRng([0.7, 0.99, 0]);
+    expect(generateSequence(2, rng)).toEqual(["mint", "mint"]);
   });
 
   test("produces exactly the requested length", () => {
