@@ -31,7 +31,8 @@ npm run lint   # oxlint
 - **서버 권위형(authoritative)**: 시퀀스 생성, 커서 위치, 4초 타이머, 절구 개수, 라운드/팀 탈락 판정을 서버(`MatchRoom`/`MatchState`)가 전부 소유. 클라이언트는 버튼 입력만 보내고 state diff를 받아 그리기만 함 — 클라이언트에서 판정 로직을 복제하지 말 것. 팀이 탈락해도 매치는 끝나지 않고 생존 팀이 계속 진행됨(승리 개념 없음) — `docs/REQUIREMENTS.md` §1 참고.
 - 핵심 게임 규칙은 `server/src/game/` 아래 순수 함수로 분리되어 있고 각각 동명 `*.test.ts`가 있음: `sequence`(시퀀스 생성), `mortar`(절구/생명), `rotation`(팀 순환), `turnOrder`, `fragments`(돼지/토끼 조각), `colors`. 새 규칙을 추가할 때도 이 패턴(순수 함수 + 테스트)을 유지.
 - Room 진입점: `server/src/rooms/MatchRoom.ts` (로직), `MatchState.ts` (Colyseus Schema)
-- Colyseus 개념 매핑: Room = 한 경기(2팀×2명), Message client→server = `pressButton`, server→client는 state 변경분 자동 브로드캐스트.
+- Colyseus 개념 매핑: Room = 한 경기(팀 개수는 방 생성 시 1~3팀 중 선택, 팀당 2명 고정 — `server/src/game/teamCount.ts`), Message client→server = `pressButton`, server→client는 state 변경분 자동 브로드캐스트.
+- **배포**: AWS EC2 단일 인스턴스, Docker 컨테이너(`songpyeon`) + Caddy(`caddy`, HTTPS 리버스 프록시, `songpyeon-net` 도커 네트워크로 연결) — 재배포는 수동 flow(로컬 `docker build` → `docker save` → `scp` → EC2에서 `docker load` 후 컨테이너 교체, Caddy/네트워크는 그대로 둠). GitHub Actions 등 CI/CD 없음, 이미지 레지스트리도 안 씀(저작권 있는 `game-assets/`가 이미지에 포함되므로 제3자 서버 경유 안 함). 절차 상세는 `docs/superpowers/specs/2026-07-15-aws-light-deploy-test-design.md` 참고.
 
 ## Key docs
 
@@ -52,6 +53,9 @@ npm run lint   # oxlint
 - **Colyseus의 `maxClients` 기반 자동 잠금은 클라이언트가 나가는 순간 자동으로 풀림** (`_decrementClientCount`가 `!_lockedExplicitly`일 때 unlock 호출) — 진행 중인 방에서 플레이어가 나가면 그 즉시 `joinOrCreate`의 매치메이킹 후보로 다시 노출됨. 게임 시작 시 `this.lock()`을 명시적으로 호출해야 실제 방어가 됨 (`_lockedExplicitly`로 표시되어 자동 unlock 대상에서 제외). `server/src/rooms/MatchRoom.ts`의 `maybeStartGame()` 참고.
 - `rotation.ts`의 `nextActiveTeamIndex`는 **모든 팀이 탈락하면 건너뛸 곳이 없어 현재 인덱스를 그대로 반환**함 — `advanceToNextTurn`이 이를 확인 없이 항상 `startTurn()`을 호출하면 이미 탈락한 팀에게 유령 턴이 무한 생성됨. 다음 활성 팀도 탈락 상태면 새 턴을 시작하지 않고 멈추는 가드가 필요 (`MatchRoom.ts`의 `advanceToNextTurn()` 끝부분 참고).
 - client CSS: `display:flex` 부모(`align-items:center`, cross-axis) 안의 `display:grid` 자식은 shrink-to-fit되므로, `max-width`만 주고 명시적 `width`를 안 주면 `1fr` 컬럼이 min-content로 쪼그라들어 버튼이 비정상적으로 작게 렌더링될 수 있음 (`ButtonPanel.module.css`에서 실제로 겪음) — `width: 100%`를 같이 줄 것.
+- client CSS: 내용이 늘어나도 그 안의 스크롤 영역이 늘어나지 않고 페이지 전체가 늘어나는 문제는 거의 항상 flex 체인 어딘가에 `min-height: 0`이 빠진 것 — flex 자식 기본값이 `min-height: auto`라 내용물보다 작아지길 거부함. `#root`(`index.css`)가 `height: 100svh`로 고정돼 있어야 그 예산이 하위로 흐르고, `flex:1` 쓰는 조상 전부(`.wrap`/`.content`/스크롤 컨테이너 자신)에 `min-height: 0`이 있어야 최하단 `overflow-y: auto`가 실제로 동작함 — 한 곳이라도 빠지면 전체가 무효화됨 (`ChatBox`의 `fill` variant에서 실제로 겪음, `docs/TROUBLESHOOTING.md` #13).
+- 클라이언트-서버 시계 오차: 클라이언트 기기 시계가 서버(AWS EC2)와 몇 초씩 어긋나는 게 흔함 — `turnEndsAt`(서버 절대 타임스탬프)에서 클라이언트 `Date.now()`를 그냥 빼면 안 되고, ping/pong RTT로 추정한 `clockOffsetMs`를 보정해서 써야 함(`client/src/game/clockSync.ts`). 솔로 모드(`useSoloMatch.ts`)는 같은 기기 시계만 쓰므로 이 문제 자체가 없음 — 온라인에서만 재현되는 타이머 버그면 먼저 의심할 것.
+- Docker 배포: `.dockerignore`는 `.gitignore`와 달리 하위 폴더까지 자동 재귀 매칭되지 않음 — `.env`/`.env.*`만 적어두면 `client/.env.local` 같은 하위 경로 파일은 안 걸러지고 그대로 이미지에 들어감(LAN IP 등 로컬 전용 값이 프로덕션 번들에 박히는 사고로 실제 발생, `docs/TROUBLESHOOTING.md` #9). 재귀 매칭하려면 `**/.env`/`**/.env.*` 형태로 적을 것 — 재배포 전엔 `docker run --rm <image> grep -r <의심 패턴> /app/server/public`로 빌드된 번들을 직접 확인.
 
 ## Workflow
 

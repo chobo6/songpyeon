@@ -19,7 +19,7 @@
 
 | Colyseus 개념 | 이 게임에서의 의미 |
 |---|---|
-| Room | 한 경기(2팀×2명 = 4명)의 세션 |
+| Room | 한 경기의 세션. 팀 개수는 방 생성 시 1~3팀 중 선택(팀당 2명 고정, 총 2~6명) |
 | State (Schema) | 팀별 절구 수, 현재 라운드, 현재 턴 팀, 시퀀스 배열, 커서 위치, 각 플레이어의 역할 |
 | Message (client→server) | 버튼 입력 (`pressButton: { color }`) |
 | Message (server→client, 자동) | State 변경분 자동 브로드캐스트 (커서 이동, 절구 감소, 라운드 증가 등) |
