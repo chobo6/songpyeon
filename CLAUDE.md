@@ -56,6 +56,7 @@ npm run lint   # oxlint
 - client CSS: 내용이 늘어나도 그 안의 스크롤 영역이 늘어나지 않고 페이지 전체가 늘어나는 문제는 거의 항상 flex 체인 어딘가에 `min-height: 0`이 빠진 것 — flex 자식 기본값이 `min-height: auto`라 내용물보다 작아지길 거부함. `#root`(`index.css`)가 `height: 100svh`로 고정돼 있어야 그 예산이 하위로 흐르고, `flex:1` 쓰는 조상 전부(`.wrap`/`.content`/스크롤 컨테이너 자신)에 `min-height: 0`이 있어야 최하단 `overflow-y: auto`가 실제로 동작함 — 한 곳이라도 빠지면 전체가 무효화됨 (`ChatBox`의 `fill` variant에서 실제로 겪음, `docs/TROUBLESHOOTING.md` #13).
 - 클라이언트-서버 시계 오차: 클라이언트 기기 시계가 서버(AWS EC2)와 몇 초씩 어긋나는 게 흔함 — `turnEndsAt`(서버 절대 타임스탬프)에서 클라이언트 `Date.now()`를 그냥 빼면 안 되고, ping/pong RTT로 추정한 `clockOffsetMs`를 보정해서 써야 함(`client/src/game/clockSync.ts`). 솔로 모드(`useSoloMatch.ts`)는 같은 기기 시계만 쓰므로 이 문제 자체가 없음 — 온라인에서만 재현되는 타이머 버그면 먼저 의심할 것.
 - Docker 배포: `.dockerignore`는 `.gitignore`와 달리 하위 폴더까지 자동 재귀 매칭되지 않음 — `.env`/`.env.*`만 적어두면 `client/.env.local` 같은 하위 경로 파일은 안 걸러지고 그대로 이미지에 들어감(LAN IP 등 로컬 전용 값이 프로덕션 번들에 박히는 사고로 실제 발생, `docs/TROUBLESHOOTING.md` #9). 재귀 매칭하려면 `**/.env`/`**/.env.*` 형태로 적을 것 — 재배포 전엔 `docker run --rm <image> grep -r <의심 패턴> /app/server/public`로 빌드된 번들을 직접 확인.
+- **Windows에서 `tsx watch`(server dev)가 `server/src/**` 파일을 고칠 때마다 재시작을 시도하다 `EADDRINUSE`로 실패하는 경우가 있음** — 직전 프로세스가 포트 2567을 바로 안 놓아서 생기는 타이밍 문제로, 몇 초 뒤 재시도해서 결국 성공하기도 하고 그대로 죽은 채 예전 프로세스가 계속 응답하기도 함(콘솔에 `EADDRINUSE` 에러가 찍혀도 방 생성/입장 같은 기본 동작은 옛 코드로 계속 "정상 작동"하는 것처럼 보여서 눈치채기 어려움). 서버 쪽 파일을 고친 직후 실제 동작을 확인해야 한다면 `netstat -ano | grep :2567`로 리스닝 PID가 바뀌었는지 먼저 확인할 것 — 안 바뀌었으면 옛 코드를 테스트하고 있는 것. 확실히 하려면 `taskkill //F //PID <pid> //T`로 관련 프로세스를 다 죽이고 `npm run dev`를 처음부터 다시 실행.
 
 ## Workflow
 
