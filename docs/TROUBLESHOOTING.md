@@ -490,3 +490,74 @@ useSequencePressSound.ts`)을 추가 — `sequence[이전 cursor .. 새 cursor)`
 - `client/src/components/ButtonPanel.tsx`
 - `client/src/components/MyTurnScreen.tsx`
 - `client/src/components/SpectatorScreen.tsx`
+
+---
+
+## #17 매치 종료 화면("모든 팀이 탈락했습니다")의 채팅창이 관전 중 채팅보다 훨씬 눌림
+
+### 증상
+
+같은 `ChatBox`(`fill` variant), 같은 `SpectatorScreen`인데 매치가 완전히 끝난 화면("모든 팀이
+탈락했습니다" + "나가기" 버튼이 뜨는 상태)에서는 채팅이 평소 관전 중(진행 팀 있음)보다 훨씬 적게
+보임. 짧은 모바일 뷰포트에서는 #15로 고친 뒤에도 3~4줄밖에 안 보임.
+
+### 원인 분석
+
+`eliminated` 분기가 평소 관전 화면에는 없는 문구(`<p>`)와 "나가기" `<button>`을 추가로 렌더링하는데,
+이 둘이 `.content`의 `flex:1` 예산을 SequenceBoard와 함께 나눠 가지면서 채팅의 몫이 그만큼 줄어듦.
+평소 관전 화면보다 소비 요소가 하나(버튼) 더 많은 게 누적된 것.
+
+디버깅 중 **별도의 진짜 버그**도 하나 발견: `.leaveButton`/`.spectating`을 짧은 뷰포트에서 작게
+만들려고 `@media (max-height: 750px)` 블록을 `PlayingScreen.module.css` 파일 **앞쪽**(`.content`
+정의 바로 뒤)에 추가했는데, 실제로는 전혀 적용되지 않았음 — CSS는 특정도(specificity)가 같으면
+**소스 순서가 나중인 규칙이 이긴다**는 원칙이 미디어 쿼리 조건 충족 여부와 무관하게 그대로 적용되므로,
+파일 뒤쪽에 있는 `.leaveButton`/`.spectating`의 **조건 없는** 기본 규칙이 앞쪽의 미디어 쿼리 규칙을
+덮어써버림. `getComputedStyle()`로 실제 적용된 padding/font-size 값을 확인해서 발견 — 화면만 봐서는
+"안 줄어드네?" 정도로만 보이고 원인을 알기 어려움.
+
+### 해결
+
+1. 미디어 쿼리 오버라이드는 **오버라이드할 기본 규칙보다 파일에서 뒤에** 와야 함 — `.leaveButton`/
+   `.spectating`용 `@media` 블록을 그 클래스들의 기본 정의 뒤로 옮김(`.content`용 블록은 원래도
+   `.content` 기본 정의 뒤에 있어서 문제 없었음).
+2. 매치가 완전히 끝나면(`matchOver`) 더 이상 진행되지 않는 정지된 시퀀스 보드를 보여줄 이유가
+   없으므로 `SequenceBoard`(및 `.boardArea`) 자체를 렌더링하지 않도록 변경 — 채팅에 그 공간을
+   통째로 돌려줌. 폰 뷰포트(375×667)에서 메시지 10개가 스크롤 없이 다 보이는 것까지 스크린샷으로
+   확인.
+
+### 관련 파일
+- `client/src/components/PlayingScreen.module.css`
+- `client/src/components/SpectatorScreen.tsx`
+
+---
+
+## #18 EC2 재시작 후 앱은 떠 있는데 새 주소로 HTTPS 접속이 안 됨
+
+### 증상
+
+EC2 인스턴스를 재시작(퍼블릭 IP가 바뀜)한 뒤 새 IP 기반 nip.io 주소(`https://<새IP 하이픈형>.nip.io`)로
+접속하면 응답이 없거나 인증서 에러가 남. `docker ps`로 보면 `songpyeon`/`caddy` 컨테이너 둘 다
+`--restart unless-stopped`로 이미 자동으로 다시 떠 있어서 "컨테이너는 정상인데 왜 안 되지" 상태가 됨.
+
+### 원인 분석
+
+nip.io는 IP를 호스트네임 안에 그대로 박아넣는 서비스라(`52-79-109-203.nip.io` = IP
+`52.79.109.203`), EC2가 재시작되어 퍼블릭 IP가 바뀌면 접속해야 할 도메인 문자열 자체가 통째로
+바뀜. 컨테이너 재시작은 자동이지만 **Caddy 설정 파일은 자동으로 안 바뀜** —
+`/home/ec2-user/caddy/Caddyfile`(호스트에서 컨테이너로 bind mount됨, `docker inspect caddy`로 확인
+가능)에 예전 IP 기반 호스트네임이 사이트 블록 헤더로 그대로 박혀있어서, Caddy가 자동 HTTPS 인증서를
+새 호스트네임 앞으로 발급받지 않음(설정에 없는 도메인이니까).
+
+### 해결
+
+1. SSH로 접속해 `/home/ec2-user/caddy/Caddyfile`을 새 IP 기반 호스트네임으로 갱신.
+2. `docker restart caddy` — 재시작되면서 Caddyfile을 다시 읽고, 자동으로 Let's Encrypt에 새
+   인증서를 요청함(`docker logs caddy`에서 `certificate obtained successfully` 로그로 확인, 보통
+   몇 초 안에 끝남).
+3. 새 주소로 브라우저 접속 확인.
+
+`songpyeon` 컨테이너 자체는 도메인과 무관(내부 도커 네트워크로만 통신)이라 이 절차와 무관하게 항상
+자동 복구됨 — 이 문제는 순전히 Caddy/도메인 쪽.
+
+### 관련 파일
+- EC2 인스턴스의 `/home/ec2-user/caddy/Caddyfile` (레포 밖, 직접 SSH로만 수정 가능)
