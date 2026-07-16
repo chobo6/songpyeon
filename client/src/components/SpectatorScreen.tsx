@@ -65,9 +65,11 @@ export function SpectatorScreen({
         ) : (
           <p className={styles.spectating}>{activeTeam.id} 팀의 차례입니다</p>
         )}
-        <div className={styles.boardArea}>
-          <SequenceBoard sequence={sequence} cursor={cursor} />
-        </div>
+        {!matchOver && (
+          <div className={styles.boardArea}>
+            <SequenceBoard sequence={sequence} cursor={cursor} />
+          </div>
+        )}
         <ChatBox messages={matchChat} onSend={sendChat} fill />
       </div>
       <TeamRosterPanel teams={teams} players={players} />

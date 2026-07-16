@@ -79,3 +79,22 @@
   font-weight: 700;
   background: linear-gradient(135deg, #6b7280, #374151);
 }
+
+/* Placed after the base .spectating/.leaveButton rules on purpose — a
+   @media block earlier in the file loses to an unconditional rule later in
+   the file when both match, regardless of the media condition (equal
+   specificity, source order wins). SpectatorScreen's eliminated/matchOver
+   branch adds this message + button on top of everything the plain
+   spectating branch already has, which ate into chat's leftover space more
+   than the plain branch even after SequenceBoard/.content's trims above
+   (docs/TROUBLESHOOTING.md). */
+@media (max-height: 750px) {
+  .spectating {
+    font-size: 0.85rem;
+  }
+
+  .leaveButton {
+    padding: 0.35rem 1rem;
+    font-size: 0.85rem;
+  }
+}
