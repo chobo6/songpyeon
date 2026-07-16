@@ -347,34 +347,27 @@ describe("MatchRoom", () => {
     expect(room.state.teams[room.state.activeTeamIndex].id).not.toBe(activeTeamId);
   });
 
-  test("a dropped connection keeps the match running, and reconnecting restores the player's seat", async () => {
+  test("a dropped connection during a match frees the player's role/team slot immediately", async () => {
     const { room, clients } = await fillRolesAndStart();
-    const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+    const { activeTeam, actingClient } = actingClientFor(room, clients);
     const droppedSessionId = actingClient.sessionId;
-    const reconnectionToken = actingClient.reconnectionToken;
 
     await actingClient.leave(false); // simulated drop, not a deliberate leave
     await flush();
 
-    // the match keeps going — the player's seat/role/team survive the drop.
+    // No reconnection grace (client never persists a token to resume with —
+    // see client/src/colyseus.ts) — the match keeps going for the rest of
+    // the room, but the dropped player's seat is freed right away instead of
+    // lingering as a phantom occupant.
     expect(room.state.phase).toBe("playing");
-    const survivingPlayer = room.state.players.get(droppedSessionId);
-    expect(survivingPlayer?.role).not.toBe("");
-    expect(survivingPlayer?.teamId).toBe(activeTeam.id);
-
-    const reconnectedClient = await colyseus.sdk.reconnect<MatchState>(reconnectionToken);
-    expect(reconnectedClient.sessionId).toBe(droppedSessionId);
-
-    reconnectedClient.send("pressButton", { color: dueColor });
-    await flush();
-
-    expect(room.state.cursor).toBe(1);
+    expect(room.state.players.has(droppedSessionId)).toBe(false);
+    const teamAfterDrop = room.state.teams.find((t) => t.id === activeTeam.id);
+    expect([teamAfterDrop?.pigSessionId, teamAfterDrop?.rabbitSessionId]).not.toContain(droppedSessionId);
   });
 
-  test("a dropped connection during the lobby keeps the role slot, and reconnecting restores it", async () => {
+  test("a dropped connection during the lobby frees the role slot immediately", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
     const client = await colyseus.connectTo(room);
-    const reconnectionToken = client.reconnectionToken;
     client.send("chooseRole", { role: "pig" });
     await flush();
 
@@ -385,46 +378,12 @@ describe("MatchRoom", () => {
     await client.leave(false); // simulated drop, not a deliberate leave
     await flush();
 
-    // mobile networks drop briefly (wifi/LTE handoff, screen off) — the lobby
-    // now grants the same reconnection grace as mid-match, so the role slot
-    // must survive the drop instead of vanishing from other players' rosters.
+    // Same "no grace" behavior as mid-match — a dropped lobby connection
+    // (refresh, closed tab, network blip) must not leave a phantom occupant
+    // holding the role slot, since nothing will ever reconnect to reclaim it.
     expect(room.state.phase).toBe("lobby");
-    expect(room.state.players.has(sessionId)).toBe(true);
-    expect(room.state.teams[0].pigSessionId).toBe(sessionId);
-
-    const reconnectedClient = await colyseus.sdk.reconnect<MatchState>(reconnectionToken);
-    expect(reconnectedClient.sessionId).toBe(sessionId);
-    expect(room.state.teams[0].pigSessionId).toBe(sessionId);
-  });
-
-  test("starting the game locks maxClients at 4 even if a role-holder is mid-grace (not actually connected) at that moment", async () => {
-    const room = await colyseus.createRoom<MatchState>("match");
-    const pig1 = await colyseus.connectTo(room);
-    pig1.send("chooseRole", { role: "pig" });
-    await flush();
-    const rabbit1 = await colyseus.connectTo(room);
-    rabbit1.send("chooseRole", { role: "rabbit" });
-    await flush();
-    const pig2 = await colyseus.connectTo(room);
-    pig2.send("chooseRole", { role: "pig" });
-    await flush();
-
-    // pig1's role slot survives the drop (lobby reconnection grace), but
-    // pig1 is no longer in room.clients — only 3 real connections remain
-    // when the 4th role gets filled below.
-    await pig1.leave(false);
-    await flush();
-
-    const rabbit2 = await colyseus.connectTo(room);
-    rabbit2.send("chooseRole", { role: "rabbit" });
-    await flush();
-
-    expect(room.state.phase).toBe("playing");
-    // Bug regression: maxClients must stay the fixed team size (4), not
-    // whatever room.clients.length happened to be at start time — that
-    // count is now unreliable once lobby grace can leave a filled role slot
-    // held by a currently-disconnected sessionId.
-    expect(room.maxClients).toBe(4);
+    expect(room.state.players.has(sessionId)).toBe(false);
+    expect(room.state.teams[0].pigSessionId).toBe("");
   });
 
   test("leaving the lobby deliberately after choosing a role frees that role slot immediately", async () => {

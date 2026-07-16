@@ -12,7 +12,6 @@ import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeChatText } from "../game/chat";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
-const RECONNECTION_GRACE_SECONDS = 60;
 const MAX_CHAT_MESSAGES = 50;
 
 interface MatchRoomOptions {
@@ -99,16 +98,14 @@ export class MatchRoom extends Room<MatchState> {
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
   }
 
-  async onLeave(client: Client, consented: boolean) {
-    if (!consented) {
-      try {
-        await this.allowReconnection(client, RECONNECTION_GRACE_SECONDS);
-        return;
-      } catch {
-        // grace period expired without a reconnect — fall through to removal.
-      }
-    }
-
+  onLeave(client: Client) {
+    // No reconnection grace: the client never persists a reconnection token
+    // and never attempts to resume (see client/src/colyseus.ts) — a refresh,
+    // closed tab, or dropped connection always lands back on the room list.
+    // Granting a grace period here just left a phantom player occupying a
+    // role/team slot (and the room looking occupied to others) for up to
+    // RECONNECTION_GRACE_SECONDS with nothing that could ever reconnect
+    // through it. Free the slot immediately instead.
     this.removePlayer(client.sessionId);
   }
 
