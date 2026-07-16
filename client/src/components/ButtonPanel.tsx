@@ -6,7 +6,7 @@ import { playColorClickSound } from "../game/clickSound";
 import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./ButtonPanel.module.css";
 
-// How long after a touch's pointerdown fires that we still trust a
+// How long after a touch's touchstart fires that we still trust a
 // same-color click to be that touch's own (browser-synthesized,
 // preventDefault()-defeated) duplicate rather than a genuinely new press.
 const TOUCH_DEDUPE_WINDOW_MS = 800;
@@ -22,7 +22,7 @@ export function ButtonPanel({
 }) {
   const slots = buttonPanelSlots(role);
 
-  // Touch input reacts on pointerdown (fires the instant a finger lands,
+  // Touch input reacts on touchstart (fires the instant a finger lands,
   // independent of any other touch in flight) instead of waiting for the
   // browser's touch->click synthesis, which only reliably tracks one touch
   // at a time — a second, near-simultaneous touch on a different button
@@ -30,15 +30,28 @@ export function ButtonPanel({
   // fast as possible) can fail to synthesize a click at all if the browser
   // reads the motion between them as a swipe rather than two taps.
   //
-  // preventDefault() on the touch pointerdown is *supposed* to suppress the
+  // Uses the raw TouchEvent API (onTouchStart), not Pointer Events
+  // (onPointerDown) — WebKit's Pointer Events implementation is known to be
+  // less reliable than TouchEvent for tracking multiple simultaneous
+  // touches (each pointer gets dispatched as a separate event that can be
+  // individually dropped under WebKit's internal bookkeeping, vs.
+  // TouchEvent handing you the whole active-touch list atomically in one
+  // event) — this is the suspected cause of reports (iOS Safari *and*
+  // Chrome/Naver on iOS, which all share the same WebKit engine — Apple
+  // requires it — so this isn't a Safari-specific quirk) of a second
+  // simultaneous or rapid-fire touch (e.g. yellow/orange + purple, pressed
+  // together) intermittently not registering at all, worse than a simple
+  // wrong-press. See docs/TROUBLESHOOTING.md.
+  //
+  // preventDefault() on the touchstart is *supposed* to suppress the
   // browser's compatibility click for that same touch, but this isn't
   // reliable everywhere (observed: presses getting double-counted, since
-  // pointerdown fires onPress and the click that follows anyway fires it
+  // touchstart fires onPress and the click that follows anyway fires it
   // again — the second call re-judges the NEXT cursor position against the
   // same color and almost always mismatches, reading as an instant wrong
   // press even for a single deliberate tap). So don't depend on
   // preventDefault actually working: track per-color, in a ref (not
-  // state — this must never trigger a render) when a touch's pointerdown
+  // state — this must never trigger a render) when a touch's touchstart
   // last fired, and have onClick skip firing again if a click for that
   // same color arrives within the dedupe window. Real mouse/keyboard
   // clicks never touch this map, so they're unaffected.
@@ -57,13 +70,11 @@ export function ButtonPanel({
     playColorClickSound(color);
   }
 
-  function handlePointerDown(e: React.PointerEvent<HTMLButtonElement>, color: Color) {
+  function handleTouchStart(color: Color) {
     if (disabled) return;
-    if (e.pointerType === "touch") {
-      touchHandledAtRef.current.set(color, Date.now());
-      playClickSound(color);
-      onPress(color);
-    }
+    touchHandledAtRef.current.set(color, Date.now());
+    playClickSound(color);
+    onPress(color);
   }
 
   function handleClick(color: Color) {
@@ -91,7 +102,7 @@ export function ButtonPanel({
               type="button"
               aria-label={color}
               disabled={disabled}
-              onPointerDown={(e) => handlePointerDown(e, color)}
+              onTouchStart={() => handleTouchStart(color)}
               onClick={() => handleClick(color)}
               className={`${styles.button} ${positionClass}`}
               style={{ backgroundImage: `url(${COLOR_TOKEN[color]})` }}
