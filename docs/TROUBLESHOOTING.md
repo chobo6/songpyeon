@@ -605,16 +605,43 @@ nip.io는 IP를 호스트네임 안에 그대로 박아넣는 서비스라(`52-7
   호출하고, dedupe는 뒤따라오는 합성 `click`만 걸러내는 용도라 정당한 연속 입력 누락으로 이어지진
   않음.
 
-### 해결 (시도 중)
+### 시도 1 (효과 없음 확인됨)
 
-가장 유력한 후보부터 적용: `ButtonPanel.tsx`를 `onPointerDown`(Pointer Events) → `onTouchStart`(raw
-Touch Events)로 전환. `handleTouchStart`가 이제 `pointerType` 체크 없이 바로 동작(touchstart는 애초에
-터치에서만 발생하므로 불필요해짐), 기존 dedupe 로직(`touchHandledAtRef`, `TOUCH_DEDUPE_WINDOW_MS`)은
-그대로 유지 — 트리거 이벤트만 바뀌고 나머지 구조는 동일.
+가장 유력해 보였던 후보부터 적용: `ButtonPanel.tsx`를 `onPointerDown`(Pointer Events) →
+`onTouchStart`(raw Touch Events)로 전환. `handleTouchStart`가 이제 `pointerType` 체크 없이 바로
+동작(touchstart는 애초에 터치에서만 발생하므로 불필요해짐), 기존 dedupe 로직(`touchHandledAtRef`,
+`TOUCH_DEDUPE_WINDOW_MS`)은 그대로 유지 — 트리거 이벤트만 바뀌고 나머지 구조는 동일. 배포 후 실사용자
+재검증 결과 **효과 없음** — 증상 동일. 게다가 추가 정보 확보: **같은 버튼(토끼 민트)을 빠르게
+연타할 때도 씹힘** — 이건 "서로 다른 두 버튼 동시입력 시 WebKit 멀티터치 처리가 불안정하다"는 원래
+가설로는 설명이 안 되는 패턴이라(같은 요소 반복 탭은 멀티터치 추적과 무관), 가설을 재검토함.
 
-이 환경엔 iOS 기기가 없어 실제 재현/검증이 불가능 — 데스크탑 마우스 클릭 경로(별도 코드 경로,
-`onClick`)가 안 깨졌는지만 확인했고, 실제 개선 여부는 사용자 쪽 iOS 기기 테스트로 확인 필요. 효과
-없으면 다음 후보(터치 영역 `touch-action` 확장, `:active` 트랜지션 축소)로 진행.
+### 원인 재분석
+
+두 증상(다른 버튼 동시입력 씹힘 / 같은 버튼 연타 씹힘)을 동시에 설명하려면 "동시입력" 자체보다
+**"짧은 시간 안의 연속 입력"** 쪽에 공통점이 있음. `ButtonPanel.tsx`가 탭마다 동기적으로 하는 일:
+(1) React state 업데이트로 인한 `SequenceBoard` 전체 리렌더(토큰 18~30개), (2) **탭마다 `new
+Audio(src)`로 새 오디오 엘리먼트를 매번 새로 생성**해서 재생, (3) WebSocket 메시지 전송, (4)
+`:active`에서 `transform: scale(0.93)` + `0.1s` 트랜지션. 특히 (2)는 반복될수록 누적되는 실제
+메인스레드 작업이라, 연타 중 메인스레드가 밀린 타이밍에 물리적 터치가 들어오면 iOS가 터치 디스패치를
+지연/드롭할 수 있음 — 이게 "몇 개는 되다가 갑자기 안 되는" 패턴과 버튼이 같든 다르든 상관없이
+적용되는 설명. (4)는 민트 연타(같은 버튼 반복)에 더 직접적으로 걸림 — 트랜지션 도중 버튼의 실제
+렌더링 크기가 살짝 작아진 상태라, 그 순간 재탭하면 히트 영역이 미세하게 좁아짐.
+
+### 시도 2 (2026-07-17, 검증 대기)
+
+1. **오디오 풀링**: `game/clickSound.ts`가 이제 색상/사운드별로 `HTMLAudioElement`를 하나씩만 만들어
+   재사용(`audioPool` Map). 재생 중인 걸 다시 트리거하면 `currentTime = 0`으로 되감아 재시작 — 겹쳐
+   재생하진 않지만(1초 미만 효과음이라 문제 없음), 탭마다 새 엘리먼트를 만들던 작업을 없앰.
+2. **`:active` 트랜지션 제거**: `ButtonPanel.module.css`의 `.button`에서 `transform`을 트랜지션
+   대상에서 뺌(순간 전환, 애니메이션 없음) — `filter`만 계속 트랜지션. 눌림 시각 효과 자체는 남지만
+   연타 중 "히트박스가 일시적으로 작아진 상태"인 프레임이 없어짐.
+
+이 환경엔 iOS 기기가 없어 실제 검증 불가 — 데스크탑 마우스 클릭 경로와 오디오 풀링이 매 색상당 정확히
+1번의 네트워크 요청만 내는지(재요청 없이 재생만 반복되는지)는 확인함. 실제 개선 여부는 사용자 쪽
+iOS 실기기 재검증 필요 — 안 되면 롤백하고 화면에 터치 이벤트 로그 오버레이를 붙여 실제 데이터를
+받아보는 쪽으로 전환 예정.
 
 ### 관련 파일
 - `client/src/components/ButtonPanel.tsx`
+- `client/src/components/ButtonPanel.module.css`
+- `client/src/game/clickSound.ts`

@@ -24,17 +24,40 @@ const MINT_CLICK_SRCS = [
   "/game-assets/audio/click4.mp3",
 ];
 
+// One HTMLAudioElement per src, reused across presses instead of `new
+// Audio()`-ing a fresh element every single tap. Constructing+decoding a
+// fresh element on every rapid-fire press (iOS reports: a mint run of
+// 2/4/6 same-button retaps starts dropping input after a couple presses,
+// same as two different buttons pressed together — see
+// docs/TROUBLESHOOTING.md #19/#20) is real synchronous work on the main
+// thread right in the middle of the touch handler; a busy main thread is
+// exactly when iOS's touch dispatch is most likely to lag or drop the next
+// physical touch. Restarting a still-playing pooled element (currentTime =
+// 0) just retriggers the click rather than overlapping it — fine for a
+// ~1s click SFX, and is how rapid-fire UI sounds are normally done.
+const audioPool = new Map<string, HTMLAudioElement>();
+
+function playSrc(src: string) {
+  let audio = audioPool.get(src);
+  if (audio) {
+    audio.currentTime = 0;
+  } else {
+    audio = new Audio(src);
+    audioPool.set(src, audio);
+  }
+  audio.play().catch(() => {});
+}
+
 // `mintStreakIndex` is which consecutive mint press this is within its run
 // (0 = first), so callers driven by different sources (a local press vs. a
 // press observed via state sync) land on the same point in the cycle for
 // the same logical press — see game/useSequencePressSound.ts.
 export function playColorClickSound(color: Color, mintStreakIndex = 0) {
   if (color === "mint") {
-    const src = MINT_CLICK_SRCS[mintStreakIndex % MINT_CLICK_SRCS.length];
-    new Audio(src).play().catch(() => {});
+    playSrc(MINT_CLICK_SRCS[mintStreakIndex % MINT_CLICK_SRCS.length]);
     return;
   }
   const src = COLOR_CLICK_SRC[color];
   if (!src) return;
-  new Audio(src).play().catch(() => {});
+  playSrc(src);
 }
