@@ -4,6 +4,7 @@
   align-items: center;
   color: #fff;
   flex: 1;
+  min-height: 0;
   width: 100%;
   box-sizing: border-box;
 }

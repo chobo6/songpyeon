@@ -20,6 +20,15 @@
 .fill .list {
   flex: 1;
   height: auto;
+  /* Without this, a flex item defaults to min-height: auto (won't shrink
+     below its content's height) — so once enough chat lines accumulate to
+     exceed the space .fill was allotted, the list grows past it instead of
+     respecting overflow-y: auto, dragging the whole page taller instead of
+     scrolling internally. Needs min-height: 0 at every level of the chain
+     to actually take effect: #root (index.css, height: 100svh — a fixed
+     height, not just a floor, so the chain below has a real budget to
+     shrink into) -> PlayingScreen.module.css's .wrap -> .content -> here. */
+  min-height: 0;
 }
 
 .list {
