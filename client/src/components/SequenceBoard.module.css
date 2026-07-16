@@ -14,6 +14,19 @@
   justify-content: center;
 }
 
+/* On short viewports (most phones in portrait — this board's height doesn't
+   scale with the viewport otherwise, since it's a fixed 4-row box) shrink
+   the tokens so this board leaves more of the screen for whatever sits below
+   it (in particular SpectatorScreen's chat, which used to get squeezed to
+   almost nothing — docs/TROUBLESHOOTING.md). */
+@media (max-height: 750px) {
+  .viewport {
+    --token-width: 1.5rem;
+    --row-gap: 0.45rem;
+    padding: 0.6rem;
+  }
+}
+
 .stack {
   display: flex;
   flex-direction: column;

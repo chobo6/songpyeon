@@ -30,6 +30,16 @@
   box-sizing: border-box;
 }
 
+/* Same short-viewport threshold as SequenceBoard.module.css — trims the
+   padding/gaps around the fixed-size header bits so more of a short screen
+   goes to whatever's filling the leftover space below (chat). */
+@media (max-height: 750px) {
+  .content {
+    gap: 0.3rem;
+    padding: 0.6rem;
+  }
+}
+
 /* Pushes the bottom panel (last child) to the bottom of the viewport when
    .content is shorter than the screen — #root establishes the flex column
    this relies on (client/src/index.css). */
