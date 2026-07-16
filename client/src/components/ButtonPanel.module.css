@@ -27,8 +27,12 @@
   /* % of .panel's own width (not a fixed rem) so the button scales down
      together with the panel on narrow viewports instead of staying a fixed
      size while its container shrinks — that mismatch is what would cause
-     the overlap/crowding to look different across screen widths. */
-  width: 21%;
+     the overlap/crowding to look different across screen widths. Sized up
+     from the original game.xml-derived 21% (user-requested — a bit bigger
+     than the source app's own buttons, easier to tap). Centers stay put
+     (position is set by left/top + translate(-50%,-50%)), so this only
+     grows the buttons around their existing fixed positions. */
+  width: 25%;
   aspect-ratio: 65 / 67;
   transform: translate(-50%, -50%);
   border: none;
@@ -67,34 +71,55 @@
 
 /* top row — red (pig) / empty (rabbit), and the two always-empty "item" slots.
    topMid/topRight (green/blue for rabbit) and bottomLeft/bottomMid
-   (yellow/orange for pig) are each widened to the same 23% gap (game.xml's
-   raw bias math gave them different, tighter gaps — 18.1% vs 21.4% — which
-   read as green/blue crowding together; widened slightly beyond the larger
-   of the two and unified, expanding symmetrically around each pair's
-   original midpoint so the row stays centered). */
+   (yellow/orange for pig) are each widened to a 27% gap (game.xml's raw bias
+   math gave them tighter gaps — 18.1% vs 21.4% — which already read as
+   green/blue crowding together at the original 21% button size; widened to
+   23% to fix that. Buttons were later sized up to 25% per a user request for
+   bigger/easier-to-tap buttons, which made that 23% gap start overlapping
+   again — 23% < 25% button width — so widened again to 27%, same "expand
+   symmetrically around each pair's original midpoint" approach as before).
+   topLeft never actually shares a row with topMid/topRight in practice (pig
+   only ever renders topLeft, rabbit only ever renders topMid+topRight — see
+   game/buttonPanel.ts's PANEL_BY_ROLE), so its own spacing from them doesn't
+   matter for crowding, only topMid-to-topRight does.
+
+   The whole left group (topLeft/bottomLeft/bottomMid — §12.2's left
+   triangle ▲) and right group (topMid/topRight/bottomRight — right inverted
+   triangle ▽) are each shifted 3% further from center (left group left,
+   right group right) on top of the above — pig's bottomMid-to-bottomRight
+   (orange-to-purple, the boundary between the two triangles) was still
+   crowded at 25.25% gap vs the 25% button width even after the within-group
+   fixes above, since that gap was never part of either group's internal
+   spacing. Shifting both groups outward widens every group-to-group
+   boundary at once without touching either group's own internal spacing. */
 .topLeft {
-  left: 30.5%;
+  left: 27.5%;
   top: 32%;
 }
 .topMid {
-  left: 58.15%;
+  left: 59.15%;
   top: 32%;
 }
 .topRight {
-  left: 81.15%;
+  left: 86.15%;
   top: 32%;
 }
 
-/* bottom row — yellow/orange/purple (pig) or mint/(empty)/pink (rabbit) */
+/* bottom row — yellow/orange/purple (pig) or mint/(empty)/pink (rabbit).
+   Same reasoning as the top row: bottomLeft-to-bottomMid (yellow-orange, pig
+   only) is the pair that actually crowds and got widened; bottomMid-to-
+   bottomRight (orange-purple) is the left/right group boundary widened
+   above; bottomLeft-to-bottomRight (rabbit's mint-to-pink, bottomMid is
+   empty for rabbit) has plenty of room regardless. */
 .bottomLeft {
-  left: 19%;
+  left: 14%;
   top: 76%;
 }
 .bottomMid {
-  left: 42%;
+  left: 41%;
   top: 76%;
 }
 .bottomRight {
-  left: 69.25%;
+  left: 72.25%;
   top: 76%;
 }

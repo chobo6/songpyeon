@@ -16,14 +16,17 @@
 
 /* On short viewports (most phones in portrait — this board's height doesn't
    scale with the viewport otherwise, since it's a fixed 4-row box) shrink
-   the tokens so this board leaves more of the screen for whatever sits below
-   it (in particular SpectatorScreen's chat, which used to get squeezed to
-   almost nothing — docs/TROUBLESHOOTING.md). */
+   the tokens a little so this board leaves a bit more of the screen for
+   whatever sits below it (in particular SpectatorScreen's chat, which used
+   to get squeezed to almost nothing — docs/TROUBLESHOOTING.md #15). Kept
+   much closer to the full size than the first attempt at this (1.5rem) —
+   that read as noticeably smaller than the original token art size, more
+   than the chat space it bought back was worth. */
 @media (max-height: 750px) {
   .viewport {
-    --token-width: 1.5rem;
-    --row-gap: 0.45rem;
-    padding: 0.6rem;
+    --token-width: 1.9rem;
+    --row-gap: 0.6rem;
+    padding: 0.8rem;
   }
 }
 
