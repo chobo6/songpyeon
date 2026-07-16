@@ -2,6 +2,7 @@ import { useRef } from "react";
 import type { Color, Role } from "../game/colors";
 import { COLOR_TOKEN } from "../game/colors";
 import { SLOT_ORDER, buttonPanelSlots } from "../game/buttonPanel";
+import { playColorClickSound } from "../game/clickSound";
 import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./ButtonPanel.module.css";
 
@@ -9,30 +10,6 @@ import styles from "./ButtonPanel.module.css";
 // same-color click to be that touch's own (browser-synthesized,
 // preventDefault()-defeated) duplicate rather than a genuinely new press.
 const TOUCH_DEDUPE_WINDOW_MS = 800;
-
-// One press SFX per color, matched by ear to the original game's per-button
-// sound (see client/public/game-assets/README.md) — "mint" has no static
-// file here, see MINT_CLICK_SRCS below.
-const COLOR_CLICK_SRC: Partial<Record<Color, string>> = {
-  red: "/game-assets/audio/pig_red.mp3",
-  orange: "/game-assets/audio/pig_orange.mp3",
-  yellow: "/game-assets/audio/pig_yellow.mp3",
-  purple: "/game-assets/audio/pig_purple.mp3",
-  green: "/game-assets/audio/rabbit_green.mp3",
-  blue: "/game-assets/audio/rabbit_blue.mp3",
-  pink: "/game-assets/audio/rabbit_pink.mp3",
-};
-
-// Mint is the only color pressed in same-color runs (REQUIREMENTS.md's
-// rabbit sub-pattern: runs of 2/4/6) — cycling click1->click4->click1...
-// per consecutive mint press makes a run read as repeated strikes instead
-// of the same clip looping.
-const MINT_CLICK_SRCS = [
-  "/game-assets/audio/click1.mp3",
-  "/game-assets/audio/click2.mp3",
-  "/game-assets/audio/click3.mp3",
-  "/game-assets/audio/click4.mp3",
-];
 
 export function ButtonPanel({
   role,
@@ -67,20 +44,17 @@ export function ButtonPanel({
   // clicks never touch this map, so they're unaffected.
   const touchHandledAtRef = useRef<Map<Color, number>>(new Map());
   // Consecutive mint presses since the last non-mint press, used to pick
-  // the next sound in MINT_CLICK_SRCS's cycle.
+  // the next sound in playColorClickSound's mint cycle.
   const mintStreakRef = useRef(0);
 
   function playClickSound(color: Color) {
     if (color === "mint") {
-      const src = MINT_CLICK_SRCS[mintStreakRef.current % MINT_CLICK_SRCS.length];
+      playColorClickSound(color, mintStreakRef.current);
       mintStreakRef.current += 1;
-      new Audio(src).play().catch(() => {});
       return;
     }
     mintStreakRef.current = 0;
-    const src = COLOR_CLICK_SRC[color];
-    if (!src) return;
-    new Audio(src).play().catch(() => {});
+    playColorClickSound(color);
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLButtonElement>, color: Color) {

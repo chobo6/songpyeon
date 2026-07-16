@@ -1,6 +1,15 @@
 export type Color = "red" | "orange" | "yellow" | "purple" | "mint" | "green" | "blue" | "pink";
 export type Role = "pig" | "rabbit";
 
+// Mirrors server/src/game/colors.ts's colorRole — client/server are separate
+// workspaces with no shared-types package, kept in sync by hand (same
+// pattern as game/matchTypes.ts).
+const PIG_COLORS: readonly Color[] = ["red", "orange", "yellow", "purple"];
+
+export function colorRole(color: Color): Role {
+  return PIG_COLORS.includes(color) ? "pig" : "rabbit";
+}
+
 export const COLOR_HEX: Record<Color, string> = {
   red: "#e5484d",
   orange: "#f2994a",

@@ -1,6 +1,7 @@
 import type { Room } from "colyseus.js";
 import type { MatchState, PlayerState } from "../game/matchTypes";
 import type { Color } from "../game/colors";
+import { useSequencePressSound } from "../game/useSequencePressSound";
 import { SequenceBoard } from "./SequenceBoard";
 import { ButtonPanel } from "./ButtonPanel";
 import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
@@ -18,6 +19,10 @@ export function MyTurnScreen({
 }) {
   const { sequence, cursor, turnOutcome, round, turnEndsAt } = room.state;
   const disabled = turnOutcome !== "pending";
+  // My own presses already get instant local feedback (ButtonPanel plays on
+  // press, before the server round-trip) — this is for hearing my
+  // teammate's presses, which I'd otherwise only see, never hear.
+  useSequencePressSound(sequence, cursor, me.role as "pig" | "rabbit");
 
   function press(color: Color) {
     room.send("pressButton", { color });

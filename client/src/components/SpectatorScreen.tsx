@@ -1,5 +1,6 @@
 import type { Room } from "colyseus.js";
 import type { MatchState, TeamState } from "../game/matchTypes";
+import { useSequencePressSound } from "../game/useSequencePressSound";
 import { ChatBox } from "./ChatBox";
 import { SequenceBoard } from "./SequenceBoard";
 import { TeamRosterPanel } from "./TeamRosterPanel";
@@ -20,6 +21,10 @@ export function SpectatorScreen({
   onLeave: () => void;
 }) {
   const { sequence, cursor, round, teams, turnEndsAt, players, matchChat } = room.state;
+  // No role to exclude while spectating — every press heard here belongs to
+  // whichever team is actually playing, none of it is "my own" instant-fed
+  // press (spectators don't have a ButtonPanel at all).
+  useSequencePressSound(sequence, cursor);
 
   function sendChat(text: string) {
     room.send("sendChat", { text });
