@@ -35,7 +35,7 @@ export function MyTurnScreen({
         <TimerBar turnEndsAt={turnEndsAt} clockOffsetMs={clockOffsetMs} />
         <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
         <div className={styles.boardArea}>
-          <SequenceBoard sequence={sequence} cursor={cursor} />
+          <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} />
           <TurnOutcomeBanner outcome={turnOutcome} />
         </div>
       </div>

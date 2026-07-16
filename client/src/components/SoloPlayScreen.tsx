@@ -20,7 +20,7 @@ export function SoloPlayScreen({ role, onExit }: { role: Role; onExit: () => voi
         나가기
       </button>
       <div className={styles.boardArea}>
-        <SequenceBoard sequence={sequence} cursor={cursor} />
+        <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} />
         <TurnOutcomeBanner outcome={turnOutcome} />
       </div>
       <ButtonPanel role={role} disabled={disabled} onPress={press} />
