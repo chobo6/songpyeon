@@ -30,7 +30,23 @@ function describeTarget(x: number, y: number): string {
   return `${el.tagName.toLowerCase()}${firstClass ? "." + firstClass : ""}`;
 }
 
+// The bottom button/roster panel (ButtonPanel.tsx and TeamRosterPanel.tsx
+// both wrap in the same bottomPanelBackground.module.css) is the one piece
+// of chrome present on every gameplay screen — anchoring the log just above
+// it (roughly where the online spectator screen's chat sits, between the
+// board and the panel) keeps it off the SequenceBoard regardless of which
+// screen/role is showing. CSS module classnames in this project's build
+// keep the original name as a prefix (confirmed empirically: e.g.
+// `_panelBg_1ug12_9`), so a substring match is reliable here without
+// needing to plumb a ref/data-attribute through for a temp diagnostic.
+function findPanelTop(): number | null {
+  const el = document.querySelector('[class*="panelBg"]');
+  if (!el) return null;
+  return el.getBoundingClientRect().top;
+}
+
 export function TouchDebugOverlay() {
+  const containerElRef = useRef<HTMLDivElement>(null);
   const logElRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<string[]>([]);
   const lastTimeRef = useRef<number | null>(null);
@@ -67,29 +83,62 @@ export function TouchDebugOverlay() {
     };
   }, []);
 
+  useEffect(() => {
+    // Re-measured on a plain interval rather than a one-shot layout effect —
+    // the panel mounts/unmounts and moves as the app navigates between
+    // screens (nickname entry has no panel at all; the board grows a row
+    // every 10 rounds, shifting the panel down), and this is throwaway
+    // diagnostic code where a cheap poll is simpler than wiring a
+    // MutationObserver/ResizeObserver correctly for every screen transition.
+    function reposition() {
+      const el = containerElRef.current;
+      if (!el) return;
+      const top = findPanelTop();
+      if (top === null) {
+        // No panel on screen (e.g. nickname/room-list) — pin to the bottom
+        // instead of leaving it stuck wherever it last was measured.
+        el.style.bottom = "0px";
+      } else {
+        el.style.bottom = `${Math.max(0, window.innerHeight - top)}px`;
+      }
+    }
+    reposition();
+    const id = window.setInterval(reposition, 300);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("resize", reposition);
+    };
+  }, []);
+
   return (
     <div
-      ref={logElRef}
+      ref={containerElRef}
       // pointerEvents: none is critical — this overlay sits on top of
       // everything (highest z-index) so it must never itself intercept a
       // touch meant for a button underneath it.
       style={{
         position: "fixed",
-        top: 0,
         left: 0,
         right: 0,
         zIndex: 999999,
-        maxHeight: "38vh",
-        overflow: "hidden",
-        background: "rgba(0,0,0,0.85)",
-        color: "#4ade80",
-        fontFamily: "ui-monospace, monospace",
-        fontSize: "10px",
-        lineHeight: 1.4,
-        padding: "4px 6px",
-        whiteSpace: "pre-wrap",
         pointerEvents: "none",
       }}
-    />
+    >
+      <div
+        ref={logElRef}
+        style={{
+          maxHeight: "22vh",
+          overflow: "hidden",
+          background: "rgba(0,0,0,0.85)",
+          color: "#4ade80",
+          fontFamily: "ui-monospace, monospace",
+          fontSize: "10px",
+          lineHeight: 1.4,
+          padding: "4px 6px",
+          whiteSpace: "pre-wrap",
+        }}
+      />
+    </div>
   );
 }
