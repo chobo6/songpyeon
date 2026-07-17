@@ -14,6 +14,19 @@
   max-width: 20rem;
   aspect-ratio: 360 / 205;
   margin: 0 auto;
+  /* Previously only the buttons themselves had touch-action: none — the gaps
+     between them (and the always-empty slots, .empty below) defaulted to
+     `auto`. A finger moving fast between two different buttons (pig's
+     [color, purple] pairs, pressed as fast as possible) can clip that
+     uncovered space for a moment, which is enough for iOS to read the
+     motion as a pan/swipe attempt and swallow the second touch — matches
+     the reported pattern better than anything render-cost related did:
+     mint (same button, repeated taps, no gap-crossing) improved a lot after
+     the SequenceBoard/ButtonPanel memoization work, but pig (different
+     buttons, gap-crossing) didn't. Blocking gestures for the whole panel
+     area, not just each button, closes that gap. See docs/TROUBLESHOOTING.md
+     #19/#20. */
+  touch-action: none;
 }
 
 /* Slot buttons are near-square on screen (65x67dp) in the original, unlike
@@ -73,6 +86,10 @@
   transform: translate(-50%, -50%);
   border-radius: 999px;
   border: 3px dashed rgba(255, 255, 255, 0.2);
+  /* Redundant with .panel's touch-action: none (a touch here is still
+     inside .panel), kept explicit so this stays correct even if .panel's
+     rule ever moves/changes. */
+  touch-action: none;
 }
 
 /* top row — red (pig) / empty (rabbit), and the two always-empty "item" slots.
