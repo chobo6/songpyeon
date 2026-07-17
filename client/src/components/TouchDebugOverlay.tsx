@@ -68,8 +68,17 @@ export function TouchDebugOverlay() {
       if (logElRef.current) logElRef.current.textContent = linesRef.current.join("\n");
     }
 
-    const onStart = (e: TouchEvent) => log("start", e);
-    const onEnd = (e: TouchEvent) => log("end  ", e);
+    const onStart = (e: TouchEvent) => log("start ", e);
+    const onEnd = (e: TouchEvent) => log("end   ", e);
+    // Distinct from end — fires when iOS itself decides to abort an
+    // in-progress touch (handing it to a system gesture, or the touch
+    // controller losing/reacquiring contact) rather than the finger being
+    // deliberately lifted. If a "purple pressed twice" case turns out to be
+    // start->cancel->start->end instead of two clean start->end pairs, that
+    // confirms the touch controller — not the user — split one continuous
+    // contact into two, since a genuine lift+retouch would show end, not
+    // cancel. Not listened for before this — see docs/TROUBLESHOOTING.md #19/#20.
+    const onCancel = (e: TouchEvent) => log("CANCEL", e);
 
     // capture: true so this sees every touch regardless of where in the
     // tree it lands or whether anything else stops propagation. passive:
@@ -77,9 +86,11 @@ export function TouchDebugOverlay() {
     // the actual game's own touch handling in any way.
     document.addEventListener("touchstart", onStart, { capture: true, passive: true });
     document.addEventListener("touchend", onEnd, { capture: true, passive: true });
+    document.addEventListener("touchcancel", onCancel, { capture: true, passive: true });
     return () => {
       document.removeEventListener("touchstart", onStart, { capture: true });
       document.removeEventListener("touchend", onEnd, { capture: true });
+      document.removeEventListener("touchcancel", onCancel, { capture: true });
     };
   }, []);
 
