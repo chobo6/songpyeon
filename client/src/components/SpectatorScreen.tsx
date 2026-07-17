@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState, TeamState } from "../game/matchTypes";
 import { useSequencePressSound } from "../game/useSequencePressSound";
@@ -26,9 +27,14 @@ export function SpectatorScreen({
   // press (spectators don't have a ButtonPanel at all).
   useSequencePressSound(sequence, cursor);
 
-  function sendChat(text: string) {
-    room.send("sendChat", { text });
-  }
+  // Stable reference (room never changes for this hook's lifetime) so it
+  // doesn't defeat ChatBox's memoization — see ChatBox.tsx.
+  const sendChat = useCallback(
+    (text: string) => {
+      room.send("sendChat", { text });
+    },
+    [room],
+  );
 
   // Once every team is wiped out the match itself is over (not just this
   // player's team) — "나가기" here returns everyone in the room to this same
@@ -78,7 +84,13 @@ export function SpectatorScreen({
             <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} />
           </div>
         )}
-        <ChatBox messages={matchChat} onSend={sendChat} fill />
+        <ChatBox
+          messages={matchChat}
+          messageCount={matchChat.length}
+          lastMessageAt={matchChat.length ? matchChat[matchChat.length - 1].sentAt : 0}
+          onSend={sendChat}
+          fill
+        />
       </div>
       <TeamRosterPanel teams={teams} players={players} />
     </div>

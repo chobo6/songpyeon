@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
@@ -8,14 +9,20 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
   const me = room.state.players.get(room.sessionId);
   const myRole = me?.role;
   const teams = room.state.teams;
+  const lobbyChat = room.state.lobbyChat;
 
   function choose(role: Role) {
     room.send("chooseRole", { role });
   }
 
-  function sendChat(text: string) {
-    room.send("sendChat", { text });
-  }
+  // Stable reference (room never changes for this hook's lifetime) so it
+  // doesn't defeat ChatBox's memoization — see ChatBox.tsx.
+  const sendChat = useCallback(
+    (text: string) => {
+      room.send("sendChat", { text });
+    },
+    [room],
+  );
 
   function nicknameFor(sessionId: string): string {
     return sessionId ? (room.state.players.get(sessionId)?.nickname ?? "?") : "대기 중";
@@ -43,7 +50,12 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
           <span>토끼</span>
         </button>
       </div>
-      <ChatBox messages={room.state.lobbyChat} onSend={sendChat} />
+      <ChatBox
+        messages={lobbyChat}
+        messageCount={lobbyChat.length}
+        lastMessageAt={lobbyChat.length ? lobbyChat[lobbyChat.length - 1].sentAt : 0}
+        onSend={sendChat}
+      />
       <div className={styles.roster}>
         {teams.map((team) => (
           <div key={team.id} className={styles.rosterTeam}>
