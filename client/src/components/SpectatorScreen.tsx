@@ -36,7 +36,15 @@ export function SpectatorScreen({
   // room list, so the same group can play again without re-sharing a room
   // code. That's only correct once the whole match has concluded; while
   // other teams are still playing, "나가기" must still actually leave.
-  const matchOver = activeTeam.eliminated;
+  //
+  // NOT `activeTeam.eliminated` — a wrong press eliminates the active team
+  // immediately, but the turn hand-off (and activeTeamIndex moving to the
+  // next surviving team) is deliberately deferred to the original turn
+  // timer (see MatchRoom.ts's handlePressButton). In a 3+ team room, that
+  // leaves a window where activeTeam is your own just-eliminated team even
+  // though other teams are still playing — matchOver must mirror the
+  // server's real isMatchOver() (every team down), not just this one.
+  const matchOver = teams.every((t) => t.eliminated);
 
   function handleLeaveClick() {
     if (matchOver) {

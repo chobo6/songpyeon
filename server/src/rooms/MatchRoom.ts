@@ -218,12 +218,26 @@ export class MatchRoom extends Room<MatchState> {
   // Resets this same room back to its lobby state (teams/roles cleared) once
   // every team has been wiped out, instead of players having to leave and
   // find/create a fresh room to play again together. Guarded to only fire
-  // once the match has actually concluded — advanceToNextTurn() freezes
-  // (stops scheduling turn timers) exactly when isMatchOver() becomes true,
-  // so there's no in-flight timer left to invalidate here.
+  // once the match has actually concluded.
+  //
+  // isMatchOver() can go true from a wrong PRESS (handlePressButton sets
+  // `eliminated` immediately) well before advanceToNextTurn() ever runs —
+  // that hand-off is deliberately deferred to the deciding turn's original
+  // startTurn()-scheduled timer, so the fail state stays on screen for the
+  // rest of the turn (see handlePressButton). A client can send "rematch"
+  // (e.g. the very instant the match-over screen appears) inside that
+  // window, while the old timer is still armed and pointing at the team/
+  // round state this function is about to reset. Bumping turnToken here
+  // invalidates it the same way startTurn() invalidates the PREVIOUS turn's
+  // timer on every ordinary hand-off — without this, that stale timer still
+  // passes its `token === turnToken` check once it fires, silently applying
+  // one more mortar loss (and possibly starting a phantom turn) to the new
+  // lobby before anyone has picked a role for the next match. See
+  // docs/TROUBLESHOOTING.md #21.
   private handleRematch() {
     if (this.state.phase !== "playing" || !this.isMatchOver()) return;
 
+    this.turnToken++;
     this.turnDecided = false;
     this.turnsThisRound = 0;
 

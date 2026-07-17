@@ -489,4 +489,58 @@ describe("MatchRoom", () => {
     },
     15000,
   );
+
+  test("a rematch sent right after the deciding press doesn't let the just-ended match's still-pending turn timer drain mortars in the new lobby", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: SHORT_TURN_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const role of ["pig", "rabbit"] as const) {
+      const client = await colyseus.connectTo(room);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+
+    // lose 4 mortars normally, waiting for each turn's deferred hand-off to
+    // actually land (turnOutcome flips back to "pending") before pressing
+    // again — a fixed sleep here is flaky: if a press happens to land late
+    // in its turn's life, the same sleep can also span the *next* turn's
+    // own untouched natural timeout, silently costing a 2nd, legitimate
+    // mortar loss and desyncing this loop from reality.
+    for (let i = 0; i < 4; i++) {
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+      while (room.state.turnOutcome !== "pending") {
+        await wait(20);
+      }
+    }
+    expect(room.state.teams[0].mortars).toBe(1);
+    expect(room.state.teams[0].eliminated).toBe(false);
+
+    // the deciding (5th) wrong press eliminates the team immediately, but —
+    // same as every other turn — the hand-off itself is deferred to the
+    // turn's already-scheduled timer (~SHORT_TURN_MS away). Send "rematch"
+    // right away instead of waiting it out, simulating a player clicking
+    // "나가기" the instant the match-over screen appears.
+    const { dueColor, actingClient } = actingClientFor(room, clients);
+    const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+    actingClient.send("pressButton", { color: wrongColor });
+    await flush();
+    expect(room.state.teams[0].eliminated).toBe(true);
+
+    actingClient.send("rematch");
+    await flush();
+
+    expect(room.state.phase).toBe("lobby");
+    expect(room.state.teams[0].mortars).toBe(5);
+    expect(room.state.teams[0].eliminated).toBe(false);
+
+    // the old match's deferred timer is still out there — give it enough
+    // time to fire if it wasn't properly invalidated by the rematch reset.
+    await wait(SHORT_TURN_MS + 200);
+
+    expect(room.state.teams[0].mortars).toBe(5);
+    expect(room.state.phase).toBe("lobby");
+  });
 });
