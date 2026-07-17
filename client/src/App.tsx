@@ -7,7 +7,6 @@ import { NicknameEntry } from "./components/NicknameEntry";
 import { RoomList } from "./components/RoomList";
 import { SoloRoleSelect } from "./components/SoloRoleSelect";
 import { SoloPlayScreen } from "./components/SoloPlayScreen";
-import { TouchDebugOverlay } from "./components/TouchDebugOverlay";
 import type { Role } from "./game/colors";
 import "./App.css";
 
@@ -76,19 +75,10 @@ function OfflineFlow({ onExit }: { onExit: () => void }) {
 function App() {
   const [mode, setMode] = useState<Mode>("select");
 
-  return (
-    <>
-      {/* TEMP — see TouchDebugOverlay.tsx, remove once real touch data is collected. */}
-      <TouchDebugOverlay />
-      {mode === "online" ? (
-        <OnlineFlow onExit={() => setMode("select")} />
-      ) : mode === "offline" ? (
-        <OfflineFlow onExit={() => setMode("select")} />
-      ) : (
-        <ModeSelect onSelectOnline={() => setMode("online")} onSelectOffline={() => setMode("offline")} />
-      )}
-    </>
-  );
+  if (mode === "online") return <OnlineFlow onExit={() => setMode("select")} />;
+  if (mode === "offline") return <OfflineFlow onExit={() => setMode("select")} />;
+
+  return <ModeSelect onSelectOnline={() => setMode("online")} onSelectOffline={() => setMode("offline")} />;
 }
 
 export default App;

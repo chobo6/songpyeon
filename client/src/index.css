@@ -50,6 +50,23 @@
   }
 }
 
+/* The viewport meta's maximum-scale=1.0/user-scalable=no (index.html)
+   reliably blocks pinch-zoom, but does NOT reliably block iOS Safari's
+   double-tap-to-zoom on every version — that's only consistently disabled
+   per-element via touch-action. Buttons already get touch-action:
+   manipulation/none (see the `button` rule and ButtonPanel.module.css), but
+   everywhere else (in particular SequenceBoard, which has no touch-action
+   of its own) was left at the default `auto` — real-world report: the
+   board would occasionally zoom in mid-game on iOS, most likely a stray
+   double-tap landing on the board while fast-tapping buttons nearby.
+   `manipulation` (not `none`) here specifically so this doesn't also
+   disable normal scrolling — ChatBox's message list relies on native touch
+   scroll (`overflow-y: auto`) and would break under `none` applied this
+   broadly. See docs/TROUBLESHOOTING.md #19/#20. */
+html {
+  touch-action: manipulation;
+}
+
 #root {
   width: 480px;
   max-width: 100%;
