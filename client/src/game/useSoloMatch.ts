@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Color, Role } from "./colors";
 import type { TurnOutcome } from "./matchTypes";
 import { attemptSoloPress, generateSoloSequence, sequenceLengthForRound } from "./soloEngine";
@@ -73,7 +73,12 @@ export function useSoloMatch(role: Role) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function press(color: Color) {
+  // Stable across renders (empty deps) — press only ever touches refs and
+  // setState setters, both stable by construction, so it never actually
+  // needs to change identity. Lets ButtonPanel be React.memo'd effectively
+  // (a fresh function reference every render would defeat that memo just
+  // as much as not memoizing at all) — see ButtonPanel.tsx.
+  const press = useCallback((color: Color) => {
     if (turnDecidedRef.current) return;
 
     const result = attemptSoloPress(sequenceRef.current, cursorRef.current, color);
@@ -97,7 +102,8 @@ export function useSoloMatch(role: Role) {
       // together with this one, so "success" would never actually render.
       // Mirrors MatchRoom.handlePressButton on the server.
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refs/setState setters used, both stable
+  }, []);
 
   return { round, sequence, cursor, turnOutcome, turnEndsAt, press };
 }

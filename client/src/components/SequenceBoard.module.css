@@ -62,6 +62,12 @@
 
 .done {
   opacity: 0.55;
+  /* Drop the drop-shadow once a token is done — it's faded via opacity
+     already, and filter is one of the pricier things to paint/composite on
+     iOS Safari especially. Now that Token is memoized (SequenceBoard.tsx),
+     this only costs anything once, at the moment a token transitions to
+     done, not on every unrelated re-render — still worth skipping. */
+  filter: none;
 }
 
 .link {

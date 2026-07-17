@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState, PlayerState } from "../game/matchTypes";
 import type { Color } from "../game/colors";
@@ -24,9 +25,15 @@ export function MyTurnScreen({
   // teammate's presses, which I'd otherwise only see, never hear.
   useSequencePressSound(sequence, cursor, me.role as "pig" | "rabbit");
 
-  function press(color: Color) {
-    room.send("pressButton", { color });
-  }
+  // room is a stable reference for the lifetime of the connection (set once
+  // by useMatchRoom, never reassigned) — memoized so ButtonPanel's own
+  // React.memo isn't defeated by a fresh onPress function every render.
+  const press = useCallback(
+    (color: Color) => {
+      room.send("pressButton", { color });
+    },
+    [room],
+  );
 
   return (
     <div className={styles.wrap}>

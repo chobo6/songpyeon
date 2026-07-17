@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Color } from "../game/colors";
 import { COLOR_TOKEN, COLOR_TOKEN_OFF } from "../game/colors";
 import type { TurnOutcome } from "../game/matchTypes";
@@ -12,6 +13,47 @@ function chunk<T>(items: T[], size: number): T[][] {
   }
   return rows;
 }
+
+// Every press re-renders the whole board (colyseus mutates its schema
+// state in place, so the client forces a re-render on every patch — see
+// useMatchRoom.ts's forceRender — there's no way to tell React "only this
+// one field changed" from the object reference alone). Without this memo,
+// that meant recreating and re-diffing all 18-30 token divs (fresh style
+// object + filter recalculation each) on every single press, when a press
+// really only changes 1-2 tokens (the one just completed, the one the
+// cursor moved to). Memoized on the plain primitives actually derived per
+// token (color/isDone/isMissed/showCursor/isLastInRow) instead of on
+// `sequence`/`cursor` directly, since those primitives are what actually
+// stays the same for ~all of the other tokens on any given press —
+// suspected contributor (alongside game/clickSound.ts's audio pooling) to
+// input lag under rapid presses on iOS — see docs/TROUBLESHOOTING.md #19/#20.
+const Token = memo(function Token({
+  color,
+  isDone,
+  isMissed,
+  showCursor,
+  isLastInRow,
+}: {
+  color: Color;
+  isDone: boolean;
+  isMissed: boolean;
+  showCursor: boolean;
+  isLastInRow: boolean;
+}) {
+  return (
+    <div className={styles.tokenWrap}>
+      {showCursor && !isMissed && <div className={styles.cursor} />}
+      <div
+        className={
+          isMissed ? `${styles.token} ${styles.missed}` : isDone ? `${styles.token} ${styles.done}` : styles.token
+        }
+        data-color={color}
+        style={{ backgroundImage: `url(${isDone ? COLOR_TOKEN_OFF[color] : COLOR_TOKEN[color]})` }}
+      />
+      {!isLastInRow && <div className={styles.link} />}
+    </div>
+  );
+});
 
 export function SequenceBoard({
   sequence,
@@ -45,24 +87,15 @@ export function SequenceBoard({
           <div className={styles.row} key={rowIndex}>
             {row.map((color, i) => {
               const globalIndex = rowIndex * TOKENS_PER_ROW + i;
-              const isDone = globalIndex < cursor;
-              const isMissed = globalIndex === missedIndex;
               return (
-                <div key={i} className={styles.tokenWrap}>
-                  {globalIndex === cursor && !isMissed && <div className={styles.cursor} />}
-                  <div
-                    className={
-                      isMissed
-                        ? `${styles.token} ${styles.missed}`
-                        : isDone
-                          ? `${styles.token} ${styles.done}`
-                          : styles.token
-                    }
-                    data-color={color}
-                    style={{ backgroundImage: `url(${isDone ? COLOR_TOKEN_OFF[color] : COLOR_TOKEN[color]})` }}
-                  />
-                  {i < row.length - 1 && <div className={styles.link} />}
-                </div>
+                <Token
+                  key={i}
+                  color={color}
+                  isDone={globalIndex < cursor}
+                  isMissed={globalIndex === missedIndex}
+                  showCursor={globalIndex === cursor}
+                  isLastInRow={i === row.length - 1}
+                />
               );
             })}
           </div>

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import type { Color, Role } from "../game/colors";
 import { COLOR_TOKEN } from "../game/colors";
 import { SLOT_ORDER, buttonPanelSlots } from "../game/buttonPanel";
@@ -11,7 +11,13 @@ import styles from "./ButtonPanel.module.css";
 // preventDefault()-defeated) duplicate rather than a genuinely new press.
 const TOUCH_DEDUPE_WINDOW_MS = 800;
 
-export function ButtonPanel({
+// Memoized so a re-render caused by something else entirely (any colyseus
+// patch forces a full-tree re-render — see useMatchRoom.ts) doesn't also
+// re-render this and re-touch all 6 button elements' props/styles. Only
+// actually helps if `onPress` is a stable reference — callers must
+// useCallback it (see MyTurnScreen.tsx, useSoloMatch.ts), otherwise a fresh
+// function every render defeats this the same as not memoizing at all.
+export const ButtonPanel = memo(function ButtonPanel({
   role,
   disabled,
   onPress,
@@ -70,11 +76,17 @@ export function ButtonPanel({
     playColorClickSound(color);
   }
 
+  // onPress (network send) fires before playClickSound (decorative,
+  // touches the Audio API) in both handlers below — not because either is
+  // measurably slow on its own, but so the actual input signal is never
+  // waiting behind anything else on the rare occasion audio playback does
+  // hiccup, instead of the two racing in whatever order they happened to
+  // be written.
   function handleTouchStart(color: Color) {
     if (disabled) return;
     touchHandledAtRef.current.set(color, Date.now());
-    playClickSound(color);
     onPress(color);
+    playClickSound(color);
   }
 
   function handleClick(color: Color) {
@@ -83,8 +95,8 @@ export function ButtonPanel({
       touchHandledAtRef.current.delete(color);
       return;
     }
-    playClickSound(color);
     onPress(color);
+    playClickSound(color);
   }
 
   return (
@@ -112,4 +124,4 @@ export function ButtonPanel({
       </div>
     </div>
   );
-}
+});

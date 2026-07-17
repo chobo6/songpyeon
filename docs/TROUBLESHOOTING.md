@@ -627,7 +627,7 @@ Audio(src)`로 새 오디오 엘리먼트를 매번 새로 생성**해서 재생
 적용되는 설명. (4)는 민트 연타(같은 버튼 반복)에 더 직접적으로 걸림 — 트랜지션 도중 버튼의 실제
 렌더링 크기가 살짝 작아진 상태라, 그 순간 재탭하면 히트 영역이 미세하게 좁아짐.
 
-### 시도 2 (2026-07-17, 검증 대기)
+### 시도 2 (부분 개선, 부족 — 2026-07-17 재검증 결과)
 
 1. **오디오 풀링**: `game/clickSound.ts`가 이제 색상/사운드별로 `HTMLAudioElement`를 하나씩만 만들어
    재사용(`audioPool` Map). 재생 중인 걸 다시 트리거하면 `currentTime = 0`으로 되감아 재시작 — 겹쳐
@@ -636,12 +636,44 @@ Audio(src)`로 새 오디오 엘리먼트를 매번 새로 생성**해서 재생
    대상에서 뺌(순간 전환, 애니메이션 없음) — `filter`만 계속 트랜지션. 눌림 시각 효과 자체는 남지만
    연타 중 "히트박스가 일시적으로 작아진 상태"인 프레임이 없어짐.
 
-이 환경엔 iOS 기기가 없어 실제 검증 불가 — 데스크탑 마우스 클릭 경로와 오디오 풀링이 매 색상당 정확히
-1번의 네트워크 요청만 내는지(재요청 없이 재생만 반복되는지)는 확인함. 실제 개선 여부는 사용자 쪽
-iOS 실기기 재검증 필요 — 안 되면 롤백하고 화면에 터치 이벤트 로그 오버레이를 붙여 실제 데이터를
-받아보는 쪽으로 전환 예정.
+실사용자 재검증 결과: "조금 개선된 느낌은 있지만 여전히 진행이 어려울 정도로 씹히고 딜레이도 있음".
+방향(메인스레드 작업량 축소)은 맞다는 신호로 판단 — "씹힘"과 "딜레이"가 함께 보고된 것도 단순 드롭이
+아니라 입력 처리가 밀리는 성능 문제에 가깝다는 걸 뒷받침함(드롭이면 딜레이 없이 그냥 안 눌리는
+쪽에 가까울 것). 같은 방향으로 더 진행.
+
+### 시도 3 (2026-07-17, 렌더링 비용 축소 — 검증 대기)
+
+시도 1/2가 놓친 부분: colyseus는 스키마 state를 **in-place로 mutate**하고, 클라이언트는 매 patch마다
+`forceRender()`로 전체 트리를 강제로 리렌더함(`useMatchRoom.ts` — 참조가 안 바뀌니 React가 자동으로
+변경을 못 감지해서 수동으로 리렌더를 걸어야 함). 즉 **버튼 하나 누를 때마다 화면 전체가 처음부터 다시
+그려지고 있었음** — `SequenceBoard`는 메모이제이션이 전혀 없어서 시퀀스가 18~30개짜리여도 매 프레스마다
+토큰 전부를 새로 만들고(각각 `filter: drop-shadow` 재계산 포함) 새로 diff했음, 실제로 바뀌는 건 보통
+토큰 1~2개(막 완료된 것, 커서가 옮겨간 것)뿐인데도. 적용한 변경:
+
+1. **`SequenceBoard`의 토큰을 `React.memo`로 분리**: `sequence`/`cursor` 객체가 아니라 토큰별로 실제
+   파생되는 원시값(`color`/`isDone`/`isMissed`/`showCursor`/`isLastInRow`)을 prop으로 받게 해서, 이
+   값들이 안 바뀐 토큰(프레스당 대부분)은 리렌더 자체를 건너뜀.
+2. **완료된(`done`) 토큰의 `filter: drop-shadow` 제거**: opacity로 이미 흐려지므로 그림자는 불필요 —
+   iOS Safari에서 `filter`는 페인트 비용이 특히 비싼 축. 메모이제이션 이후엔 "완료로 전환되는 그
+   순간"에만 의미 있지만 그마저도 없앰.
+3. **`ButtonPanel`도 `React.memo`로 감쌈** — 단 이게 실제로 효과를 보려면 `onPress`가 매 렌더마다
+   새 함수면 안 됨. `MyTurnScreen.tsx`의 `press`와 `useSoloMatch.ts`의 `press`를 `useCallback`으로
+   고정(`useSoloMatch`의 `press`는 ref/setState setter만 참조해서 의존성 배열이 완전히 빈 배열로
+   가능 — 원래도 재생성될 이유가 없던 함수였음).
+4. **오디오 재생을 `onPress`(네트워크 전송) 다음 순서로**: 원래는 사운드 재생 후 `onPress`를 불렀는데,
+   순서를 바꿔서 실제 입력 신호가 오디오 API 어떤 지연에도 절대 안 밀리게 함(`setTimeout`으로
+   비동기 지연시키는 방식은 iOS의 오토플레이 정책상 유저 제스처 콜스택 밖에서 호출되는 `play()`가
+   차단될 위험이 있어서 배제 — 순서만 바꾸는 쪽을 택함).
+
+데스크탑에서 회귀 확인: 정답 프레스 시 토큰이 정상적으로 done 처리됨, 오답 시 놓친 토큰 강조 표시(#17
+관련 기능)도 메모이제이션 이후 정상 동작 확인(30초로 늘린 타이머로 스크린샷 검증). 콘솔 에러 없음.
+이 환경엔 iOS 기기가 없어 실제 개선 체감은 여전히 사용자 쪽 재검증 필요.
 
 ### 관련 파일
 - `client/src/components/ButtonPanel.tsx`
 - `client/src/components/ButtonPanel.module.css`
 - `client/src/game/clickSound.ts`
+- `client/src/components/SequenceBoard.tsx`
+- `client/src/components/SequenceBoard.module.css`
+- `client/src/components/MyTurnScreen.tsx`
+- `client/src/game/useSoloMatch.ts`
