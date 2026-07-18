@@ -50,14 +50,20 @@ function chatPropsEqual(prev: ChatBoxProps, next: ChatBoxProps) {
   );
 }
 
-export const ChatBox = memo(function ChatBox({ messages, onSend, fill = false }: ChatBoxProps) {
+export const ChatBox = memo(function ChatBox({ messages, lastMessageAt, onSend, fill = false }: ChatBoxProps) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
+  // lastMessageAt, not messages.length — the same 50-message-cap staleness
+  // chatPropsEqual above already accounts for applies here too: once the
+  // cap is reached, .length is pinned forever, so an effect keyed on it
+  // would stop re-firing (and stop auto-scrolling to new messages) even
+  // though the component itself keeps re-rendering correctly via
+  // lastMessageAt. See docs/TROUBLESHOOTING.md #23.
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+  }, [lastMessageAt]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

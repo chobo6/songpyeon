@@ -37,7 +37,12 @@ const MINT_CLICK_SRCS = [
 // ~1s click SFX, and is how rapid-fire UI sounds are normally done.
 const audioPool = new Map<string, HTMLAudioElement>();
 
-function playSrc(src: string) {
+// Exported for reuse by anything else that needs to play a pooled one-shot
+// SFX outside the color-click cycle (e.g. TurnOutcomeBanner.tsx's
+// success/fail sound) — same reasoning as above applies there too: turn
+// outcome lands right at the moment buttons re-enable/disable, exactly
+// when a fresh `new Audio()`'s main-thread cost matters most.
+export function playSrc(src: string) {
   let audio = audioPool.get(src);
   if (audio) {
     audio.currentTime = 0;

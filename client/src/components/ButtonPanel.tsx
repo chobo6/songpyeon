@@ -1,4 +1,4 @@
-import { memo, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import type { Color, Role } from "../game/colors";
 import { COLOR_TOKEN } from "../game/colors";
 import { SLOT_ORDER, buttonPanelSlots } from "../game/buttonPanel";
@@ -57,14 +57,35 @@ export const ButtonPanel = memo(function ButtonPanel({
   // same color and almost always mismatches, reading as an instant wrong
   // press even for a single deliberate tap). So don't depend on
   // preventDefault actually working: track per-color, in a ref (not
-  // state — this must never trigger a render) when a touch's touchstart
-  // last fired, and have onClick skip firing again if a click for that
-  // same color arrives within the dedupe window. Real mouse/keyboard
-  // clicks never touch this map, so they're unaffected.
-  const touchHandledAtRef = useRef<Map<Color, number>>(new Map());
+  // state — this must never trigger a render), the touchstart timestamps
+  // still waiting for their matching click, and have onClick skip firing
+  // again if a click for that same color arrives within the dedupe window.
+  // Real mouse/keyboard clicks never touch this map, so they're unaffected.
+  //
+  // Each color maps to an ARRAY of pending timestamps, not a single one —
+  // rabbit's mint run means two (or more) real touchstarts on the SAME
+  // button can be in flight before either one's synthetic click arrives. A
+  // single-slot map lets the second touchstart overwrite the first's
+  // timestamp; the first synthetic click then consumes (deletes) that sole
+  // entry, leaving the second click with nothing to match — it falls
+  // through the dedupe check and fires onPress again, turning 2 real
+  // touches into 3 presses sent to the server. Queuing lets each touchstart
+  // keep its own entry so each click can independently find and consume
+  // its own match. See docs/TROUBLESHOOTING.md #24.
+  const touchHandledAtRef = useRef<Map<Color, number[]>>(new Map());
   // Consecutive mint presses since the last non-mint press, used to pick
-  // the next sound in playColorClickSound's mint cycle.
+  // the next sound in playColorClickSound's mint cycle. Reset on every new
+  // turn (see the disabled-transition effect below) — without that, a
+  // ButtonPanel that stays mounted across turns (e.g. a team that keeps
+  // getting turns back to back) can carry a nonzero streak into a new
+  // turn's sequence, playing a different sound locally than what
+  // useSequencePressSound recomputes fresh for everyone else from the
+  // actual sequence/cursor.
   const mintStreakRef = useRef(0);
+
+  useEffect(() => {
+    if (!disabled) mintStreakRef.current = 0;
+  }, [disabled]);
 
   function playClickSound(color: Color) {
     if (color === "mint") {
@@ -84,15 +105,28 @@ export const ButtonPanel = memo(function ButtonPanel({
   // be written.
   function handleTouchStart(color: Color) {
     if (disabled) return;
-    touchHandledAtRef.current.set(color, Date.now());
+    const now = Date.now();
+    // Drop anything already outside the dedupe window while we're here —
+    // keeps the array from growing unbounded across a long session if some
+    // touchstarts never get a matching synthetic click at all.
+    const pending = (touchHandledAtRef.current.get(color) ?? []).filter(
+      (t) => now - t < TOUCH_DEDUPE_WINDOW_MS,
+    );
+    pending.push(now);
+    touchHandledAtRef.current.set(color, pending);
     onPress(color);
     playClickSound(color);
   }
 
   function handleClick(color: Color) {
-    const touchedAt = touchHandledAtRef.current.get(color);
-    if (touchedAt !== undefined && Date.now() - touchedAt < TOUCH_DEDUPE_WINDOW_MS) {
-      touchHandledAtRef.current.delete(color);
+    const pending = touchHandledAtRef.current.get(color);
+    const now = Date.now();
+    const matchIndex = pending?.findIndex((t) => now - t < TOUCH_DEDUPE_WINDOW_MS) ?? -1;
+    if (matchIndex !== -1) {
+      // Consume only THIS click's own match, not the whole color's queue —
+      // a second real touch on the same color (mint runs) still has its
+      // own pending entry waiting for its own synthetic click.
+      pending!.splice(matchIndex, 1);
       return;
     }
     onPress(color);

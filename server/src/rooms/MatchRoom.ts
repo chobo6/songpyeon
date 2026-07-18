@@ -27,6 +27,13 @@ export class MatchRoom extends Room<MatchState> {
   private turnToken = 0;
   private turnsThisRound = 0;
   private turnDecided = false;
+  // How many teams were alive at the moment the CURRENT round started —
+  // fixed for the round's duration, not recomputed per turn. advanceToNextTurn
+  // used to compare turnsThisRound against a freshly-recomputed alive count,
+  // which double-counts a team eliminated mid-round: the turn that eliminates
+  // it also shrinks the count being compared against, so the round could
+  // advance before every team that started it alive had actually gone.
+  private teamsAliveAtRoundStart = 0;
 
   onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -208,11 +215,26 @@ export class MatchRoom extends Room<MatchState> {
     this.state.round = 1;
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;
+    this.teamsAliveAtRoundStart = this.state.teams.length;
     this.startTurn();
   }
 
   private isMatchOver(): boolean {
     return this.state.teams.every((t) => t.eliminated);
+  }
+
+  // Bumps turnToken so any timer scheduled by a PREVIOUS startTurn() call
+  // becomes stale — its captured `token` no longer equals `this.turnToken`,
+  // so its `clock.setTimeout` callback becomes a no-op instead of firing
+  // onTurnTimerExpired for a turn that's no longer current. startTurn()
+  // itself needs this on every ordinary hand-off, and handleRematch() needs
+  // it too (see its own comment) — both call this instead of each
+  // hand-rolling `this.turnToken++`, so a future transition that also needs
+  // to invalidate an in-flight turn (e.g. a forced forfeit) can't forget the
+  // step by copy-pasting an incomplete version of it. See
+  // docs/TROUBLESHOOTING.md #21.
+  private invalidateInFlightTurn() {
+    this.turnToken++;
   }
 
   // Resets this same room back to its lobby state (teams/roles cleared) once
@@ -227,17 +249,17 @@ export class MatchRoom extends Room<MatchState> {
   // rest of the turn (see handlePressButton). A client can send "rematch"
   // (e.g. the very instant the match-over screen appears) inside that
   // window, while the old timer is still armed and pointing at the team/
-  // round state this function is about to reset. Bumping turnToken here
-  // invalidates it the same way startTurn() invalidates the PREVIOUS turn's
-  // timer on every ordinary hand-off — without this, that stale timer still
-  // passes its `token === turnToken` check once it fires, silently applying
-  // one more mortar loss (and possibly starting a phantom turn) to the new
-  // lobby before anyone has picked a role for the next match. See
-  // docs/TROUBLESHOOTING.md #21.
+  // round state this function is about to reset. invalidateInFlightTurn()
+  // here stops that stale timer the same way startTurn() stops the
+  // PREVIOUS turn's timer on every ordinary hand-off — without this, that
+  // stale timer still passes its `token === turnToken` check once it
+  // fires, silently applying one more mortar loss (and possibly starting a
+  // phantom turn) to the new lobby before anyone has picked a role for the
+  // next match. See docs/TROUBLESHOOTING.md #21.
   private handleRematch() {
     if (this.state.phase !== "playing" || !this.isMatchOver()) return;
 
-    this.turnToken++;
+    this.invalidateInFlightTurn();
     this.turnDecided = false;
     this.turnsThisRound = 0;
 
@@ -277,7 +299,7 @@ export class MatchRoom extends Room<MatchState> {
     this.state.turnEndsAt = Date.now() + this.turnDurationMs;
     this.turnDecided = false;
 
-    this.turnToken++;
+    this.invalidateInFlightTurn();
     const token = this.turnToken;
     this.clock.setTimeout(() => {
       if (token === this.turnToken) this.onTurnTimerExpired();
@@ -295,7 +317,11 @@ export class MatchRoom extends Room<MatchState> {
     if (player.teamId !== activeTeam.id) return;
 
     const result = attemptPress(
-      Array.from(this.state.sequence) as Color[],
+      // Type-only cast, not a copy — attemptPress only ever does indexed/
+      // length reads, both of which ArraySchema supports natively. This
+      // used to be `Array.from(...)`, copying the whole (up to ~48-token)
+      // sequence into a fresh array on every single press message.
+      this.state.sequence as unknown as Color[],
       this.state.cursor,
       color,
       player.role as Role,
@@ -343,10 +369,15 @@ export class MatchRoom extends Room<MatchState> {
     }));
 
     this.turnsThisRound++;
-    const aliveCount = teamsSnapshot.filter((t) => !t.eliminated).length;
-    if (this.turnsThisRound >= aliveCount) {
+    // Compare against the count fixed at THIS round's start, not a fresh
+    // recount — a team eliminated on its own turn this round must still
+    // count toward "has this round's roster all gone", or a team later in
+    // turn order (not yet up) gets skipped as if the round were already
+    // over. See docs/TROUBLESHOOTING.md #24.
+    if (this.turnsThisRound >= this.teamsAliveAtRoundStart) {
       this.state.round++;
       this.turnsThisRound = 0;
+      this.teamsAliveAtRoundStart = teamsSnapshot.filter((t) => !t.eliminated).length;
     }
 
     this.state.activeTeamIndex = nextActiveTeamIndex(teamsSnapshot, this.state.activeTeamIndex);

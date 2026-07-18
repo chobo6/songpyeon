@@ -31,6 +31,13 @@ describe("generateSequence", () => {
     expect(generateSequence(60, Math.random)).toHaveLength(60);
   });
 
+  test("rejects an odd length instead of silently overshooting by one", () => {
+    // every fragment (pig, rabbit-pair, mint run) is length 2+ — an odd
+    // total leaves remaining=1 with nothing able to fit exactly.
+    expect(() => generateSequence(1, Math.random)).toThrow(/even/);
+    expect(() => generateSequence(17, Math.random)).toThrow(/even/);
+  });
+
   test("every base pig color is immediately followed by purple", () => {
     const sequence = generateSequence(300, Math.random);
     sequence.forEach((color, i) => {

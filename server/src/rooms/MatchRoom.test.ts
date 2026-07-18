@@ -439,6 +439,67 @@ describe("MatchRoom", () => {
     }
   );
 
+  test(
+    "round only advances once every team that started the round alive has taken a turn, even if one gets eliminated mid-round",
+    { timeout: 15000 },
+    async () => {
+      // PRESS_HEAVY_TURN_MS, not SHORT_TURN_MS — this test presses through
+      // two full 18-color sequences via completeActiveTurn(), which needs a
+      // turn long enough to fit that many real message round-trips (see
+      // this file's own note on PRESS_HEAVY_TURN_MS above). Two such turns
+      // plus a single-press turn comfortably exceed vitest's default 5s
+      // test timeout.
+      const room = await colyseus.createRoom<MatchState>("match", {
+        teamCount: 3,
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+      });
+      const clients: ClientRoom<MatchState>[] = [];
+      for (const role of ["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const) {
+        const client = await colyseus.connectTo(room);
+        client.send("chooseRole", { role });
+        clients.push(client);
+      }
+      await flush();
+
+      expect(room.state.phase).toBe("playing");
+      const [team1Id, team2Id, team3Id] = room.state.teams.map((t) => t.id);
+
+      // One hit from elimination — the interesting turn is team2's own turn,
+      // set up directly instead of grinding through several real rounds of
+      // losses first (the bug being tested is in advanceToNextTurn's round
+      // math, not in how a team's mortars reach 1).
+      room.state.teams[1].mortars = 1;
+
+      // team1's turn: succeed, hands off to team2. Still round 1.
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+      expect(room.state.teams[room.state.activeTeamIndex].id).toBe(team2Id);
+      expect(room.state.round).toBe(1);
+
+      // team2's turn: fail on purpose — its last mortar, so this turn's
+      // hand-off eliminates it.
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+      while (room.state.turnOutcome !== "pending") {
+        await wait(20);
+      }
+
+      // team2 is eliminated, but team3 hasn't had a round-1 turn yet — the
+      // round must NOT have advanced, and the next team up must be team3
+      // (rotation skipping the just-eliminated team2), not wrap back to team1.
+      expect(room.state.teams.find((t) => t.id === team2Id)!.eliminated).toBe(true);
+      expect(room.state.round).toBe(1);
+      expect(room.state.teams[room.state.activeTeamIndex].id).toBe(team3Id);
+
+      // team3's turn: succeed — only now has every team that started round 1
+      // alive (team1, team2, team3) taken its turn, so the round can advance.
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+      expect(room.state.round).toBe(2);
+      expect(room.state.teams[room.state.activeTeamIndex].id).toBe(team1Id);
+    },
+  );
+
   test("a room in progress rejects a new connection attempt", async () => {
     const { room } = await fillRolesAndStart();
 
