@@ -87,6 +87,16 @@ export const ButtonPanel = memo(function ButtonPanel({
     if (!disabled) mintStreakRef.current = 0;
   }, [disabled]);
 
+  // Feature-detected — iOS Safari doesn't implement the Vibration API at
+  // all (silently a no-op there, not an error), so this only actually does
+  // anything on Android. navigator.vibrate() itself is effectively free
+  // (dispatches to the OS haptic engine, doesn't block the main thread),
+  // so this doesn't add to the touch-responsiveness cost this file is
+  // otherwise so careful about.
+  function vibrate() {
+    navigator.vibrate?.(10);
+  }
+
   function playClickSound(color: Color) {
     if (color === "mint") {
       playColorClickSound(color, mintStreakRef.current);
@@ -116,6 +126,7 @@ export const ButtonPanel = memo(function ButtonPanel({
     touchHandledAtRef.current.set(color, pending);
     onPress(color);
     playClickSound(color);
+    vibrate();
   }
 
   function handleClick(color: Color) {
@@ -131,6 +142,7 @@ export const ButtonPanel = memo(function ButtonPanel({
     }
     onPress(color);
     playClickSound(color);
+    vibrate();
   }
 
   return (
