@@ -27,9 +27,7 @@ export async function listRooms(): Promise<RoomListEntry[]> {
   return res.json();
 }
 
-export type JoinSpec =
-  | { type: "create"; nickname: string; teamCount: number }
-  | { type: "joinById"; roomId: string; nickname: string };
+export type JoinSpec = { type: "create"; teamCount: number } | { type: "joinById"; roomId: string };
 
 // Cached at module scope (not component/ref scope) so React StrictMode's
 // dev-only double-invoke of effects (mount -> cleanup -> mount) reuses the
@@ -44,10 +42,13 @@ let roomPromise: Promise<Room<unknown>> | null = null;
 // you freely change roles without leaving the room, so there's no "lost
 // progress" a resume would need to protect against in the lobby; a genuine
 // mid-match drop just means rejoining fresh from the room list.
+// 세션 쿠키(httpOnly, 브라우저가 WebSocket 업그레이드 요청에 자동으로 실어 보냄)로 서버가
+// 로그인 여부와 닉네임을 판단하므로, 더 이상 nickname을 옵션으로 넘길 필요가 없다
+// (MatchRoom.onAuth/onJoin 참고).
 async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   return spec.type === "create"
-    ? await client.create<T>("match", { nickname: spec.nickname, teamCount: spec.teamCount })
-    : await client.joinById<T>(spec.roomId, { nickname: spec.nickname });
+    ? await client.create<T>("match", { teamCount: spec.teamCount })
+    : await client.joinById<T>(spec.roomId);
 }
 
 export function joinMatch<T>(spec: JoinSpec): Promise<Room<T>> {

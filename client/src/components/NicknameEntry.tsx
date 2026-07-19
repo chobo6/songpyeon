@@ -1,23 +1,37 @@
-import { useState } from "react";
-import { getSavedNickname, saveNickname } from "../game/nickname";
+import { useState, type FormEvent } from "react";
+import { submitNickname } from "../game/auth";
 import styles from "./NicknameEntry.module.css";
 
 const MAX_NICKNAME_LENGTH = 10;
 
 export function NicknameEntry({ onSubmit }: { onSubmit: (nickname: string) => void }) {
-  const [value, setValue] = useState(() => getSavedNickname());
+  const [value, setValue] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = value.trim().slice(0, MAX_NICKNAME_LENGTH);
     if (!trimmed) return;
-    saveNickname(trimmed);
-    onSubmit(trimmed);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const profile = await submitNickname(trimmed);
+      if (!profile.nickname) {
+        setError("닉네임 설정에 실패했어요");
+        return;
+      }
+      onSubmit(profile.nickname);
+    } catch {
+      setError("닉네임 설정에 실패했어요");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <form className={styles.wrap} onSubmit={handleSubmit}>
-      <p className={styles.hint}>닉네임을 입력하세요</p>
+      <p className={styles.hint}>처음 오셨네요! 사용할 닉네임을 정해주세요 (나중에 바꿀 수 없어요)</p>
       <input
         className={styles.input}
         value={value}
@@ -26,7 +40,8 @@ export function NicknameEntry({ onSubmit }: { onSubmit: (nickname: string) => vo
         placeholder="닉네임"
         autoFocus
       />
-      <button className={styles.submit} type="submit" disabled={!value.trim()}>
+      {error && <p className={styles.error}>{error}</p>}
+      <button className={styles.submit} type="submit" disabled={!value.trim() || submitting}>
         확인
       </button>
     </form>

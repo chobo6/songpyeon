@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
 import type { JoinSpec } from "./colyseus";
+import { fetchMe, loginWithGoogle, type Profile } from "./game/auth";
 import { Game } from "./components/Game";
+import { GoogleLoginScreen } from "./components/GoogleLoginScreen";
 import { ModeSelect } from "./components/ModeSelect";
 import { NicknameEntry } from "./components/NicknameEntry";
 import { RoomList } from "./components/RoomList";
@@ -38,11 +40,39 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
 }
 
 function OnlineFlow({ onExit }: { onExit: () => void }) {
-  const [nickname, setNickname] = useState<string | null>(null);
+  const [me, setMe] = useState<Profile | null | undefined>(undefined);
   const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(null);
 
-  if (!nickname) {
-    return <NicknameEntry onSubmit={setNickname} />;
+  useEffect(() => {
+    fetchMe().then(setMe);
+  }, []);
+
+  if (me === undefined) {
+    return (
+      <main className="connecting">
+        <h1>송편 만들기</h1>
+        <p>불러오는 중...</p>
+      </main>
+    );
+  }
+
+  if (me === null) {
+    return (
+      <GoogleLoginScreen
+        onCredential={async (credential) => {
+          try {
+            const profile = await loginWithGoogle(credential);
+            setMe(profile);
+          } catch (err) {
+            console.error("구글 로그인 실패", err);
+          }
+        }}
+      />
+    );
+  }
+
+  if (!me.nickname) {
+    return <NicknameEntry onSubmit={(nickname) => setMe({ ...me, nickname })} />;
   }
 
   // A refresh or a dropped connection always lands back on the room list —
@@ -53,8 +83,8 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
   if (!joinSpec) {
     return (
       <RoomList
-        onCreateRoom={(teamCount) => setJoinSpec({ type: "create", nickname, teamCount })}
-        onJoinRoom={(roomId) => setJoinSpec({ type: "joinById", roomId, nickname })}
+        onCreateRoom={(teamCount) => setJoinSpec({ type: "create", teamCount })}
+        onJoinRoom={(roomId) => setJoinSpec({ type: "joinById", roomId })}
         onExit={onExit}
       />
     );

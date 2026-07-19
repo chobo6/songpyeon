@@ -24,6 +24,12 @@
   margin: 0 0 0.5rem;
 }
 
+.error {
+  color: #ff8a80;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 .input {
   width: 100%;
   max-width: 16rem;
