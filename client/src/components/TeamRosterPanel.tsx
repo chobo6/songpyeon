@@ -11,34 +11,29 @@ const MAX_MORTARS = 5;
 interface TeamRosterPanelProps {
   teams: TeamState[];
   players: Map<string, PlayerState>;
+  // A fresh primitive string, recomputed by the caller on every render from
+  // the live team data (see SpectatorScreen.tsx). `teams` itself is a
+  // colyseus ArraySchema mutated in place — comparing team.mortars directly
+  // between "prev" and "next" props compares the same live object to
+  // itself (both props reference the identical mutated array/team
+  // instances), so that comparison is always trivially true and this panel
+  // would silently freeze the instant it first skips a re-render (visible
+  // as every team's mortar count sticking at whatever it was when a
+  // spectator's own team was eliminated and this panel mounted). A string
+  // snapshot is immutable, so comparing prev/next actually detects real
+  // changes.
+  signature: string;
 }
 
-// Memoized against the same in-place-mutation trap ChatBox's chatPropsEqual
-// documents (see ChatBox.tsx) — `teams` is a colyseus ArraySchema mutated
-// in place, so the default shallow/reference comparison would never detect
-// a mortar loss or elimination and this panel would silently freeze after
-// mount. Compares the actual per-team fields this component renders
-// instead.
-//
 // `players` isn't compared at all: this panel only renders during
 // "playing" phase (its only caller, SpectatorScreen.tsx, never mounts it in
 // "lobby"), when onJoin already rejects new joiners and a resolved
 // nickname never changes for an existing sessionId — the only way a
 // rendered seat's nickname can change mid-match is its team's
 // pigSessionId/rabbitSessionId being cleared (a player leaving), which is
-// already covered below.
+// already covered by `signature`.
 function teamRosterPropsEqual(prev: TeamRosterPanelProps, next: TeamRosterPanelProps) {
-  if (prev.teams.length !== next.teams.length) return false;
-  return prev.teams.every((team, i) => {
-    const nextTeam = next.teams[i];
-    return (
-      team.id === nextTeam.id &&
-      team.pigSessionId === nextTeam.pigSessionId &&
-      team.rabbitSessionId === nextTeam.rabbitSessionId &&
-      team.mortars === nextTeam.mortars &&
-      team.eliminated === nextTeam.eliminated
-    );
-  });
+  return prev.signature === next.signature;
 }
 
 function Seat({

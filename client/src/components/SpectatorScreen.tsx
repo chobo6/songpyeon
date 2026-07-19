@@ -52,6 +52,14 @@ export function SpectatorScreen({
   // server's real isMatchOver() (every team down), not just this one.
   const matchOver = teams.every((t) => t.eliminated);
 
+  // Fresh string each render (see TeamRosterPanel's signature prop doc) —
+  // teams is a colyseus ArraySchema mutated in place, so this must be a new
+  // primitive value, not the array reference itself, for change detection
+  // to work.
+  const teamsSignature = teams
+    .map((t) => `${t.id}:${t.pigSessionId}:${t.rabbitSessionId}:${t.mortars}:${t.eliminated}`)
+    .join(",");
+
   function handleLeaveClick() {
     if (matchOver) {
       room.send("rematch");
@@ -92,7 +100,7 @@ export function SpectatorScreen({
           fill
         />
       </div>
-      <TeamRosterPanel teams={teams} players={players} />
+      <TeamRosterPanel teams={teams} players={players} signature={teamsSignature} />
     </div>
   );
 }
