@@ -79,7 +79,7 @@ export function createGameServer(): Server {
   });
 
   app.get("/api/admin/events", requireAdmin, (_req, res) => {
-    res.json(getEvents());
+    res.json(getEvents().slice(-100));
   });
 
   app.post("/api/admin/announce", requireAdmin, (req, res) => {

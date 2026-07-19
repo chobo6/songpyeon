@@ -35,6 +35,19 @@ async function fetchAdminJson<T>(
   }
 }
 
+function currentlyOnline(rooms: RoomInfo[]): { sessionId: string; nickname: string }[] {
+  const seen = new Set<string>();
+  const players: { sessionId: string; nickname: string }[] = [];
+  for (const room of rooms) {
+    for (const player of room.players) {
+      if (seen.has(player.sessionId)) continue;
+      seen.add(player.sessionId);
+      players.push(player);
+    }
+  }
+  return players;
+}
+
 export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
@@ -98,6 +111,8 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
     }
   }
 
+  const onlinePlayers = currentlyOnline(rooms);
+
   return (
     <main className={styles.wrap}>
       <h1>관리자 대시보드</h1>
@@ -115,6 +130,19 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
       {announceError && <p className={styles.error}>{announceError}</p>}
 
       <section>
+        <h2>현재 접속자 ({onlinePlayers.length})</h2>
+        <div className={styles.onlineList}>
+          {onlinePlayers.length > 0
+            ? onlinePlayers.map((p) => (
+                <span key={p.sessionId} className={styles.onlineName}>
+                  {p.nickname}
+                </span>
+              ))
+            : "(없음)"}
+        </div>
+      </section>
+
+      <section>
         <h2>활성 방 ({rooms.length})</h2>
         <ul className={styles.roomList}>
           {rooms.map((room) => (
@@ -130,29 +158,31 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
       </section>
 
       <section>
-        <h2>최근 입장/퇴장</h2>
-        <table className={styles.eventTable}>
-          <thead>
-            <tr>
-              <th>시각</th>
-              <th>종류</th>
-              <th>닉네임</th>
-              <th>방</th>
-              <th>IP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...events].reverse().map((event) => (
-              <tr key={`${event.sessionId}-${event.timestamp}-${event.type}`}>
-                <td>{new Date(event.timestamp).toLocaleTimeString()}</td>
-                <td>{event.type === "join" ? "입장" : "퇴장"}</td>
-                <td>{event.nickname}</td>
-                <td>{event.roomId}</td>
-                <td>{event.ip}</td>
+        <h2>최근 입장/퇴장 (최대 100개)</h2>
+        <div className={styles.eventTableScroll}>
+          <table className={styles.eventTable}>
+            <thead>
+              <tr>
+                <th>시각</th>
+                <th>종류</th>
+                <th>닉네임</th>
+                <th>방</th>
+                <th>IP</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[...events].reverse().map((event) => (
+                <tr key={`${event.sessionId}-${event.timestamp}-${event.type}`}>
+                  <td>{new Date(event.timestamp).toLocaleTimeString()}</td>
+                  <td>{event.type === "join" ? "입장" : "퇴장"}</td>
+                  <td>{event.nickname}</td>
+                  <td>{event.roomId}</td>
+                  <td>{event.ip}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
   );

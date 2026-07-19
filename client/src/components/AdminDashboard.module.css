@@ -43,6 +43,27 @@
   color: #6b7280;
 }
 
+.onlineList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.onlineName {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.eventTableScroll {
+  max-height: 24rem;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.4rem;
+}
+
 .eventTable {
   width: 100%;
   border-collapse: collapse;
@@ -54,4 +75,10 @@
   text-align: left;
   padding: 0.25rem 0.5rem;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.eventTable thead th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
 }
