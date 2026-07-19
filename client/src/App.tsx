@@ -42,9 +42,12 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
 function OnlineFlow({ onExit }: { onExit: () => void }) {
   const [me, setMe] = useState<Profile | null | undefined>(undefined);
   const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchMe().then(setMe);
+    fetchMe()
+      .then(setMe)
+      .catch(() => setMe(null));
   }, []);
 
   if (me === undefined) {
@@ -59,12 +62,15 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
   if (me === null) {
     return (
       <GoogleLoginScreen
+        error={loginError}
         onCredential={async (credential) => {
+          setLoginError(null);
           try {
             const profile = await loginWithGoogle(credential);
             setMe(profile);
           } catch (err) {
             console.error("구글 로그인 실패", err);
+            setLoginError("로그인에 실패했어요. 다시 시도해주세요.");
           }
         }}
       />
