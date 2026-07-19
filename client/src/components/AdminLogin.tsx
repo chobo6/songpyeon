@@ -22,6 +22,8 @@ export function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
         return;
       }
       onSuccess();
+    } catch {
+      setError("서버에 연결할 수 없습니다");
     } finally {
       setSubmitting(false);
     }
