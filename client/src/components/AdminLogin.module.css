@@ -1,0 +1,33 @@
+.wrap {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  background: #111827;
+}
+
+.form {
+  display: grid;
+  gap: 0.75rem;
+  width: 17.5rem;
+  color: #fff;
+}
+
+.form input {
+  padding: 0.5rem;
+  border-radius: 0.4rem;
+  border: none;
+}
+
+.form button {
+  padding: 0.5rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.error {
+  color: #f87171;
+  font-size: 0.8rem;
+  margin: 0;
+}

@@ -1,0 +1,51 @@
+.wrap {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.5rem;
+  color: #111827;
+  background: #f9fafb;
+  min-height: 100svh;
+  box-sizing: border-box;
+}
+
+.announceForm {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.announceForm input {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.roomList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.roomList li {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.4rem;
+}
+
+.playerNames {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.eventTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.eventTable th,
+.eventTable td {
+  text-align: left;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
