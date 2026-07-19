@@ -9,6 +9,8 @@ import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin } from "./admin/auth";
 import { getEvents } from "./admin/eventLog";
 import { broadcast, subscribe } from "./admin/announcements";
+import { getOrCreateUser, getUserById, setNickname, verifyGoogleIdToken } from "./auth/googleAuth";
+import { SESSION_COOKIE_NAME, signSession, verifySession } from "./auth/session";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
@@ -92,6 +94,61 @@ export function createGameServer(): Server {
 
   app.get("/api/announcements/stream", (req, res) => {
     subscribe(req, res);
+  });
+
+  app.post("/api/auth/google", async (req, res) => {
+    try {
+      const { credential } = req.body as { credential?: unknown };
+      if (typeof credential !== "string") {
+        res.status(400).json({ error: "credential이 필요합니다." });
+        return;
+      }
+      const { sub, email, name } = await verifyGoogleIdToken(credential);
+      const user = getOrCreateUser(sub, { email, name });
+      const token = signSession(user.id);
+      res.cookie(SESSION_COOKIE_NAME, token, { httpOnly: true, sameSite: "lax" });
+      res.json({ id: user.id, nickname: user.nickname });
+    } catch (err) {
+      console.error("구글 로그인 실패:", err);
+      res.status(401).json({ error: "로그인에 실패했습니다." });
+    }
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.json(null);
+      return;
+    }
+    const user = getUserById(userId);
+    res.json(user ? { id: user.id, nickname: user.nickname } : null);
+  });
+
+  app.post("/api/auth/nickname", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { nickname } = req.body as { nickname?: unknown };
+    if (typeof nickname !== "string" || !nickname.trim()) {
+      res.status(400).json({ error: "닉네임이 필요합니다." });
+      return;
+    }
+    const ok = setNickname(userId, nickname);
+    if (!ok) {
+      res.status(409).json({ error: "이미 닉네임이 설정되어 있습니다." });
+      return;
+    }
+    const user = getUserById(userId);
+    res.json({ id: userId, nickname: user?.nickname ?? null });
+  });
+
+  app.post("/api/auth/logout", (_req, res) => {
+    res.clearCookie(SESSION_COOKIE_NAME);
+    res.json({ ok: true });
   });
 
   const httpServer = createHttpServer(app);
