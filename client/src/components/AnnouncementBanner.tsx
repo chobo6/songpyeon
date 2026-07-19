@@ -3,6 +3,8 @@ import styles from "./AnnouncementBanner.module.css";
 
 type Announcement = { message: string; timestamp: number };
 
+const AUTO_DISMISS_MS = 20_000;
+
 export function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -11,6 +13,7 @@ export function AnnouncementBanner() {
   // within the 5-minute window) doesn't un-dismiss a banner the player
   // already closed. Only a genuinely new timestamp should reopen it.
   const lastTimestampRef = useRef<number | null>(null);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const source = new EventSource("/api/announcements/stream");
@@ -19,10 +22,15 @@ export function AnnouncementBanner() {
       setAnnouncement(data);
       if (data.timestamp !== lastTimestampRef.current) {
         setDismissed(false);
+        if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = setTimeout(() => setDismissed(true), AUTO_DISMISS_MS);
       }
       lastTimestampRef.current = data.timestamp;
     };
-    return () => source.close();
+    return () => {
+      source.close();
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
   }, []);
 
   if (!announcement || dismissed) return null;

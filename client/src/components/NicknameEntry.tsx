@@ -31,7 +31,11 @@ export function NicknameEntry({ onSubmit }: { onSubmit: (nickname: string) => vo
 
   return (
     <form className={styles.wrap} onSubmit={handleSubmit}>
-      <p className={styles.hint}>처음 오셨네요! 사용할 닉네임을 정해주세요 (나중에 바꿀 수 없어요)</p>
+      <p className={styles.hint}>
+        처음 오셨네요! 사용할 닉네임을 정해주세요
+        <br />
+        <span className={styles.hintSub}>(나중에 바꿀 수 없어요)</span>
+      </p>
       <input
         className={styles.input}
         value={value}
