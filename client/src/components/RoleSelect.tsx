@@ -10,6 +10,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
   const myRole = me?.role;
   const teams = room.state.teams;
   const lobbyChat = room.state.lobbyChat;
+  const unassignedPlayers = Array.from(room.state.players.values()).filter((p) => p.role === "");
 
   function choose(role: Role) {
     room.send("chooseRole", { role });
@@ -33,6 +34,18 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
       <div className={styles.header}>
         <h1 className={styles.title}>송편 만들기</h1>
       </div>
+      {unassignedPlayers.length > 0 && (
+        <div className={styles.pending}>
+          <span className={styles.pendingLabel}>역할 선택 중</span>
+          <div className={styles.pendingNames}>
+            {unassignedPlayers.map((p) => (
+              <span key={p.sessionId} className={styles.pendingName}>
+                {p.nickname}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {myRole && <p className={styles.waiting}>{myRole === "pig" ? "돼지" : "토끼"} 역할로 대기 중...</p>}
       <div className={styles.choices}>
         <button

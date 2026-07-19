@@ -83,6 +83,33 @@
   opacity: 0.9;
 }
 
+.pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pendingLabel {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.pendingNames {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pendingName {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .roster {
   display: flex;
   flex-direction: row;
