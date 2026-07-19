@@ -5,6 +5,7 @@ import type { Room as ServerRoom } from "colyseus";
 import { createGameServer } from "../createServer";
 import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors";
 import type { MatchState } from "./MatchState";
+import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
 
 const ALL_COLORS: Color[] = [...PIG_COLORS, ...RABBIT_COLORS];
 const SHORT_TURN_MS = 500;
@@ -603,5 +604,39 @@ describe("MatchRoom", () => {
 
     expect(room.state.teams[0].mortars).toBe(5);
     expect(room.state.phase).toBe("lobby");
+  });
+
+  describe("admin event log integration", () => {
+    test("onJoin records a join event and updates the room's player roster metadata", async () => {
+      resetEventLog();
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      const client = await colyseus.connectTo(room, { nickname: "철수" });
+      await flush();
+
+      const events = getEvents();
+      const joinEvent = events.find((e) => e.sessionId === client.sessionId && e.type === "join");
+      expect(joinEvent?.nickname).toBe("철수");
+      expect(joinEvent?.roomId).toBe(room.roomId);
+
+      const metadata = room.listing.metadata as { players?: { nickname: string }[] };
+      expect(metadata.players?.map((p) => p.nickname)).toEqual(["철수"]);
+    });
+
+    test("onLeave records a leave event and removes the player from roster metadata", async () => {
+      resetEventLog();
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      const client = await colyseus.connectTo(room, { nickname: "영희" });
+      await flush();
+
+      await client.leave();
+      await flush();
+
+      const events = getEvents();
+      const leaveEvent = events.find((e) => e.sessionId === client.sessionId && e.type === "leave");
+      expect(leaveEvent?.nickname).toBe("영희");
+
+      const metadata = room.listing.metadata as { players?: { nickname: string }[] };
+      expect(metadata.players ?? []).toEqual([]);
+    });
   });
 });

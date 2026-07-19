@@ -10,6 +10,7 @@ import type { Color, Role } from "../game/colors";
 import { sanitizeNickname } from "../game/nickname";
 import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeChatText } from "../game/chat";
+import { recordEvent } from "../admin/eventLog";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
 const MAX_CHAT_MESSAGES = 50;
@@ -99,7 +100,7 @@ export class MatchRoom extends Room<MatchState> {
     return { ip: context.ip };
   }
 
-  onJoin(client: Client, options: { nickname?: unknown } = {}) {
+  async onJoin(client: Client, options: { nickname?: unknown } = {}) {
     if (this.state.players.has(client.sessionId)) return;
 
     if (this.state.phase !== "lobby") {
@@ -112,9 +113,18 @@ export class MatchRoom extends Room<MatchState> {
     this.state.players.set(client.sessionId, player);
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
     console.log(`[join] session=${client.sessionId} ip=${client.auth?.ip} nickname=${player.nickname}`);
+    recordEvent({
+      type: "join",
+      timestamp: Date.now(),
+      nickname: player.nickname,
+      roomId: this.roomId,
+      ip: String(client.auth?.ip ?? "unknown"),
+      sessionId: client.sessionId,
+    });
+    await this.setMetadata({ players: this.rosterForMetadata() });
   }
 
-  onLeave(client: Client) {
+  async onLeave(client: Client) {
     // No reconnection grace: the client never persists a reconnection token
     // and never attempts to resume (see client/src/colyseus.ts) — a refresh,
     // closed tab, or dropped connection always lands back on the room list.
@@ -123,7 +133,24 @@ export class MatchRoom extends Room<MatchState> {
     // RECONNECTION_GRACE_SECONDS with nothing that could ever reconnect
     // through it. Free the slot immediately instead.
     console.log(`[leave] session=${client.sessionId} ip=${client.auth?.ip}`);
+    const leavingNickname = this.state.players.get(client.sessionId)?.nickname ?? "?";
+    recordEvent({
+      type: "leave",
+      timestamp: Date.now(),
+      nickname: leavingNickname,
+      roomId: this.roomId,
+      ip: String(client.auth?.ip ?? "unknown"),
+      sessionId: client.sessionId,
+    });
     this.removePlayer(client.sessionId);
+    await this.setMetadata({ players: this.rosterForMetadata() });
+  }
+
+  private rosterForMetadata(): { sessionId: string; nickname: string }[] {
+    return [...this.state.players.values()].map((p) => ({
+      sessionId: p.sessionId,
+      nickname: p.nickname,
+    }));
   }
 
   private removePlayer(sessionId: string) {
