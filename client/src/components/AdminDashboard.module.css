@@ -18,6 +18,12 @@
   padding: 0.5rem;
 }
 
+.error {
+  color: #d33;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
 .roomList {
   list-style: none;
   margin: 0;

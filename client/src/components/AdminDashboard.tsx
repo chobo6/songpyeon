@@ -24,11 +24,15 @@ const POLL_INTERVAL_MS = 4000;
 async function fetchAdminJson<T>(
   url: string,
 ): Promise<{ ok: true; data: T } | { ok: false; unauthorized: boolean }> {
-  const res = await fetch(url, { credentials: "same-origin" });
-  if (!res.ok) {
-    return { ok: false, unauthorized: res.status === 401 };
+  try {
+    const res = await fetch(url, { credentials: "same-origin" });
+    if (!res.ok) {
+      return { ok: false, unauthorized: res.status === 401 };
+    }
+    return { ok: true, data: (await res.json()) as T };
+  } catch {
+    return { ok: false, unauthorized: false };
   }
-  return { ok: true, data: (await res.json()) as T };
 }
 
 export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void }) {
@@ -36,6 +40,7 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [announceError, setAnnounceError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +74,7 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
     e.preventDefault();
     if (!message.trim()) return;
     setSending(true);
+    setAnnounceError(null);
     try {
       await fetch("/api/admin/announce", {
         method: "POST",
@@ -77,6 +83,8 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
         body: JSON.stringify({ message }),
       });
       setMessage("");
+    } catch {
+      setAnnounceError("공지 전송에 실패했습니다");
     } finally {
       setSending(false);
     }
@@ -96,6 +104,7 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
           공지 보내기
         </button>
       </form>
+      {announceError && <p className={styles.error}>{announceError}</p>}
 
       <section>
         <h2>활성 방 ({rooms.length})</h2>
