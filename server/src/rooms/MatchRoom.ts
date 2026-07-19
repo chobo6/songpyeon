@@ -1,4 +1,4 @@
-import { Room, Client } from "colyseus";
+import { Room, Client, type AuthContext } from "colyseus";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage } from "./MatchState";
 import { generateSequence } from "../game/sequence";
@@ -91,6 +91,14 @@ export class MatchRoom extends Room<MatchState> {
     });
   }
 
+  // Colyseus's ws-transport already resolves the real client IP for us
+  // (x-real-ip / x-forwarded-for / socket.remoteAddress, in that order) —
+  // this room just has to read it and hang onto it via client.auth, since
+  // onLeave doesn't get a fresh AuthContext to re-read it from.
+  async onAuth(_client: Client, _options: MatchRoomOptions, context: AuthContext) {
+    return { ip: context.ip };
+  }
+
   onJoin(client: Client, options: { nickname?: unknown } = {}) {
     if (this.state.players.has(client.sessionId)) return;
 
@@ -103,6 +111,7 @@ export class MatchRoom extends Room<MatchState> {
     player.nickname = sanitizeNickname(options.nickname);
     this.state.players.set(client.sessionId, player);
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
+    console.log(`[join] session=${client.sessionId} ip=${client.auth?.ip} nickname=${player.nickname}`);
   }
 
   onLeave(client: Client) {
@@ -113,6 +122,7 @@ export class MatchRoom extends Room<MatchState> {
     // role/team slot (and the room looking occupied to others) for up to
     // RECONNECTION_GRACE_SECONDS with nothing that could ever reconnect
     // through it. Free the slot immediately instead.
+    console.log(`[leave] session=${client.sessionId} ip=${client.auth?.ip}`);
     this.removePlayer(client.sessionId);
   }
 
