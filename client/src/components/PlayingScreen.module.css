@@ -77,7 +77,7 @@
   cursor: pointer;
   color: #fff;
   font-weight: 700;
-  background: linear-gradient(135deg, #6b7280, #374151);
+  background: #363861;
 }
 
 /* Placed after the base .spectating/.leaveButton rules on purpose — a
