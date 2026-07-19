@@ -32,6 +32,10 @@ export function subscribe(req: Request, res: Response): void {
   req.on("close", () => {
     subscribers.delete(res);
   });
+
+  res.on("error", () => {
+    subscribers.delete(res);
+  });
 }
 
 export function broadcast(message: string): void {
@@ -39,7 +43,11 @@ export function broadcast(message: string): void {
   lastAnnouncement = announcement;
   const payload = formatSseMessage(announcement);
   for (const res of subscribers) {
-    res.write(payload);
+    try {
+      res.write(payload);
+    } catch {
+      subscribers.delete(res);
+    }
   }
 }
 
