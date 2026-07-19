@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { boot, ColyseusTestServer } from "@colyseus/testing";
 import type { Room as ClientRoom } from "colyseus.js";
+import { Client as ColyseusJsClient } from "colyseus.js";
 import type { Room as ServerRoom } from "colyseus";
 import { createGameServer } from "../createServer";
 import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors";
 import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
+import { getOrCreateUser, setNickname } from "../auth/googleAuth";
+import { signSession } from "../auth/session";
 
 const ALL_COLORS: Color[] = [...PIG_COLORS, ...RABBIT_COLORS];
 const SHORT_TURN_MS = 500;
@@ -29,6 +32,25 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let testUserCounter = 0;
+
+// MatchRoom.onAuth가 로그인 세션을 요구하므로, 게임 로직만 검증하려는 기존 테스트들도 이제
+// "로그인된 유저로 접속"을 거쳐야 한다. 테스트용 유저를 DB에 만들고 실제 세션 쿠키를 발급받아,
+// colyseus.js Client를 커스텀 Cookie 헤더로 직접 연결한다 (@colyseus/testing의 connectTo는
+// 헤더를 커스터마이즈할 수 없어서 이 방식이 필요 — colyseus.js가 Node 환경에서 WebSocket
+// 업그레이드 요청에 커스텀 헤더를 지원하는 것을 확인하고 쓰는 것).
+async function connectAsUser(colyseus: ColyseusTestServer, room: ServerRoom<MatchState>, nickname: string) {
+  testUserCounter += 1;
+  const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+  setNickname(user.id, nickname);
+  const token = signSession(user.id);
+  const port = (colyseus.server as unknown as { port: number }).port;
+  const client = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+    headers: { Cookie: `session=${token}` },
+  });
+  return client.joinById<MatchState>(room.roomId);
+}
+
 describe("MatchRoom", () => {
   let colyseus: ColyseusTestServer;
 
@@ -48,7 +70,7 @@ describe("MatchRoom", () => {
     const room = await colyseus.createRoom<MatchState>("match", options);
     const clients: ClientRoom<MatchState>[] = [];
     for (const role of ["pig", "rabbit", "pig", "rabbit"] as const) {
-      const client = await colyseus.connectTo(room);
+      const client = await connectAsUser(colyseus, room, "플레이어");
       client.send("chooseRole", { role });
       clients.push(client);
     }
@@ -96,7 +118,7 @@ describe("MatchRoom", () => {
 
   test("choosing a different role in the lobby switches you instead of being blocked", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room);
+    const client = await connectAsUser(colyseus, room, "플레이어");
 
     client.send("chooseRole", { role: "pig" });
     await flush();
@@ -111,7 +133,7 @@ describe("MatchRoom", () => {
 
   test("re-choosing the same role you already have is a no-op, not a hop to the other team", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room);
+    const client = await connectAsUser(colyseus, room, "플레이어");
 
     client.send("chooseRole", { role: "pig" });
     await flush();
@@ -120,15 +142,6 @@ describe("MatchRoom", () => {
 
     expect(room.state.teams[0].pigSessionId).toBe(client.sessionId);
     expect(room.state.teams[1].pigSessionId).toBe("");
-  });
-
-  test("onJoin stores a sanitized nickname from join options", async () => {
-    const room = await colyseus.createRoom<MatchState>("match");
-    const clean = await colyseus.connectTo(room, { nickname: "  둘리  " });
-    const dirty = await colyseus.connectTo(room, { nickname: 12345 });
-
-    expect(room.state.players.get(clean.sessionId)?.nickname).toBe("둘리");
-    expect(room.state.players.get(dirty.sessionId)?.nickname).toBe("플레이어");
   });
 
   test("sendChat routes to lobbyChat during the lobby and matchChat during play, independently", async () => {
@@ -151,7 +164,7 @@ describe("MatchRoom", () => {
 
   test("sendChat in the lobby goes to lobbyChat, and ignores blank/invalid text", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room, { nickname: "채팅유저" });
+    const client = await connectAsUser(colyseus, room, "채팅유저");
 
     client.send("sendChat", { text: "  로비 메시지  " });
     client.send("sendChat", { text: "   " });
@@ -168,7 +181,7 @@ describe("MatchRoom", () => {
 
   test("a player joining the lobby gets a system message announcing it in lobbyChat", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    await colyseus.connectTo(room, { nickname: "둘리" });
+    await connectAsUser(colyseus, room, "둘리");
     await flush();
 
     expect(room.state.lobbyChat).toHaveLength(1);
@@ -178,7 +191,7 @@ describe("MatchRoom", () => {
 
   test("a player deliberately leaving the lobby gets a system message announcing it in lobbyChat", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room, { nickname: "또치" });
+    const client = await connectAsUser(colyseus, room, "또치");
     await flush();
 
     await client.leave(); // deliberate leave
@@ -202,7 +215,7 @@ describe("MatchRoom", () => {
 
   test("chat history caps at 50 messages, dropping the oldest first", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room);
+    const client = await connectAsUser(colyseus, room, "플레이어");
 
     for (let i = 0; i < 55; i++) {
       client.send("sendChat", { text: `msg${i}` });
@@ -216,7 +229,7 @@ describe("MatchRoom", () => {
 
   test("ping replies with pong carrying the original timestamp and the server's current time", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room);
+    const client = await connectAsUser(colyseus, room, "플레이어");
 
     const pong = await new Promise<{ clientSentAt: number; serverTime: number }>((resolve) => {
       client.onMessage("pong", resolve);
@@ -227,8 +240,10 @@ describe("MatchRoom", () => {
     expect(pong.serverTime).toBeGreaterThan(0);
   });
 
-  test("onCreate stores a sanitized host nickname in room metadata, for the room list", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { nickname: "  방장  " });
+  test("the first player to join becomes host, storing their nickname in room metadata for the room list", async () => {
+    const room = await colyseus.createRoom<MatchState>("match");
+    await connectAsUser(colyseus, room, "방장");
+    await flush();
 
     expect(room.metadata?.hostNickname).toBe("방장");
   });
@@ -256,7 +271,7 @@ describe("MatchRoom", () => {
   test("a 3-team room starts once all 3 teams have a pig and a rabbit", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
     for (const role of ["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const) {
-      const client = await colyseus.connectTo(room);
+      const client = await connectAsUser(colyseus, room, "플레이어");
       client.send("chooseRole", { role });
     }
     await flush();
@@ -272,7 +287,7 @@ describe("MatchRoom", () => {
     const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: PRESS_HEAVY_TURN_MS });
     const clients: ClientRoom<MatchState>[] = [];
     for (const role of ["pig", "rabbit"] as const) {
-      const client = await colyseus.connectTo(room);
+      const client = await connectAsUser(colyseus, room, "플레이어");
       client.send("chooseRole", { role });
       clients.push(client);
     }
@@ -368,7 +383,7 @@ describe("MatchRoom", () => {
 
   test("a dropped connection during the lobby frees the role slot immediately", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room);
+    const client = await connectAsUser(colyseus, room, "플레이어");
     client.send("chooseRole", { role: "pig" });
     await flush();
 
@@ -389,7 +404,7 @@ describe("MatchRoom", () => {
 
   test("leaving the lobby deliberately after choosing a role frees that role slot immediately", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
-    const client = await colyseus.connectTo(room);
+    const client = await connectAsUser(colyseus, room, "플레이어");
     client.send("chooseRole", { role: "rabbit" });
     await flush();
 
@@ -456,7 +471,7 @@ describe("MatchRoom", () => {
       });
       const clients: ClientRoom<MatchState>[] = [];
       for (const role of ["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const) {
-        const client = await colyseus.connectTo(room);
+        const client = await connectAsUser(colyseus, room, "플레이어");
         client.send("chooseRole", { role });
         clients.push(client);
       }
@@ -504,7 +519,7 @@ describe("MatchRoom", () => {
   test("a room in progress rejects a new connection attempt", async () => {
     const { room } = await fillRolesAndStart();
 
-    await expect(colyseus.connectTo(room)).rejects.toThrow();
+    await expect(connectAsUser(colyseus, room, "플레이어")).rejects.toThrow();
   });
 
   test("a room still rejects new connections after a player leaves (maxClients lock can be auto-unlocked by Colyseus)", async () => {
@@ -513,7 +528,7 @@ describe("MatchRoom", () => {
     await clients[0].leave();
     await flush();
 
-    await expect(colyseus.connectTo(room)).rejects.toThrow();
+    await expect(connectAsUser(colyseus, room, "플레이어")).rejects.toThrow();
   });
 
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {
@@ -522,7 +537,21 @@ describe("MatchRoom", () => {
     await clients[0].leave();
     await flush();
 
-    const newRoom = await colyseus.sdk.joinOrCreate("match");
+    // colyseus.sdk.joinOrCreate goes through the same onAuth as connectTo/
+    // joinById did — it also needs a logged-in session now, but it's a
+    // matchmaking call (not joinById into a specific room), so connectAsUser
+    // (which targets a known roomId) doesn't fit here. Same underlying
+    // technique as connectAsUser: a real test user + session, connected with
+    // a custom Cookie header via a raw colyseus.js Client.
+    testUserCounter += 1;
+    const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+    setNickname(user.id, "플레이어");
+    const token = signSession(user.id);
+    const port = (colyseus.server as unknown as { port: number }).port;
+    const client = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+      headers: { Cookie: `session=${token}` },
+    });
+    const newRoom = await client.joinOrCreate<MatchState>("match");
     expect(newRoom.roomId).not.toBe(room.roomId);
   });
 
@@ -556,7 +585,7 @@ describe("MatchRoom", () => {
     const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: SHORT_TURN_MS });
     const clients: ClientRoom<MatchState>[] = [];
     for (const role of ["pig", "rabbit"] as const) {
-      const client = await colyseus.connectTo(room);
+      const client = await connectAsUser(colyseus, room, "플레이어");
       client.send("chooseRole", { role });
       clients.push(client);
     }
@@ -610,7 +639,7 @@ describe("MatchRoom", () => {
     test("onJoin records a join event and updates the room's player roster metadata", async () => {
       resetEventLog();
       const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
-      const client = await colyseus.connectTo(room, { nickname: "철수" });
+      const client = await connectAsUser(colyseus, room, "철수");
       await flush();
 
       const events = getEvents();
@@ -625,7 +654,7 @@ describe("MatchRoom", () => {
     test("onLeave records a leave event and removes the player from roster metadata", async () => {
       resetEventLog();
       const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
-      const client = await colyseus.connectTo(room, { nickname: "영희" });
+      const client = await connectAsUser(colyseus, room, "영희");
       await flush();
 
       await client.leave();

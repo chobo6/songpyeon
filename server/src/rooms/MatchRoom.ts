@@ -7,17 +7,17 @@ import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated, STARTING_MORTARS } from "../game/mortar";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
-import { sanitizeNickname } from "../game/nickname";
 import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
+import { getUserById } from "../auth/googleAuth";
+import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
 const MAX_CHAT_MESSAGES = 50;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
-  nickname?: unknown;
   teamCount?: unknown;
 }
 
@@ -38,7 +38,6 @@ export class MatchRoom extends Room<MatchState> {
 
   onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
-    this.setMetadata({ hostNickname: sanitizeNickname(options.nickname) });
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -93,23 +92,41 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   // Colyseus's ws-transport already resolves the real client IP for us
-  // (x-real-ip / x-forwarded-for / socket.remoteAddress, in that order) —
-  // this room just has to read it and hang onto it via client.auth, since
-  // onLeave doesn't get a fresh AuthContext to re-read it from.
+  // (x-real-ip / x-forwarded-for / socket.remoteAddress, in that order).
+  // Beyond IP, this room now also requires a valid login session — the
+  // cookie header isn't parsed by Express's cookie-parser here (WS upgrade
+  // requests never go through Express middleware), so we parse and verify
+  // it ourselves, reusing the exact same session logic the HTTP auth routes
+  // use. No session (or a session for an account with no nickname yet) —
+  // reject the join outright; the client never even shows the room list
+  // without first completing login + nickname setup, so this path only
+  // fires for direct API access or a session that expired mid-lobby.
   async onAuth(_client: Client, _options: MatchRoomOptions, context: AuthContext) {
-    return { ip: context.ip };
+    const token = getCookieValue(context.headers?.cookie, SESSION_COOKIE_NAME);
+    const userId = verifySession(token);
+    const user = userId ? getUserById(userId) : undefined;
+    if (!user || !user.nickname) {
+      throw new Error("로그인이 필요합니다.");
+    }
+    return { ip: context.ip, userId: user.id, nickname: user.nickname };
   }
 
-  async onJoin(client: Client, options: { nickname?: unknown } = {}) {
+  async onJoin(client: Client, _options: MatchRoomOptions = {}) {
     if (this.state.players.has(client.sessionId)) return;
 
     if (this.state.phase !== "lobby") {
       throw new Error("Match already in progress");
     }
 
+    // The first player to actually join (not the one who called client.create())
+    // is the host, display-wise — onCreate runs before its own caller's
+    // onAuth/onJoin, so hostNickname can't be set there anymore.
+    const isHost = this.state.players.size === 0;
+    const nickname = client.auth?.nickname ?? "플레이어";
+
     const player = new PlayerState();
     player.sessionId = client.sessionId;
-    player.nickname = sanitizeNickname(options.nickname);
+    player.nickname = nickname;
     this.state.players.set(client.sessionId, player);
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
     console.log(`[join] session=${client.sessionId} ip=${client.auth?.ip} nickname=${player.nickname}`);
@@ -121,7 +138,12 @@ export class MatchRoom extends Room<MatchState> {
       ip: String(client.auth?.ip ?? "unknown"),
       sessionId: client.sessionId,
     });
-    await this.setMetadata({ players: this.rosterForMetadata() });
+
+    const metadataUpdate: { players: { sessionId: string; nickname: string }[]; hostNickname?: string } = {
+      players: this.rosterForMetadata(),
+    };
+    if (isHost) metadataUpdate.hostNickname = nickname;
+    await this.setMetadata(metadataUpdate);
   }
 
   async onLeave(client: Client) {
