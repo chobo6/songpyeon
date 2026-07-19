@@ -11,7 +11,7 @@ import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
-import { getUserById } from "../auth/googleAuth";
+import { getUserById, recordRoundAchievement } from "../auth/googleAuth";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
@@ -46,6 +46,10 @@ export class MatchRoom extends Room<MatchState> {
   // it also shrinks the count being compared against, so the round could
   // advance before every team that started it alive had actually gone.
   private teamsAliveAtRoundStart = 0;
+  // sessionId → account id, so round-achievement credit (a DB write, not
+  // part of the broadcast state) can find the right row without exposing
+  // the DB id on PlayerState to every client in the room.
+  private playerUserIds = new Map<string, number>();
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -149,6 +153,7 @@ export class MatchRoom extends Room<MatchState> {
     player.sessionId = client.sessionId;
     player.nickname = nickname;
     this.state.players.set(client.sessionId, player);
+    if (client.auth?.userId) this.playerUserIds.set(client.sessionId, client.auth.userId);
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
     console.log(`[join] session=${client.sessionId} ip=${client.auth?.ip} nickname=${player.nickname}`);
     recordEvent({
@@ -211,6 +216,7 @@ export class MatchRoom extends Room<MatchState> {
     }
 
     this.state.players.delete(sessionId);
+    this.playerUserIds.delete(sessionId);
 
     // Scoped to the lobby specifically (the requested "대기실" behavior) — a
     // mid-match leave doesn't get a matchChat announcement, since that's a
@@ -489,7 +495,27 @@ export class MatchRoom extends Room<MatchState> {
 
   private applyMortarLoss(team: TeamState) {
     team.mortars = loseMortar(team.mortars);
-    if (isEliminated(team.mortars)) team.eliminated = true;
+    if (isEliminated(team.mortars)) {
+      team.eliminated = true;
+      // Credit the round they were eliminated in — advanceToNextTurn's own
+      // credit (below) only reaches teams still alive when a round
+      // completes, so a team that goes out mid-round would otherwise never
+      // get its final round recorded at all.
+      this.creditRound(team, this.state.round);
+    }
+  }
+
+  // Records "reached round N" as each of a team's two players' new personal
+  // best (recordRoundAchievement itself only ever raises the stored value,
+  // never lowers it — see its own comment). Missing from playerUserIds only
+  // happens if the seat is currently empty (nicknameFor's "대기 중" case
+  // doesn't apply mid-match, but a slot freed by a drop and not yet
+  // refilled still shouldn't crash this).
+  private creditRound(team: TeamState, round: number) {
+    for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
+      const userId = this.playerUserIds.get(sessionId);
+      if (userId) recordRoundAchievement(userId, round);
+    }
   }
 
   private advanceToNextTurn() {
@@ -508,6 +534,16 @@ export class MatchRoom extends Room<MatchState> {
       this.state.round++;
       this.turnsThisRound = 0;
       this.teamsAliveAtRoundStart = teamsSnapshot.filter((t) => !t.eliminated).length;
+      // Surviving teams get credited here, every time the room actually
+      // reaches a new round — this is the only credit a team that's never
+      // eliminated (the eventual sole survivor of a match with no formal
+      // "win", see isMatchOver's own comment) ever gets, and it's what lets
+      // their max_round keep climbing for as long as the match continues.
+      for (const status of teamsSnapshot) {
+        if (status.eliminated) continue;
+        const team = this.state.teams.find((t) => t.id === status.id)!;
+        this.creditRound(team, this.state.round);
+      }
     }
 
     this.state.activeTeamIndex = nextActiveTeamIndex(teamsSnapshot, this.state.activeTeamIndex);

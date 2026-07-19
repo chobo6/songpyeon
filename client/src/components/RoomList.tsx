@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { CreateRoomModal } from "./CreateRoomModal";
+import { RankingModal } from "./RankingModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -16,6 +17,7 @@ export function RoomList({
 }) {
   const [rooms, setRooms] = useState<RoomListEntry[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRankingModal, setShowRankingModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,9 +42,14 @@ export function RoomList({
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>송편 만들기</h1>
-      <button className={styles.createButton} onClick={() => setShowCreateModal(true)}>
-        방 만들기
-      </button>
+      <div className={styles.topButtons}>
+        <button className={styles.createButton} onClick={() => setShowCreateModal(true)}>
+          방 만들기
+        </button>
+        <button className={styles.rankingButton} onClick={() => setShowRankingModal(true)}>
+          랭킹
+        </button>
+      </div>
       <div className={styles.list}>
         {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
         {rooms.map((room) => {
@@ -80,6 +87,7 @@ export function RoomList({
           }}
         />
       )}
+      {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
     </div>
   );
 }

@@ -28,6 +28,16 @@ export async function listRooms(): Promise<RoomListEntry[]> {
   return res.json();
 }
 
+export interface RankingEntry {
+  nickname: string;
+  maxRound: number;
+}
+
+export async function getRanking(): Promise<RankingEntry[]> {
+  const res = await fetch(`${apiBase}/api/ranking`);
+  return res.json();
+}
+
 export type JoinSpec =
   | { type: "create"; teamCount: number; roomTitle: string }
   | { type: "joinById"; roomId: string };

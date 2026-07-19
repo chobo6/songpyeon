@@ -85,3 +85,27 @@ export function adminSetNickname(userId: number, nickname: string): AdminSetNick
   db.prepare(`UPDATE users SET nickname = ? WHERE id = ?`).run(clean, userId);
   return "ok";
 }
+
+// Only ever raises a user's personal best — MAX() in the UPDATE itself means
+// a lower round reached in a later, shorter match can never overwrite a
+// higher one from an earlier match (and makes the read-then-write race
+// impossible, not just unlikely).
+export function recordRoundAchievement(userId: number, round: number): void {
+  db.prepare(`UPDATE users SET max_round = MAX(max_round, ?) WHERE id = ?`).run(round, userId);
+}
+
+export type RankingEntry = { nickname: string; maxRound: number };
+
+// nickname IS NOT NULL is defensive (every account reaching a round already
+// has one) — max_round > 0 keeps accounts that never finished a round out
+// of the list instead of padding the top 10 with ties at 0.
+export function getTopRanking(limit: number): RankingEntry[] {
+  return db
+    .prepare(
+      `SELECT nickname, max_round AS maxRound FROM users
+       WHERE nickname IS NOT NULL AND max_round > 0
+       ORDER BY max_round DESC, id ASC
+       LIMIT ?`,
+    )
+    .all(limit) as RankingEntry[];
+}

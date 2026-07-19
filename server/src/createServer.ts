@@ -13,6 +13,7 @@ import { getOnlineUsers, touchPresence } from "./admin/presence";
 import {
   adminSetNickname,
   getOrCreateUser,
+  getTopRanking,
   getUserById,
   listUsers,
   setNickname,
@@ -62,6 +63,13 @@ export function createGameServer(): Server {
         };
       }),
     );
+  });
+
+  // 로그인 여부와 무관하게 누구나 볼 수 있는 공개 랭킹 — /api/rooms와 같은 이유로
+  // 와일드카드 CORS를 열어둠.
+  app.get("/api/ranking", (_req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.json(getTopRanking(10));
   });
 
   app.post("/api/admin/login", (req, res) => {

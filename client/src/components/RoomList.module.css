@@ -18,6 +18,11 @@
   letter-spacing: 0.02em;
 }
 
+.topButtons {
+  display: flex;
+  gap: 0.6rem;
+}
+
 .createButton {
   padding: 0.6rem 1.2rem;
   font-size: 1rem;
@@ -27,6 +32,17 @@
   color: #fff;
   font-weight: 700;
   background: linear-gradient(135deg, #f2994a, #e5484d);
+}
+
+.rankingButton {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #1c1d3a;
+  font-weight: 700;
+  background: linear-gradient(135deg, #e8a3b0, #f4d58d);
 }
 
 .list {

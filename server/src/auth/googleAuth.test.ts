@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db } from "../db/connection";
-import { adminSetNickname, getOrCreateUser, getUserById, listUsers, setNickname } from "./googleAuth";
+import {
+  adminSetNickname,
+  getOrCreateUser,
+  getTopRanking,
+  getUserById,
+  listUsers,
+  recordRoundAchievement,
+  setNickname,
+} from "./googleAuth";
 
 describe("getOrCreateUser", () => {
   beforeEach(() => {
@@ -108,5 +116,58 @@ describe("adminSetNickname", () => {
     const result = adminSetNickname(second.id, "먼저찜");
     expect(result).toBe("taken");
     expect(getUserById(second.id)?.nickname).toBeNull();
+  });
+});
+
+describe("recordRoundAchievement", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("raises max_round when the new round is higher", () => {
+    const user = getOrCreateUser("sub-14", {});
+    recordRoundAchievement(user.id, 3);
+    recordRoundAchievement(user.id, 7);
+    expect(getTopRanking(10)).toEqual([]); // no nickname yet, excluded from ranking
+    setNickname(user.id, "달리기");
+    expect(getTopRanking(10)).toEqual([{ nickname: "달리기", maxRound: 7 }]);
+  });
+
+  test("never lowers an existing max_round", () => {
+    const user = getOrCreateUser("sub-15", {});
+    setNickname(user.id, "버티기");
+    recordRoundAchievement(user.id, 9);
+    recordRoundAchievement(user.id, 2);
+    expect(getTopRanking(10)).toEqual([{ nickname: "버티기", maxRound: 9 }]);
+  });
+});
+
+describe("getTopRanking", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("returns the highest max_round users first, capped at the given limit", () => {
+    const players = [
+      ["sub-16", "1등후보", 12],
+      ["sub-17", "2등후보", 8],
+      ["sub-18", "3등후보", 5],
+    ] as const;
+    for (const [sub, nickname, round] of players) {
+      const user = getOrCreateUser(sub, {});
+      setNickname(user.id, nickname);
+      recordRoundAchievement(user.id, round);
+    }
+
+    expect(getTopRanking(2)).toEqual([
+      { nickname: "1등후보", maxRound: 12 },
+      { nickname: "2등후보", maxRound: 8 },
+    ]);
+  });
+
+  test("excludes accounts that have never reached a round", () => {
+    const user = getOrCreateUser("sub-19", {});
+    setNickname(user.id, "구경꾼");
+    expect(getTopRanking(10)).toEqual([]);
   });
 });

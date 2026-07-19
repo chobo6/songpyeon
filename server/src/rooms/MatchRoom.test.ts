@@ -594,6 +594,58 @@ describe("MatchRoom", () => {
   );
 
   test(
+    "eliminated and surviving players each get their max_round recorded",
+    { timeout: 45000 },
+    async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      // fillRolesAndStart assigns players in join order: 플레이어0/1 to the
+      // first team (survivor here), 플레이어2/3 to the second (eliminated).
+      const teamAId = room.state.teams[0].id;
+      const teamBId = room.state.teams[1].id;
+
+      while (!room.state.teams.find((t) => t.id === teamBId)!.eliminated) {
+        const activeId = room.state.teams[room.state.activeTeamIndex].id;
+        if (activeId === teamAId) {
+          await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        } else {
+          const { dueColor, actingClient } = actingClientFor(room, clients);
+          const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+          actingClient.send("pressButton", { color: wrongColor });
+          await flush();
+          await wait(PRESS_HEAVY_TURN_MS + 200);
+        }
+      }
+      // In a 2-team room every round is exactly one turn per team, so team
+      // B's elimination turn is always also the turn that completes the
+      // round — advanceToNextTurn's round++ (and its credit to the
+      // still-alive team A) fires in that same synchronous timer callback,
+      // before this line runs. So room.state.round here is already one
+      // ahead of the round team B was actually credited with.
+      const roundRightAfterElimination = room.state.round;
+
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+      const roundAfterSurvivorTurn = room.state.round;
+      expect(roundAfterSurvivorTurn).toBeGreaterThan(roundRightAfterElimination);
+
+      const maxRoundOf = (nickname: string) =>
+        (db.prepare(`SELECT max_round FROM users WHERE nickname = ?`).get(nickname) as { max_round: number })
+          .max_round;
+
+      // Eliminated team: both credited the same round, and strictly less
+      // than what the room had already reached for the survivor by the
+      // time this test could observe it.
+      expect(maxRoundOf("플레이어2")).toBe(maxRoundOf("플레이어3"));
+      expect(maxRoundOf("플레이어2")).toBeGreaterThan(0);
+      expect(maxRoundOf("플레이어2")).toBeLessThan(roundRightAfterElimination);
+
+      // Surviving team: kept climbing past that, matching the room's
+      // current round exactly (credited every time a round completes).
+      expect(maxRoundOf("플레이어0")).toBe(roundAfterSurvivorTurn);
+      expect(maxRoundOf("플레이어1")).toBe(roundAfterSurvivorTurn);
+    },
+  );
+
+  test(
     "round only advances once every team that started the round alive has taken a turn, even if one gets eliminated mid-round",
     { timeout: 15000 },
     async () => {
