@@ -17,6 +17,7 @@
     "colyseus": "^0.16.0",
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2",
+    "google-auth-library": "^10.9.0",
     "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
