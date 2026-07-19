@@ -1,0 +1,17 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 3rem 1rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
