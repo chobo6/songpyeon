@@ -376,6 +376,18 @@ describe("MatchRoom", () => {
     const threeTeams = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
     expect(threeTeams.state.teams.map((t) => t.id)).toEqual(["team-1", "team-2", "team-3"]);
     expect(threeTeams.maxClients).toBe(6);
+
+    const fourTeams = await colyseus.createRoom<MatchState>("match", { teamCount: 4 });
+    expect(fourTeams.state.teams.map((t) => t.id)).toEqual(["team-1", "team-2", "team-3", "team-4"]);
+    expect(fourTeams.maxClients).toBe(8);
+  });
+
+  test("onCreate sets the room title in metadata immediately, before anyone joins", async () => {
+    const titled = await colyseus.createRoom<MatchState>("match", { roomTitle: "  즐겜방  " });
+    expect((titled.metadata as { roomTitle?: string })?.roomTitle).toBe("즐겜방");
+
+    const untitled = await colyseus.createRoom<MatchState>("match");
+    expect((untitled.metadata as { roomTitle?: string })?.roomTitle).toBe("이름 없는 방");
   });
 
   test("onCreate defaults to 2 teams for a missing or out-of-range teamCount", async () => {

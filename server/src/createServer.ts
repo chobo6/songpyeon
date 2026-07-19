@@ -43,13 +43,17 @@ export function createGameServer(): Server {
 
     const rooms = await matchMaker.query({ name: "match" });
     res.json(
-      rooms.map((r) => ({
-        roomId: r.roomId,
-        clients: r.clients,
-        maxClients: r.maxClients,
-        locked: r.locked,
-        hostNickname: (r.metadata as { hostNickname?: string } | undefined)?.hostNickname ?? "?",
-      })),
+      rooms.map((r) => {
+        const metadata = r.metadata as { hostNickname?: string; roomTitle?: string } | undefined;
+        return {
+          roomId: r.roomId,
+          clients: r.clients,
+          maxClients: r.maxClients,
+          locked: r.locked,
+          hostNickname: metadata?.hostNickname ?? "?",
+          roomTitle: metadata?.roomTitle ?? "이름 없는 방",
+        };
+      }),
     );
   });
 

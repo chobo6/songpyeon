@@ -82,6 +82,17 @@
   filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.65));
 }
 
+.statusArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* 대기 인원 표시(라벨 한 줄 + 알약 한 줄)가 뜰 때 필요한 최대 높이만큼
+     항상 예약해둠 — countdown/waiting 텍스트 한 줄만 있을 때도 이 높이를
+     그대로 차지해서 아래 레이아웃이 밀리지 않는다. */
+  min-height: 4.5rem;
+}
+
 .countdown {
   font-size: 1.6rem;
   font-weight: 800;

@@ -31,7 +31,7 @@ npm run lint   # oxlint
 - **서버 권위형(authoritative)**: 시퀀스 생성, 커서 위치, 4초 타이머, 절구 개수, 라운드/팀 탈락 판정을 서버(`MatchRoom`/`MatchState`)가 전부 소유. 클라이언트는 버튼 입력만 보내고 state diff를 받아 그리기만 함 — 클라이언트에서 판정 로직을 복제하지 말 것. 팀이 탈락해도 매치는 끝나지 않고 생존 팀이 계속 진행됨(승리 개념 없음) — `docs/REQUIREMENTS.md` §1 참고.
 - 핵심 게임 규칙은 `server/src/game/` 아래 순수 함수로 분리되어 있고 각각 동명 `*.test.ts`가 있음: `sequence`(시퀀스 생성), `mortar`(절구/생명), `rotation`(팀 순환), `turnOrder`, `fragments`(돼지/토끼 조각), `colors`. 새 규칙을 추가할 때도 이 패턴(순수 함수 + 테스트)을 유지.
 - Room 진입점: `server/src/rooms/MatchRoom.ts` (로직), `MatchState.ts` (Colyseus Schema)
-- Colyseus 개념 매핑: Room = 한 경기(팀 개수는 방 생성 시 1~3팀 중 선택, 팀당 2명 고정 — `server/src/game/teamCount.ts`), Message client→server = `pressButton`, server→client는 state 변경분 자동 브로드캐스트.
+- Colyseus 개념 매핑: Room = 한 경기(팀 개수는 방 생성 시 1~4팀 중 선택, 팀당 2명 고정 — `server/src/game/teamCount.ts`), 방 제목은 생성 시 직접 입력(`server/src/game/roomTitle.ts`로 정제, 방 목록에 `hostNickname` 대신 표시). Message client→server = `pressButton`, server→client는 state 변경분 자동 브로드캐스트.
 - `MatchRoom.onAuth`가 Colyseus가 계산해주는 실제 클라이언트 IP(`x-real-ip` → `x-forwarded-for` →
   `socket.remoteAddress`)를 받아 `client.auth`에 담아둠 — `onJoin`/`onLeave`가 세션ID·닉네임과
   함께 입장/퇴장 로그로 남김(아래 관리자 페이지가 이 로그를 보여줌). `onJoin`/`onLeave` 둘 다

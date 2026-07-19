@@ -2,10 +2,11 @@ import { describe, expect, test } from "vitest";
 import { sanitizeTeamCount } from "./teamCount";
 
 describe("sanitizeTeamCount", () => {
-  test("accepts valid counts 1-3", () => {
+  test("accepts valid counts 1-4", () => {
     expect(sanitizeTeamCount(1)).toBe(1);
     expect(sanitizeTeamCount(2)).toBe(2);
     expect(sanitizeTeamCount(3)).toBe(3);
+    expect(sanitizeTeamCount(4)).toBe(4);
   });
 
   test("defaults to 2 for missing/invalid input", () => {
@@ -16,7 +17,7 @@ describe("sanitizeTeamCount", () => {
 
   test("clamps out-of-range counts to the default", () => {
     expect(sanitizeTeamCount(0)).toBe(2);
-    expect(sanitizeTeamCount(4)).toBe(2);
+    expect(sanitizeTeamCount(5)).toBe(2);
     expect(sanitizeTeamCount(-1)).toBe(2);
   });
 

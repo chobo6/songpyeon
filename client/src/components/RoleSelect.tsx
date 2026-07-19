@@ -34,25 +34,27 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
       <div className={styles.header}>
         <h1 className={styles.title}>송편 만들기</h1>
       </div>
-      {room.state.countdownSecondsLeft > 0 ? (
-        <p className={styles.countdown}>{room.state.countdownSecondsLeft}초 뒤에 시작합니다.</p>
-      ) : (
-        <>
-          {unassignedPlayers.length > 0 && (
-            <div className={styles.pending}>
-              <span className={styles.pendingLabel}>역할 선택 중</span>
-              <div className={styles.pendingNames}>
-                {unassignedPlayers.map((p) => (
-                  <span key={p.sessionId} className={styles.pendingName}>
-                    {p.nickname}
-                  </span>
-                ))}
-              </div>
+      {/* min-height 고정 슬롯 — 대기 중인 사람 표시가 나타나거나 사라질 때
+          이 영역의 실제 콘텐츠 높이가 바뀌면서 아래 역할 선택 버튼/채팅/
+          나가기 버튼까지 통째로 밀리는 걸 막는다. */}
+      <div className={styles.statusArea}>
+        {room.state.countdownSecondsLeft > 0 ? (
+          <p className={styles.countdown}>{room.state.countdownSecondsLeft}초 뒤에 시작합니다.</p>
+        ) : unassignedPlayers.length > 0 ? (
+          <div className={styles.pending}>
+            <span className={styles.pendingLabel}>역할 선택 중</span>
+            <div className={styles.pendingNames}>
+              {unassignedPlayers.map((p) => (
+                <span key={p.sessionId} className={styles.pendingName}>
+                  {p.nickname}
+                </span>
+              ))}
             </div>
-          )}
-          {myRole && <p className={styles.waiting}>{myRole === "pig" ? "돼지" : "토끼"} 역할로 대기 중...</p>}
-        </>
-      )}
+          </div>
+        ) : (
+          myRole && <p className={styles.waiting}>{myRole === "pig" ? "돼지" : "토끼"} 역할로 대기 중...</p>
+        )}
+      </div>
       <div className={styles.choices}>
         <button
           className={`${styles.roleButton} ${styles.pigButton} ${myRole === "pig" ? styles.selected : ""} ${myRole && myRole !== "pig" ? styles.dimmed : ""}`}

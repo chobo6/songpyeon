@@ -20,6 +20,7 @@ export interface RoomListEntry {
   maxClients: number;
   locked: boolean;
   hostNickname: string;
+  roomTitle: string;
 }
 
 export async function listRooms(): Promise<RoomListEntry[]> {
@@ -27,7 +28,9 @@ export async function listRooms(): Promise<RoomListEntry[]> {
   return res.json();
 }
 
-export type JoinSpec = { type: "create"; teamCount: number } | { type: "joinById"; roomId: string };
+export type JoinSpec =
+  | { type: "create"; teamCount: number; roomTitle: string }
+  | { type: "joinById"; roomId: string };
 
 // Cached at module scope (not component/ref scope) so React StrictMode's
 // dev-only double-invoke of effects (mount -> cleanup -> mount) reuses the
@@ -47,7 +50,7 @@ let roomPromise: Promise<Room<unknown>> | null = null;
 // (MatchRoom.onAuth/onJoin 참고).
 async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   return spec.type === "create"
-    ? await client.create<T>("match", { teamCount: spec.teamCount })
+    ? await client.create<T>("match", { teamCount: spec.teamCount, roomTitle: spec.roomTitle })
     : await client.joinById<T>(spec.roomId);
 }
 

@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
+import { CreateRoomModal } from "./CreateRoomModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
-
-const TEAM_COUNT_CHOICES = [1, 2, 3];
 
 export function RoomList({
   onCreateRoom,
   onJoinRoom,
   onExit,
 }: {
-  onCreateRoom: (teamCount: number) => void;
+  onCreateRoom: (title: string, teamCount: number) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
 }) {
   const [rooms, setRooms] = useState<RoomListEntry[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,16 +40,9 @@ export function RoomList({
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>송편 만들기</h1>
-      <div className={styles.createSection}>
-        <span className={styles.createLabel}>새 방 만들기</span>
-        <div className={styles.teamCountButtons}>
-          {TEAM_COUNT_CHOICES.map((count) => (
-            <button key={count} className={styles.createButton} onClick={() => onCreateRoom(count)}>
-              {count}팀
-            </button>
-          ))}
-        </div>
-      </div>
+      <button className={styles.createButton} onClick={() => setShowCreateModal(true)}>
+        방 만들기
+      </button>
       <div className={styles.list}>
         {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
         {rooms.map((room) => {
@@ -66,7 +59,7 @@ export function RoomList({
           return (
             <div key={room.roomId} className={styles.card}>
               <span className={styles.cardName}>
-                {room.hostNickname}의 방 ({room.clients}/{room.maxClients})
+                {room.roomTitle} ({room.clients}/{room.maxClients})
               </span>
               <button className={styles.joinButton} disabled={room.locked} onClick={() => onJoinRoom(room.roomId)}>
                 {room.locked ? "게임 중" : "입장"}
@@ -78,6 +71,15 @@ export function RoomList({
       <button className={styles.exitButton} onClick={onExit}>
         나가기
       </button>
+      {showCreateModal && (
+        <CreateRoomModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={(title, teamCount) => {
+            setShowCreateModal(false);
+            onCreateRoom(title, teamCount);
+          }}
+        />
+      )}
     </div>
   );
 }

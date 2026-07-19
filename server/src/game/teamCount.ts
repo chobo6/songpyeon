@@ -1,5 +1,5 @@
 const MIN_TEAM_COUNT = 1;
-const MAX_TEAM_COUNT = 3;
+const MAX_TEAM_COUNT = 4;
 const DEFAULT_TEAM_COUNT = 2;
 
 export function sanitizeTeamCount(input: unknown): number {

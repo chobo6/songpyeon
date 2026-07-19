@@ -8,6 +8,7 @@ import { loseMortar, isEliminated, STARTING_MORTARS } from "../game/mortar";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
 import { sanitizeTeamCount } from "../game/teamCount";
+import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
 import { getUserById } from "../auth/googleAuth";
@@ -26,6 +27,7 @@ interface MatchRoomOptions {
   // it starts at. See maybeStartGame's countdown methods.
   countdownTickMs?: number;
   teamCount?: unknown;
+  roomTitle?: unknown;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -45,7 +47,7 @@ export class MatchRoom extends Room<MatchState> {
   // advance before every team that started it alive had actually gone.
   private teamsAliveAtRoundStart = 0;
 
-  onCreate(options: MatchRoomOptions = {}) {
+  async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
     if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
 
@@ -74,6 +76,15 @@ export class MatchRoom extends Room<MatchState> {
       state.teams.push(team);
     }
     this.setState(state);
+
+    // Unlike hostNickname (which needs an authenticated joiner and so can't
+    // be set until the first onJoin), the room title is a plain creation
+    // option with no player identity attached — set it into metadata right
+    // away so it shows in the public room list immediately, even before
+    // anyone has joined. onJoin's later setMetadata calls (players,
+    // hostNickname) shallow-merge on top of this, not over it.
+    const roomTitle = sanitizeRoomTitle(options.roomTitle);
+    await this.setMetadata({ roomTitle: roomTitle || "이름 없는 방" });
 
     this.onMessage("chooseRole", (client, message: { role: "pig" | "rabbit" }) => {
       this.handleChooseRole(client, message.role);
