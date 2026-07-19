@@ -22,8 +22,8 @@ export function NicknameEntry({ onSubmit }: { onSubmit: (nickname: string) => vo
         return;
       }
       onSubmit(profile.nickname);
-    } catch {
-      setError("닉네임 설정에 실패했어요");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "닉네임 설정에 실패했어요");
     } finally {
       setSubmitting(false);
     }

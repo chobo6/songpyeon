@@ -9,6 +9,7 @@ import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
 import { getOrCreateUser, setNickname } from "../auth/googleAuth";
 import { signSession } from "../auth/session";
+import { db } from "../db/connection";
 
 const ALL_COLORS: Color[] = [...PIG_COLORS, ...RABBIT_COLORS];
 const SHORT_TURN_MS = 500;
@@ -64,13 +65,22 @@ describe("MatchRoom", () => {
 
   beforeEach(async () => {
     await colyseus.cleanup();
+    // Nicknames are now globally unique (setNickname rejects a nickname
+    // already taken by another account), and connectAsUser's test users
+    // accumulate in this file's shared :memory: DB across tests — without
+    // this reset, a later test reusing a literal like "채팅유저" would
+    // collide with an earlier test's leftover account and silently fail to
+    // get a nickname (onAuth then rejects the join entirely).
+    db.exec("DELETE FROM users");
   });
 
   async function fillRolesAndStart(options: Record<string, unknown> = {}) {
     const room = await colyseus.createRoom<MatchState>("match", options);
     const clients: ClientRoom<MatchState>[] = [];
-    for (const role of ["pig", "rabbit", "pig", "rabbit"] as const) {
-      const client = await connectAsUser(colyseus, room, "플레이어");
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      // Nicknames must be unique per account now — suffix with the loop
+      // index so four players filling one room don't collide with each other.
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
       client.send("chooseRole", { role });
       clients.push(client);
     }
@@ -270,8 +280,8 @@ describe("MatchRoom", () => {
 
   test("a 3-team room starts once all 3 teams have a pig and a rabbit", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
-    for (const role of ["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const) {
-      const client = await connectAsUser(colyseus, room, "플레이어");
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
       client.send("chooseRole", { role });
     }
     await flush();
@@ -286,8 +296,8 @@ describe("MatchRoom", () => {
   test("a 1-team room starts once its single team has a pig and a rabbit, and keeps rotating to itself", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: PRESS_HEAVY_TURN_MS });
     const clients: ClientRoom<MatchState>[] = [];
-    for (const role of ["pig", "rabbit"] as const) {
-      const client = await connectAsUser(colyseus, room, "플레이어");
+    for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
       client.send("chooseRole", { role });
       clients.push(client);
     }
@@ -470,8 +480,8 @@ describe("MatchRoom", () => {
         turnDurationMs: PRESS_HEAVY_TURN_MS,
       });
       const clients: ClientRoom<MatchState>[] = [];
-      for (const role of ["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const) {
-        const client = await connectAsUser(colyseus, room, "플레이어");
+      for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+        const client = await connectAsUser(colyseus, room, `플레이어${i}`);
         client.send("chooseRole", { role });
         clients.push(client);
       }
@@ -584,8 +594,8 @@ describe("MatchRoom", () => {
   test("a rematch sent right after the deciding press doesn't let the just-ended match's still-pending turn timer drain mortars in the new lobby", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: SHORT_TURN_MS });
     const clients: ClientRoom<MatchState>[] = [];
-    for (const role of ["pig", "rabbit"] as const) {
-      const client = await connectAsUser(colyseus, room, "플레이어");
+    for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
       client.send("chooseRole", { role });
       clients.push(client);
     }

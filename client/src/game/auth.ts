@@ -80,7 +80,10 @@ export async function submitNickname(nickname: string): Promise<Profile> {
     credentials: "same-origin",
     body: JSON.stringify({ nickname }),
   });
-  if (!res.ok) throw new Error("닉네임 설정에 실패했습니다.");
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? "닉네임 설정에 실패했습니다.");
+  }
   return res.json();
 }
 

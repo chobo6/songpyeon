@@ -13,6 +13,10 @@ export function createDb(filename: string): Database.Database {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+  // SQLite's UNIQUE index treats each NULL as distinct from every other NULL,
+  // so accounts that haven't set a nickname yet (nickname IS NULL) don't
+  // collide with each other — only two non-null nicknames can't match.
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname)`);
   return db;
 }
 

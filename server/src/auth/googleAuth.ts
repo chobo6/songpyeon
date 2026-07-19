@@ -41,12 +41,17 @@ export function getOrCreateUser(googleSub: string, info: { email?: string; name?
   return db.prepare(`SELECT id, nickname FROM users WHERE google_sub = ?`).get(googleSub) as UserProfile;
 }
 
+export type SetNicknameResult = "ok" | "already_set" | "taken";
+
 // 닉네임이 아직 없는 계정에만 설정한다 (이번 스코프는 "최초 1회 설정, 이후 수정 불가").
-// 이미 설정되어 있으면 false를 반환 — 호출부(라우트)가 409로 응답한다.
-export function setNickname(userId: number, nickname: string): boolean {
+// 이미 설정되어 있으면 "already_set", 다른 계정이 이미 쓰고 있는 닉네임이면 "taken"을
+// 반환 — 호출부(라우트)가 각각 다른 메시지로 409 응답한다.
+export function setNickname(userId: number, nickname: string): SetNicknameResult {
   const clean = sanitizeNickname(nickname);
+  const taken = db.prepare(`SELECT 1 FROM users WHERE nickname = ? AND id != ?`).get(clean, userId);
+  if (taken) return "taken";
   const result = db.prepare(`UPDATE users SET nickname = ? WHERE id = ? AND nickname IS NULL`).run(clean, userId);
-  return result.changes > 0;
+  return result.changes > 0 ? "ok" : "already_set";
 }
 
 export function getUserById(userId: number): UserProfile | undefined {

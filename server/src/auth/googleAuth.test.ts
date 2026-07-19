@@ -33,16 +33,16 @@ describe("setNickname", () => {
 
   test("sets the nickname for a user with none yet", () => {
     const user = getOrCreateUser("sub-4", {});
-    const ok = setNickname(user.id, "둘리");
-    expect(ok).toBe(true);
+    const result = setNickname(user.id, "둘리");
+    expect(result).toBe("ok");
     expect(getUserById(user.id)?.nickname).toBe("둘리");
   });
 
   test("refuses to overwrite an already-set nickname", () => {
     const user = getOrCreateUser("sub-5", {});
     setNickname(user.id, "첫닉네임");
-    const ok = setNickname(user.id, "새닉네임");
-    expect(ok).toBe(false);
+    const result = setNickname(user.id, "새닉네임");
+    expect(result).toBe("already_set");
     expect(getUserById(user.id)?.nickname).toBe("첫닉네임");
   });
 
@@ -50,6 +50,15 @@ describe("setNickname", () => {
     const user = getOrCreateUser("sub-6", {});
     setNickname(user.id, "   ");
     expect(getUserById(user.id)?.nickname).toBe("플레이어");
+  });
+
+  test("refuses a nickname already taken by another user", () => {
+    const first = getOrCreateUser("sub-7", {});
+    setNickname(first.id, "먼저찜");
+    const second = getOrCreateUser("sub-8", {});
+    const result = setNickname(second.id, "먼저찜");
+    expect(result).toBe("taken");
+    expect(getUserById(second.id)?.nickname).toBeNull();
   });
 });
 

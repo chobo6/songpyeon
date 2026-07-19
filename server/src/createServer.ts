@@ -137,8 +137,12 @@ export function createGameServer(): Server {
       res.status(400).json({ error: "닉네임이 필요합니다." });
       return;
     }
-    const ok = setNickname(userId, nickname);
-    if (!ok) {
+    const result = setNickname(userId, nickname);
+    if (result === "taken") {
+      res.status(409).json({ error: "이미 사용 중인 닉네임이에요." });
+      return;
+    }
+    if (result === "already_set") {
       res.status(409).json({ error: "이미 닉네임이 설정되어 있습니다." });
       return;
     }
