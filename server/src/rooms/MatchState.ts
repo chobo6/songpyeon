@@ -28,6 +28,10 @@ export class ChatMessage extends Schema {
 
 export class MatchState extends Schema {
   @type("string") phase: Phase = "lobby";
+  // 0 = no countdown running. Counts down 3→2→1 once every team has a pig
+  // and a rabbit, then the room flips to "playing" (see MatchRoom.ts's
+  // maybeStartGame/runCountdownTick).
+  @type("number") countdownSecondsLeft: number = 0;
   @type("number") round: number = 1;
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
   @type([TeamState]) teams = new ArraySchema<TeamState>();

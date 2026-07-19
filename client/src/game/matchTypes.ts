@@ -30,6 +30,7 @@ export interface ChatMessage {
 
 export interface MatchState {
   phase: Phase;
+  countdownSecondsLeft: number;
   round: number;
   players: Map<string, PlayerState>;
   teams: TeamState[];

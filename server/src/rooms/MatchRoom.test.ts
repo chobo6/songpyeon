@@ -20,6 +20,13 @@ const SHORT_TURN_MS = 500;
 // would fire — SHORT_TURN_MS is tuned for single-press tests and is too
 // tight for that.
 const PRESS_HEAVY_TURN_MS = 3000;
+// Fast per-tick duration for the pre-game 3/2/1 countdown (see MatchRoom.ts's
+// countdownTickMs option) — always exactly 3 ticks (COUNTDOWN_START_SECONDS,
+// not exported/configurable), so waitForCountdown()'s margin only needs to
+// clear 3 * COUNTDOWN_TICK_MS. Kept well above flush()'s own 10ms wait so a
+// "check the count right after filling roles" assertion isn't racing the
+// first tick's timer.
+const COUNTDOWN_TICK_MS = 60;
 
 // `room` in these tests is the live server-side Room instance (see
 // ColyseusTestServer.createRoom), not a client-synced copy — so we only
@@ -31,6 +38,26 @@ function flush() {
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Waits out the pre-game 3/2/1 countdown (always exactly 3 ticks — see
+// MatchRoom.ts's COUNTDOWN_START_SECONDS), assuming the room was created
+// with countdownTickMs: COUNTDOWN_TICK_MS.
+function waitForCountdown() {
+  return wait(3 * COUNTDOWN_TICK_MS + 100);
+}
+
+// Polls instead of sleeping a fixed duration — this test suite runs many
+// rooms on real timers, so a fixed "sleep one tick then assert the exact
+// intermediate value" is prone to drift (a slightly late tick, or an extra
+// one slipping in before the assertion runs). Waiting for the actual
+// condition is immune to that.
+async function waitUntil(predicate: () => boolean, timeoutMs = 2000) {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > timeoutMs) throw new Error("waitUntil: timed out");
+    await wait(10);
+  }
 }
 
 let testUserCounter = 0;
@@ -75,7 +102,7 @@ describe("MatchRoom", () => {
   });
 
   async function fillRolesAndStart(options: Record<string, unknown> = {}) {
-    const room = await colyseus.createRoom<MatchState>("match", options);
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS, ...options });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       // Nicknames must be unique per account now — suffix with the loop
@@ -85,6 +112,11 @@ describe("MatchRoom", () => {
       clients.push(client);
     }
     await flush();
+    // Filling the last role slot only starts the 3/2/1 countdown, not the
+    // match itself — wait it out so every existing caller's "the match has
+    // already started" assumption (checking room.state.phase, sequence,
+    // etc.) still holds.
+    await waitForCountdown();
     return { room, clients };
   }
 
@@ -124,6 +156,84 @@ describe("MatchRoom", () => {
     expect(room.state.sequence).toHaveLength(18);
     expect(room.state.cursor).toBe(0);
     expect(room.state.round).toBe(1);
+  });
+
+  test("filling the last role slot starts a 3-2-1 countdown before the match actually begins", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+
+    // The last slot filling only starts the countdown — the match itself
+    // (phase flip, first turn) hasn't happened yet.
+    expect(room.state.phase).toBe("lobby");
+    expect(room.state.countdownSecondsLeft).toBe(3);
+
+    await waitUntil(() => room.state.countdownSecondsLeft === 2);
+    expect(room.state.phase).toBe("lobby");
+
+    await waitUntil(() => room.state.countdownSecondsLeft === 1);
+    expect(room.state.phase).toBe("lobby");
+
+    await waitUntil(() => room.state.countdownSecondsLeft === 0);
+    expect(room.state.phase).toBe("playing");
+  });
+
+  test("role picking is blocked once the pre-game countdown has started", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+    expect(room.state.countdownSecondsLeft).toBe(3);
+
+    // The first player (pig on team-1) tries to switch to rabbit mid-countdown.
+    const pigTeam1 = room.state.teams[0].pigSessionId;
+    clients[0].send("chooseRole", { role: "rabbit" });
+    await flush();
+
+    expect(room.state.teams[0].pigSessionId).toBe(pigTeam1);
+    expect(room.state.players.get(clients[0].sessionId)?.role).toBe("pig");
+  });
+
+  test("a player leaving mid-countdown cancels it instead of starting the match one player short", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+    expect(room.state.countdownSecondsLeft).toBe(3);
+
+    await clients[0].leave();
+    await flush();
+
+    expect(room.state.countdownSecondsLeft).toBe(0);
+    expect(room.state.teams[0].pigSessionId).toBe("");
+
+    // Even after waiting out what would have been the full countdown, the
+    // match must not have started — the cancelled countdown's scheduled
+    // ticks must not silently keep running.
+    await waitForCountdown();
+    expect(room.state.phase).toBe("lobby");
+
+    // Filling the freed slot starts a brand-new countdown from 3.
+    const refill = await connectAsUser(colyseus, room, "플레이어새로");
+    refill.send("chooseRole", { role: "pig" });
+    await flush();
+    expect(room.state.countdownSecondsLeft).toBe(3);
+
+    await waitForCountdown();
+    expect(room.state.phase).toBe("playing");
   });
 
   test("choosing a different role in the lobby switches you instead of being blocked", async () => {
@@ -279,12 +389,13 @@ describe("MatchRoom", () => {
   });
 
   test("a 3-team room starts once all 3 teams have a pig and a rabbit", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
+    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 3, countdownTickMs: COUNTDOWN_TICK_MS });
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
       client.send("chooseRole", { role });
     }
     await flush();
+    await waitForCountdown();
 
     expect(room.state.phase).toBe("playing");
     room.state.teams.forEach((team) => {
@@ -294,7 +405,11 @@ describe("MatchRoom", () => {
   });
 
   test("a 1-team room starts once its single team has a pig and a rabbit, and keeps rotating to itself", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: PRESS_HEAVY_TURN_MS });
+    const room = await colyseus.createRoom<MatchState>("match", {
+      teamCount: 1,
+      turnDurationMs: PRESS_HEAVY_TURN_MS,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+    });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
@@ -302,6 +417,7 @@ describe("MatchRoom", () => {
       clients.push(client);
     }
     await flush();
+    await waitForCountdown();
 
     expect(room.state.phase).toBe("playing");
 
@@ -478,6 +594,7 @@ describe("MatchRoom", () => {
       const room = await colyseus.createRoom<MatchState>("match", {
         teamCount: 3,
         turnDurationMs: PRESS_HEAVY_TURN_MS,
+        countdownTickMs: COUNTDOWN_TICK_MS,
       });
       const clients: ClientRoom<MatchState>[] = [];
       for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
@@ -486,6 +603,7 @@ describe("MatchRoom", () => {
         clients.push(client);
       }
       await flush();
+      await waitForCountdown();
 
       expect(room.state.phase).toBe("playing");
       const [team1Id, team2Id, team3Id] = room.state.teams.map((t) => t.id);
@@ -592,7 +710,11 @@ describe("MatchRoom", () => {
   );
 
   test("a rematch sent right after the deciding press doesn't let the just-ended match's still-pending turn timer drain mortars in the new lobby", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, turnDurationMs: SHORT_TURN_MS });
+    const room = await colyseus.createRoom<MatchState>("match", {
+      teamCount: 1,
+      turnDurationMs: SHORT_TURN_MS,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+    });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
@@ -600,6 +722,7 @@ describe("MatchRoom", () => {
       clients.push(client);
     }
     await flush();
+    await waitForCountdown();
 
     // lose 4 mortars normally, waiting for each turn's deferred hand-off to
     // actually land (turnOutcome flips back to "pending") before pressing

@@ -14,10 +14,17 @@ import { getUserById } from "../auth/googleAuth";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
+const DEFAULT_COUNTDOWN_TICK_MS = 1000;
+const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
+  // Per-tick duration of the pre-game 3/2/1 countdown, not the countdown's
+  // total length — always exactly COUNTDOWN_START_SECONDS ticks, so tests
+  // can shrink this to run the countdown fast without changing what number
+  // it starts at. See maybeStartGame's countdown methods.
+  countdownTickMs?: number;
   teamCount?: unknown;
 }
 
@@ -25,6 +32,8 @@ export class MatchRoom extends Room<MatchState> {
   maxClients = 4;
 
   private turnDurationMs = DEFAULT_TURN_DURATION_MS;
+  private countdownTickMs = DEFAULT_COUNTDOWN_TICK_MS;
+  private countdownToken = 0;
   private turnToken = 0;
   private turnsThisRound = 0;
   private turnDecided = false;
@@ -38,6 +47,7 @@ export class MatchRoom extends Room<MatchState> {
 
   onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
+    if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -183,6 +193,10 @@ export class MatchRoom extends Room<MatchState> {
       const team = this.state.teams.find((t) => t.id === player.teamId);
       if (team?.pigSessionId === sessionId) team.pigSessionId = "";
       if (team?.rabbitSessionId === sessionId) team.rabbitSessionId = "";
+      // A full roster is exactly what starts the countdown, so anyone
+      // leaving mid-countdown necessarily had a role slot — cancel it
+      // rather than let it start a match one player short.
+      this.abortCountdown();
     }
 
     this.state.players.delete(sessionId);
@@ -216,7 +230,10 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   private handleChooseRole(client: Client, role: "pig" | "rabbit") {
-    if (this.state.phase !== "lobby") return;
+    // Once the pre-game countdown starts every slot is already full (that's
+    // what triggers it) — block further swaps so the roster shown for "3...
+    // 2... 1..." is the one that actually plays.
+    if (this.state.phase !== "lobby" || this.state.countdownSecondsLeft > 0) return;
 
     const player = this.state.players.get(client.sessionId);
     // Re-picking the role you already have is a no-op — without this guard
@@ -252,15 +269,16 @@ export class MatchRoom extends Room<MatchState> {
 
   private maybeStartGame() {
     const ready = this.state.teams.every((t) => t.pigSessionId !== "" && t.rabbitSessionId !== "");
-    if (!ready) return;
+    if (!ready || this.state.countdownSecondsLeft > 0) return;
 
-    this.state.phase = "playing";
     // Colyseus auto-unlocks a maxClients-triggered lock the moment any
     // client leaves (see _decrementClientCount), which would put this room
     // back in joinOrCreate's matchmaking pool the instant an eliminated
     // player leaves — exactly when we most need it hidden. An explicit
     // lock() is not undone by that auto-unlock (it only fires when
-    // !_lockedExplicitly), so it's the real defense.
+    // !_lockedExplicitly), so it's the real defense. Locked here (countdown
+    // start) rather than only once play begins, since the roster is already
+    // final and must not accept new joiners during the countdown either.
     //
     // maxClients stays at its fixed default (4, the class field above) —
     // it must NOT be reassigned to room.clients.length here. Since lobby
@@ -271,6 +289,48 @@ export class MatchRoom extends Room<MatchState> {
     // maxClients to that undercount would permanently cap the match below
     // its real size.
     this.lock();
+    this.startCountdown();
+  }
+
+  private startCountdown() {
+    this.state.countdownSecondsLeft = COUNTDOWN_START_SECONDS;
+    this.countdownToken++;
+    this.scheduleCountdownTick(this.countdownToken);
+  }
+
+  // A leave during the countdown (abortCountdown, called from removePlayer)
+  // bumps countdownToken, which is how an already-scheduled tick here
+  // recognizes it's stale and stops instead of continuing a countdown for a
+  // roster that's no longer full.
+  private scheduleCountdownTick(token: number) {
+    this.clock.setTimeout(() => {
+      if (token !== this.countdownToken) return;
+      this.state.countdownSecondsLeft--;
+      if (this.state.countdownSecondsLeft > 0) {
+        this.scheduleCountdownTick(token);
+      } else {
+        this.beginPlaying();
+      }
+    }, this.countdownTickMs);
+  }
+
+  // A countdown in progress gets silently cancelled (not resumed) by a
+  // leave — removePlayer already frees the vacated role slot, and the next
+  // player to fill it re-triggers maybeStartGame's readiness check, which
+  // starts a fresh countdown from COUNTDOWN_START_SECONDS.
+  private abortCountdown() {
+    if (this.state.countdownSecondsLeft === 0) return;
+    this.state.countdownSecondsLeft = 0;
+    this.countdownToken++;
+    // maybeStartGame() locked the room the instant the countdown began (to
+    // stop new joins while it's running) — cancelling it must undo that, or
+    // the now-short-a-player room stays locked forever and no one can fill
+    // the freed slot.
+    this.unlock();
+  }
+
+  private beginPlaying() {
+    this.state.phase = "playing";
     this.state.round = 1;
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;

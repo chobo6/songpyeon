@@ -55,6 +55,10 @@
   transform: translateY(-1px) scale(0.97);
 }
 
+.roleButton:disabled {
+  cursor: not-allowed;
+}
+
 .selected .roleIcon {
   outline: 3px solid #f2c94c;
   outline-offset: 3px;
@@ -76,6 +80,13 @@
 
 .rabbitButton .roleIcon {
   filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.65));
+}
+
+.countdown {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #f2c94c;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .waiting {
