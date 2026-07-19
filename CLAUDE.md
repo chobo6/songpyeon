@@ -32,6 +32,18 @@ npm run lint   # oxlint
 - 핵심 게임 규칙은 `server/src/game/` 아래 순수 함수로 분리되어 있고 각각 동명 `*.test.ts`가 있음: `sequence`(시퀀스 생성), `mortar`(절구/생명), `rotation`(팀 순환), `turnOrder`, `fragments`(돼지/토끼 조각), `colors`. 새 규칙을 추가할 때도 이 패턴(순수 함수 + 테스트)을 유지.
 - Room 진입점: `server/src/rooms/MatchRoom.ts` (로직), `MatchState.ts` (Colyseus Schema)
 - Colyseus 개념 매핑: Room = 한 경기(팀 개수는 방 생성 시 1~3팀 중 선택, 팀당 2명 고정 — `server/src/game/teamCount.ts`), Message client→server = `pressButton`, server→client는 state 변경분 자동 브로드캐스트.
+- `MatchRoom.onAuth`가 Colyseus가 계산해주는 실제 클라이언트 IP(`x-real-ip` → `x-forwarded-for` →
+  `socket.remoteAddress`)를 받아 `client.auth`에 담아둠 — `onJoin`/`onLeave`가 세션ID·닉네임과
+  함께 입장/퇴장 로그로 남김(아래 관리자 페이지가 이 로그를 보여줌). `onJoin`/`onLeave` 둘 다
+  `async`이며, 방 메타데이터(`setMetadata`)에 현재 방 인원 명단(`players`)도 매번 갱신함.
+- **관리자 모니터링 페이지** (`/admin`, 고정 비밀번호 인증 — `ADMIN_PASSWORD` 환경변수): 현재
+  활성 방/인원, 최근 입장·퇴장 로그, 전체 공지 배너(SSE)를 제공. `server/src/admin/`
+  (`eventLog.ts`=인메모리 최근 500개 로그, `auth.ts`=비밀번호+세션, `announcements.ts`=SSE 방송),
+  라우트는 `createServer.ts`의 `/api/admin/*` + `/api/announcements/stream`. 클라이언트는
+  `client/src/components/Admin*.tsx` + `AnnouncementBanner.tsx`(전역 마운트), 진입은
+  `main.tsx`가 `window.location.pathname === "/admin"`으로 분기(라우터 라이브러리 없음).
+  설계: `docs/superpowers/specs/2026-07-19-admin-monitoring-design.md`. **로그/세션 전부
+  인메모리라 서버 재시작 시 초기화됨** — 의도된 동작.
 - **배포**: AWS EC2 단일 인스턴스, Docker 컨테이너(`songpyeon`) + Caddy(`caddy`, HTTPS 리버스 프록시, `songpyeon-net` 도커 네트워크로 연결) — 재배포는 수동 flow(로컬 `docker build` → `docker save` → `scp` → EC2에서 `docker load` 후 컨테이너 교체, Caddy/네트워크는 그대로 둠). GitHub Actions 등 CI/CD 없음, 이미지 레지스트리도 안 씀(저작권 있는 `game-assets/`가 이미지에 포함되므로 제3자 서버 경유 안 함). 절차 상세는 `docs/superpowers/specs/2026-07-15-aws-light-deploy-test-design.md` 참고. **EC2 재시작으로 퍼블릭 IP가 바뀌면 접속 주소(nip.io, IP가 호스트네임에 그대로 박힘)도 통째로 바뀜** — 컨테이너는 `--restart unless-stopped`로 자동 복구되지만 `/home/ec2-user/caddy/Caddyfile`(호스트 bind mount)의 옛 호스트네임은 수동으로 갱신하고 `docker restart caddy`로 새 Let's Encrypt 인증서를 다시 받아야 함 (`docs/TROUBLESHOOTING.md` #18).
 
 ## Key docs
@@ -57,6 +69,11 @@ npm run lint   # oxlint
 - client CSS: `@media` 블록의 규칙은 특정도(specificity)가 같으면 **소스 순서**로 승패가 갈림 — 오버라이드하려는 기본 클래스 정의보다 **파일에서 앞쪽**에 미디어 쿼리를 적으면, 조건이 맞아도 뒤쪽의 조건 없는 기본 규칙한테 그냥 짐(뷰포트 조건 자체는 만족했는데도 적용 안 됨). 실제로 이 실수로 미디어 쿼리가 통째로 무효화된 적 있음 — 반드시 오버라이드할 기본 규칙 *뒤에* 추가하고, `getComputedStyle()`로 실제 적용된 값을 찍어서 확인할 것(화면만 봐서는 "왜 안 줄어들지?" 정도로만 보임) (`docs/TROUBLESHOOTING.md` #17).
 - 클라이언트-서버 시계 오차: 클라이언트 기기 시계가 서버(AWS EC2)와 몇 초씩 어긋나는 게 흔함 — `turnEndsAt`(서버 절대 타임스탬프)에서 클라이언트 `Date.now()`를 그냥 빼면 안 되고, ping/pong RTT로 추정한 `clockOffsetMs`를 보정해서 써야 함(`client/src/game/clockSync.ts`). 솔로 모드(`useSoloMatch.ts`)는 같은 기기 시계만 쓰므로 이 문제 자체가 없음 — 온라인에서만 재현되는 타이머 버그면 먼저 의심할 것.
 - Docker 배포: `.dockerignore`는 `.gitignore`와 달리 하위 폴더까지 자동 재귀 매칭되지 않음 — `.env`/`.env.*`만 적어두면 `client/.env.local` 같은 하위 경로 파일은 안 걸러지고 그대로 이미지에 들어감(LAN IP 등 로컬 전용 값이 프로덕션 번들에 박히는 사고로 실제 발생, `docs/TROUBLESHOOTING.md` #9). 재귀 매칭하려면 `**/.env`/`**/.env.*` 형태로 적을 것 — 재배포 전엔 `docker run --rm <image> grep -r <의심 패턴> /app/server/public`로 빌드된 번들을 직접 확인.
+- **관리자 페이지(`/admin`)는 같은 오리진에서만 동작함** — `client/src/components/Admin*.tsx`는
+  상대경로(`/api/admin/...`)로 `fetch`하는데, `npm run dev`의 Vite 서버(5173)와 게임 서버(2567)는
+  서로 다른 오리진이라 쿠키 기반 세션이 안 통함. 로컬에서 관리자 페이지를 확인하려면
+  `npm run build --workspace client` 후 그 결과물을 `server/public`에 복사해(Dockerfile이 하는
+  방식 재현) `server`가 직접 서빙하게 해야 함. 실제 배포(Caddy 뒤)는 항상 같은 오리진이라 문제없음.
 - **Windows에서 `tsx watch`(server dev)가 `server/src/**` 파일을 고칠 때마다 재시작을 시도하다 `EADDRINUSE`로 실패하는 경우가 있음** — 직전 프로세스가 포트 2567을 바로 안 놓아서 생기는 타이밍 문제로, 몇 초 뒤 재시도해서 결국 성공하기도 하고 그대로 죽은 채 예전 프로세스가 계속 응답하기도 함(콘솔에 `EADDRINUSE` 에러가 찍혀도 방 생성/입장 같은 기본 동작은 옛 코드로 계속 "정상 작동"하는 것처럼 보여서 눈치채기 어려움). 서버 쪽 파일을 고친 직후 실제 동작을 확인해야 한다면 `netstat -ano | grep :2567`로 리스닝 PID가 바뀌었는지 먼저 확인할 것 — 안 바뀌었으면 옛 코드를 테스트하고 있는 것. 확실히 하려면 `taskkill //F //PID <pid> //T`로 관련 프로세스를 다 죽이고 `npm run dev`를 처음부터 다시 실행.
 
 ## Workflow
