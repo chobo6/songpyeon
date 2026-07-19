@@ -35,22 +35,10 @@ async function fetchAdminJson<T>(
   }
 }
 
-function currentlyOnline(rooms: RoomInfo[]): { sessionId: string; nickname: string }[] {
-  const seen = new Set<string>();
-  const players: { sessionId: string; nickname: string }[] = [];
-  for (const room of rooms) {
-    for (const player of room.players) {
-      if (seen.has(player.sessionId)) continue;
-      seen.add(player.sessionId);
-      players.push(player);
-    }
-  }
-  return players;
-}
-
 export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [onlineNicknames, setOnlineNicknames] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [announceError, setAnnounceError] = useState<string | null>(null);
@@ -59,20 +47,23 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
     let cancelled = false;
 
     async function poll() {
-      const [roomsResult, eventsResult] = await Promise.all([
+      const [roomsResult, eventsResult, onlineResult] = await Promise.all([
         fetchAdminJson<RoomInfo[]>("/api/admin/rooms"),
         fetchAdminJson<AdminEvent[]>("/api/admin/events"),
+        fetchAdminJson<string[]>("/api/admin/online"),
       ]);
       if (cancelled) return;
 
-      if (!roomsResult.ok || !eventsResult.ok) {
+      if (!roomsResult.ok || !eventsResult.ok || !onlineResult.ok) {
         if (!roomsResult.ok && roomsResult.unauthorized) onUnauthorized();
         if (!eventsResult.ok && eventsResult.unauthorized) onUnauthorized();
+        if (!onlineResult.ok && onlineResult.unauthorized) onUnauthorized();
         return;
       }
 
       setRooms(roomsResult.data);
       setEvents(eventsResult.data);
+      setOnlineNicknames(onlineResult.data);
     }
 
     poll();
@@ -111,8 +102,6 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
     }
   }
 
-  const onlinePlayers = currentlyOnline(rooms);
-
   return (
     <main className={styles.wrap}>
       <h1>관리자 대시보드</h1>
@@ -130,12 +119,12 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
       {announceError && <p className={styles.error}>{announceError}</p>}
 
       <section>
-        <h2>현재 접속자 ({onlinePlayers.length})</h2>
+        <h2>현재 접속자 ({onlineNicknames.length})</h2>
         <div className={styles.onlineList}>
-          {onlinePlayers.length > 0
-            ? onlinePlayers.map((p) => (
-                <span key={p.sessionId} className={styles.onlineName}>
-                  {p.nickname}
+          {onlineNicknames.length > 0
+            ? onlineNicknames.map((nickname) => (
+                <span key={nickname} className={styles.onlineName}>
+                  {nickname}
                 </span>
               ))
             : "(없음)"}

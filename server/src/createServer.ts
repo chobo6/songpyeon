@@ -9,6 +9,7 @@ import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin } from "./admin/auth";
 import { getEvents } from "./admin/eventLog";
 import { broadcast, subscribe } from "./admin/announcements";
+import { getOnlineUsers, touchPresence } from "./admin/presence";
 import { getOrCreateUser, getUserById, setNickname, verifyGoogleIdToken } from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
 
@@ -23,12 +24,23 @@ export function createGameServer(): Server {
 
   // colyseus.js 0.16.x has no client.getAvailableRooms() — this app-level
   // route replaces it, backed by the server-only matchMaker.query() API.
-  app.get("/api/rooms", async (_req, res) => {
+  app.get("/api/rooms", async (req, res) => {
     // dev 환경에서는 client(5173)와 server(2567)가 다른 origin이라 CORS 헤더가
     // 없으면 브라우저가 응답을 읽지 못함 (client/.env.local로 LAN IP를 쓸 때도
     // 마찬가지). 프로덕션은 Caddy 뒤에서 같은 origin으로 서빙되니 영향 없음 —
     // 이 엔드포인트는 인증 없는 공개 방 목록이라 와일드카드로 열어도 안전함.
     res.header("Access-Control-Allow-Origin", "*");
+
+    // 로비(방 목록 화면)에 있는 동안은 아직 어느 방에도 안 들어가 있어 Colyseus
+    // 룸 메타데이터로는 존재를 알 수 없다 — RoomList가 이 엔드포인트를 2초마다
+    // 폴링하는 걸 관리자 "현재 접속자" 표시용 presence 신호로 재사용한다.
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (userId) {
+      const user = getUserById(userId);
+      if (user?.nickname) touchPresence(userId, user.nickname);
+    }
+
     const rooms = await matchMaker.query({ name: "match" });
     res.json(
       rooms.map((r) => ({
@@ -76,6 +88,19 @@ export function createGameServer(): Server {
         };
       }),
     );
+  });
+
+  // 로그인된 상태로 온라인에 접속 중인 전체 유저 — 방에 들어가 있는지 여부와
+  // 무관하게, 방 목록 화면에서 대기 중인 사람까지 포함한다 (닉네임이 이제
+  // 계정당 유일하므로 닉네임으로 중복 제거).
+  app.get("/api/admin/online", requireAdmin, async (_req, res) => {
+    const rooms = await matchMaker.query({ name: "match" });
+    const roomNicknames = rooms.flatMap((r) => {
+      const metadata = r.metadata as { players?: { nickname: string }[] } | undefined;
+      return metadata?.players?.map((p) => p.nickname) ?? [];
+    });
+    const lobbyNicknames = getOnlineUsers().map((u) => u.nickname);
+    res.json([...new Set([...roomNicknames, ...lobbyNicknames])]);
   });
 
   app.get("/api/admin/events", requireAdmin, (_req, res) => {
