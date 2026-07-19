@@ -57,3 +57,31 @@ export function setNickname(userId: number, nickname: string): SetNicknameResult
 export function getUserById(userId: number): UserProfile | undefined {
   return db.prepare(`SELECT id, nickname FROM users WHERE id = ?`).get(userId) as UserProfile | undefined;
 }
+
+export type AdminUserRow = {
+  id: number;
+  email: string | null;
+  name: string | null;
+  nickname: string | null;
+  createdAt: string;
+};
+
+export function listUsers(): AdminUserRow[] {
+  return db
+    .prepare(`SELECT id, email, name, nickname, created_at AS createdAt FROM users ORDER BY id DESC`)
+    .all() as AdminUserRow[];
+}
+
+export type AdminSetNicknameResult = "ok" | "taken";
+
+// Unlike setNickname (self-service, "최초 1회만"), this is the admin
+// override — it overwrites a nickname the account already has instead of
+// refusing, since the whole point is fixing/relabeling an existing account.
+// Uniqueness still applies (can't collide with another account's nickname).
+export function adminSetNickname(userId: number, nickname: string): AdminSetNicknameResult {
+  const clean = sanitizeNickname(nickname);
+  const taken = db.prepare(`SELECT 1 FROM users WHERE nickname = ? AND id != ?`).get(clean, userId);
+  if (taken) return "taken";
+  db.prepare(`UPDATE users SET nickname = ? WHERE id = ?`).run(clean, userId);
+  return "ok";
+}

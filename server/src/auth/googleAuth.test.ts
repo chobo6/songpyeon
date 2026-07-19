@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db } from "../db/connection";
-import { getOrCreateUser, getUserById, setNickname } from "./googleAuth";
+import { adminSetNickname, getOrCreateUser, getUserById, listUsers, setNickname } from "./googleAuth";
 
 describe("getOrCreateUser", () => {
   beforeEach(() => {
@@ -69,5 +69,44 @@ describe("getUserById", () => {
 
   test("returns undefined for an unknown id", () => {
     expect(getUserById(999999)).toBeUndefined();
+  });
+});
+
+describe("listUsers", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("returns every user, newest first", () => {
+    const first = getOrCreateUser("sub-9", { email: "a@example.com", name: "Alice" });
+    const second = getOrCreateUser("sub-10", { email: "b@example.com", name: "Bob" });
+    setNickname(second.id, "밥");
+
+    const rows = listUsers();
+    expect(rows.map((r) => r.id)).toEqual([second.id, first.id]);
+    expect(rows[0]).toMatchObject({ id: second.id, email: "b@example.com", name: "Bob", nickname: "밥" });
+  });
+});
+
+describe("adminSetNickname", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("overwrites an already-set nickname (unlike setNickname)", () => {
+    const user = getOrCreateUser("sub-11", {});
+    setNickname(user.id, "옛날닉네임");
+    const result = adminSetNickname(user.id, "새닉네임");
+    expect(result).toBe("ok");
+    expect(getUserById(user.id)?.nickname).toBe("새닉네임");
+  });
+
+  test("still refuses a nickname already taken by another user", () => {
+    const first = getOrCreateUser("sub-12", {});
+    setNickname(first.id, "먼저찜");
+    const second = getOrCreateUser("sub-13", {});
+    const result = adminSetNickname(second.id, "먼저찜");
+    expect(result).toBe("taken");
+    expect(getUserById(second.id)?.nickname).toBeNull();
   });
 });

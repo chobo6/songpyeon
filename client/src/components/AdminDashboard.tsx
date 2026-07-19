@@ -35,7 +35,13 @@ async function fetchAdminJson<T>(
   }
 }
 
-export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void }) {
+export function AdminDashboard({
+  onUnauthorized,
+  onOpenUsers,
+}: {
+  onUnauthorized: () => void;
+  onOpenUsers: () => void;
+}) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [onlineNicknames, setOnlineNicknames] = useState<string[]>([]);
@@ -104,7 +110,12 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
 
   return (
     <main className={styles.wrap}>
-      <h1>관리자 대시보드</h1>
+      <div className={styles.topRow}>
+        <h1>관리자 대시보드</h1>
+        <button className={styles.usersButton} onClick={onOpenUsers}>
+          유저 정보
+        </button>
+      </div>
 
       <form onSubmit={handleAnnounce} className={styles.announceForm}>
         <input

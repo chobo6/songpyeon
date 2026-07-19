@@ -8,6 +8,26 @@
   box-sizing: border-box;
 }
 
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.topRow h1 {
+  margin: 0;
+}
+
+.usersButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+
 .announceForm {
   display: flex;
   gap: 0.5rem;

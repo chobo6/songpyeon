@@ -10,7 +10,14 @@ import { checkPassword, createSession, destroySession, requireAdmin } from "./ad
 import { getEvents } from "./admin/eventLog";
 import { broadcast, subscribe } from "./admin/announcements";
 import { getOnlineUsers, touchPresence } from "./admin/presence";
-import { getOrCreateUser, getUserById, setNickname, verifyGoogleIdToken } from "./auth/googleAuth";
+import {
+  adminSetNickname,
+  getOrCreateUser,
+  getUserById,
+  listUsers,
+  setNickname,
+  verifyGoogleIdToken,
+} from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -109,6 +116,32 @@ export function createGameServer(): Server {
 
   app.get("/api/admin/events", requireAdmin, (_req, res) => {
     res.json(getEvents().slice(-100));
+  });
+
+  app.get("/api/admin/users", requireAdmin, (_req, res) => {
+    res.json(listUsers());
+  });
+
+  // 자기 자신은 최초 1회만 설정 가능한 일반 /api/auth/nickname과 달리, 관리자는
+  // 이미 설정된 닉네임도 덮어쓸 수 있다 (오타/부적절한 닉네임 수정용) — 다른
+  // 계정과 겹치는 닉네임은 여전히 거부한다.
+  app.post("/api/admin/users/:id/nickname", requireAdmin, (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    const { nickname } = req.body as { nickname?: unknown };
+    if (typeof nickname !== "string" || !nickname.trim()) {
+      res.status(400).json({ error: "닉네임이 필요합니다." });
+      return;
+    }
+    const result = adminSetNickname(userId, nickname);
+    if (result === "taken") {
+      res.status(409).json({ error: "이미 사용 중인 닉네임이에요." });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   app.post("/api/admin/announce", requireAdmin, (req, res) => {
