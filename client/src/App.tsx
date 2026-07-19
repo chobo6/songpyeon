@@ -8,6 +8,7 @@ import { RoomList } from "./components/RoomList";
 import { SoloRoleSelect } from "./components/SoloRoleSelect";
 import { SoloPlayScreen } from "./components/SoloPlayScreen";
 import type { Role } from "./game/colors";
+import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import "./App.css";
 
 type Mode = "select" | "online" | "offline";
@@ -75,10 +76,16 @@ function OfflineFlow({ onExit }: { onExit: () => void }) {
 function App() {
   const [mode, setMode] = useState<Mode>("select");
 
-  if (mode === "online") return <OnlineFlow onExit={() => setMode("select")} />;
-  if (mode === "offline") return <OfflineFlow onExit={() => setMode("select")} />;
-
-  return <ModeSelect onSelectOnline={() => setMode("online")} onSelectOffline={() => setMode("offline")} />;
+  return (
+    <>
+      <AnnouncementBanner />
+      {mode === "online" && <OnlineFlow onExit={() => setMode("select")} />}
+      {mode === "offline" && <OfflineFlow onExit={() => setMode("select")} />}
+      {mode === "select" && (
+        <ModeSelect onSelectOnline={() => setMode("online")} onSelectOffline={() => setMode("offline")} />
+      )}
+    </>
+  );
 }
 
 export default App;
