@@ -10,7 +10,7 @@ import { checkPassword, createSession, destroySession, requireAdmin } from "./ad
 import { getEvents } from "./admin/eventLog";
 import { broadcast, subscribe } from "./admin/announcements";
 import { getOrCreateUser, getUserById, setNickname, verifyGoogleIdToken } from "./auth/googleAuth";
-import { SESSION_COOKIE_NAME, signSession, verifySession } from "./auth/session";
+import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
@@ -106,7 +106,7 @@ export function createGameServer(): Server {
       const { sub, email, name } = await verifyGoogleIdToken(credential);
       const user = getOrCreateUser(sub, { email, name });
       const token = signSession(user.id);
-      res.cookie(SESSION_COOKIE_NAME, token, { httpOnly: true, sameSite: "lax" });
+      res.cookie(SESSION_COOKIE_NAME, token, { httpOnly: true, sameSite: "lax", maxAge: SESSION_MAX_AGE_MS });
       res.json({ id: user.id, nickname: user.nickname });
     } catch (err) {
       console.error("구글 로그인 실패:", err);

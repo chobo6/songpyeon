@@ -1,11 +1,12 @@
 import jwt from "jsonwebtoken";
 
 export const SESSION_COOKIE_NAME = "session";
+export const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function signSession(userId: number): string {
   const secret = process.env.SESSION_JWT_SECRET;
   if (!secret) throw new Error("SESSION_JWT_SECRET이 설정되지 않았습니다.");
-  return jwt.sign({ userId }, secret, { expiresIn: "30d" });
+  return jwt.sign({ userId }, secret, { expiresIn: SESSION_MAX_AGE_MS / 1000 });
 }
 
 export function verifySession(token: string | undefined): number | null {
