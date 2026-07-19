@@ -76,12 +76,20 @@ export function AdminDashboard({ onUnauthorized }: { onUnauthorized: () => void 
     setSending(true);
     setAnnounceError(null);
     try {
-      await fetch("/api/admin/announce", {
+      const res = await fetch("/api/admin/announce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({ message }),
       });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setAnnounceError("공지 전송에 실패했습니다");
+        return;
+      }
       setMessage("");
     } catch {
       setAnnounceError("공지 전송에 실패했습니다");
