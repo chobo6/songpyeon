@@ -21,7 +21,11 @@ function loadGoogleScript(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Identity Services script"));
+    script.onerror = () => {
+      // 캐시된 실패 Promise가 남아있으면 재시도가 영원히 막히므로 초기화한다.
+      scriptPromise = null;
+      reject(new Error("Failed to load Google Identity Services script"));
+    };
     document.head.appendChild(script);
   });
   return scriptPromise;
@@ -40,6 +44,8 @@ export async function renderGoogleButton(
   });
   const container = document.getElementById(containerId);
   if (!container) return;
+  // effect 재실행(StrictMode 이중 호출 등) 시 버튼이 중복으로 쌓이지 않도록 기존 내용을 비운다.
+  container.innerHTML = "";
   window.google!.accounts.id.renderButton(container, {
     theme: "outline",
     size: "large",
