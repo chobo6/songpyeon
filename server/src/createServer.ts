@@ -2,9 +2,13 @@ import express from "express";
 import { createServer as createHttpServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import cookieParser from "cookie-parser";
 import { Server, matchMaker } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
+import { checkPassword, createSession, destroySession, requireAdmin } from "./admin/auth";
+import { getEvents } from "./admin/eventLog";
+import { broadcast, subscribe } from "./admin/announcements";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
@@ -12,6 +16,8 @@ const clientDistPath = path.join(__dirname, "../public");
 export function createGameServer(): Server {
   const app = express();
   app.use(express.static(clientDistPath));
+  app.use(express.json());
+  app.use(cookieParser());
 
   // colyseus.js 0.16.x has no client.getAvailableRooms() — this app-level
   // route replaces it, backed by the server-only matchMaker.query() API.
@@ -31,6 +37,61 @@ export function createGameServer(): Server {
         hostNickname: (r.metadata as { hostNickname?: string } | undefined)?.hostNickname ?? "?",
       })),
     );
+  });
+
+  app.post("/api/admin/login", (req, res) => {
+    const { password } = req.body as { password?: unknown };
+    if (typeof password !== "string" || !checkPassword(password)) {
+      res.status(401).json({ error: "invalid password" });
+      return;
+    }
+    const token = createSession();
+    res.cookie("admin_session", token, { httpOnly: true, sameSite: "lax" });
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/logout", requireAdmin, (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    destroySession(cookies?.admin_session);
+    res.clearCookie("admin_session");
+    res.json({ ok: true });
+  });
+
+  app.get("/api/admin/rooms", requireAdmin, async (_req, res) => {
+    const rooms = await matchMaker.query({ name: "match" });
+    res.json(
+      rooms.map((r) => {
+        const metadata = r.metadata as
+          | { hostNickname?: string; players?: { sessionId: string; nickname: string }[] }
+          | undefined;
+        return {
+          roomId: r.roomId,
+          clients: r.clients,
+          maxClients: r.maxClients,
+          locked: r.locked,
+          hostNickname: metadata?.hostNickname ?? "?",
+          players: metadata?.players ?? [],
+        };
+      }),
+    );
+  });
+
+  app.get("/api/admin/events", requireAdmin, (_req, res) => {
+    res.json(getEvents());
+  });
+
+  app.post("/api/admin/announce", requireAdmin, (req, res) => {
+    const { message } = req.body as { message?: unknown };
+    if (typeof message !== "string" || message.trim().length === 0) {
+      res.status(400).json({ error: "message required" });
+      return;
+    }
+    broadcast(message.trim());
+    res.json({ ok: true });
+  });
+
+  app.get("/api/announcements/stream", (req, res) => {
+    subscribe(req, res);
   });
 
   const httpServer = createHttpServer(app);
