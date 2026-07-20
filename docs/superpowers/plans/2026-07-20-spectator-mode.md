@@ -33,6 +33,8 @@
 **Interfaces:**
 - Produces: `MatchState.spectators: MapSchema<SpectatorState>` (서버), `MatchState.spectators: Map<string, SpectatorState>` (클라이언트 타입), `SpectatorState { sessionId: string; nickname: string }` (양쪽), `MatchRoomOptions.allowSpectators?: unknown`. 이후 태스크(클라이언트 전부)가 `room.state.spectators`를 그대로 참조한다.
 
+**구현 후 기록(실제로 반영된 것, 아래 단계별 코드가 이미 이 내용을 담고 있음)**: `maybeStartGame`/`abortCountdown`/`handleRematch`의 `this.lock()`/`this.unlock()`이 전부 `this.setPrivate(true)`/`this.setPrivate(false)`로 바뀌었다 — `lock()`은 `joinOrCreate` 매치메이킹뿐 아니라 `joinById`까지 프로토콜 레벨에서 막아버려서, 관전자가 진행 중인 방에 `joinById`로 들어오는 것 자체가 불가능했기 때문(Colyseus 내부 `MatchMaker.js` 확인 완료). 이 교체의 부작용으로 `room.locked`가 이제 항상 `false`로 고정되므로, "게임 진행 중" 신호를 위해 `phase`를 메타데이터에 직접 기록한다: `onCreate`가 초기값 `phase: "lobby"`, `beginPlaying()`이 `phase: "playing"`, `handleRematch()`가 다시 `phase: "lobby"`로 `setMetadata` 호출(두 메서드 다 `async`로 변경). Task 2가 이 `phase` 필드를 소비한다.
+
 - [ ] **Step 1: 실패하는 테스트 작성**
 
 `server/src/rooms/MatchRoom.test.ts`에서 기존 테스트 두 개를 먼저 찾아 교체한다. 현재:
@@ -536,8 +538,10 @@ EOF
 - Modify: `server/src/createServer.ts`
 
 **Interfaces:**
-- Consumes: Task 1이 메타데이터에 실어둔 `playerCapacity: number`, `allowSpectators: boolean`, 기존 `players: {sessionId, nickname}[]`.
+- Consumes: Task 1이 메타데이터에 실어둔 `playerCapacity: number`, `allowSpectators: boolean`, `phase: "lobby" | "playing"`, 기존 `players: {sessionId, nickname}[]`.
 - Produces: `/api/rooms` 응답 각 항목에 `allowSpectators: boolean` 필드 추가, `clients`/`maxClients`가 실제 플레이어 수/정원을 반영(관전자·인플레이션된 서버 내부 maxClients와 무관). Task 4(클라이언트 방 목록)가 이 필드들을 그대로 소비한다.
+
+**중요 — Task 1 진행 중 발견된 변경사항**: 원래 계획은 `locked` 필드를 Colyseus의 `r.locked`(룸 리스팅의 잠금 플래그)에서 그대로 가져오는 것이었다. 그런데 Task 1을 구현하던 중, `Room.lock()`이 `joinById`까지 프로토콜 레벨에서 막아버려서(관전자가 아예 접속을 못 함) `maybeStartGame`/`abortCountdown`/`handleRematch`의 `lock()`/`unlock()` 호출이 전부 `setPrivate(true)`/`setPrivate(false)`로 교체됐다 — `private`는 `joinOrCreate` 매치메이킹 풀에서만 제외시키고 `joinById`는 막지 않는다. 그 결과 `room.locked`(=`this.#_locked`)는 이제 **코드 어디에서도 `true`로 설정되지 않는다** — 항상 `false`다. 그래서 "게임 진행 중"을 방 목록에 알리는 신호를 Colyseus의 `locked` 대신 **직접 메타데이터에 넣은 `phase`** 로 바꿨다: `beginPlaying()`이 `setMetadata({ phase: "playing" })`, `handleRematch()`가 `setMetadata({ phase: "lobby" })`, `onCreate`가 초기값 `phase: "lobby"`를 넣는다(전부 이미 Task 1에서 반영됨). 아래 Step 1은 이 최신 상태를 반영한 코드다.
 
 이 라우트는 이 프로젝트에 기존 테스트가 없는 순수 HTTP 레이어(서버 쪽 TDD 대상은 룸 로직뿐 — `CLAUDE.md` 참고)라, 이 태스크는 타입체크 통과 확인 + Task 6 끝의 수동 브라우저 검증으로 확인한다.
 
@@ -576,6 +580,7 @@ EOF
               players?: { sessionId: string; nickname: string }[];
               playerCapacity?: number;
               allowSpectators?: boolean;
+              phase?: "lobby" | "playing";
             }
           | undefined;
         return {
@@ -585,7 +590,11 @@ EOF
           // 값이 아니라 실제 플레이어 수/정원만 보여야 "2/4"처럼 정확히 읽힌다.
           clients: metadata?.players?.length ?? r.clients,
           maxClients: metadata?.playerCapacity ?? r.maxClients,
-          locked: r.locked,
+          // r.locked(Colyseus 자체 잠금 플래그)는 더 이상 안 쓴다 — MatchRoom.ts가
+          // lock() 대신 setPrivate()을 쓰도록 바뀌면서(관전자의 joinById가 막히지
+          // 않게 하기 위해, Task 1 참고) locked는 항상 false로 고정됐다. 대신
+          // 메타데이터에 직접 넣어둔 phase로 판단한다.
+          locked: metadata?.phase === "playing",
           hostNickname: metadata?.hostNickname ?? "?",
           roomTitle: metadata?.roomTitle ?? "이름 없는 방",
           allowSpectators: metadata?.allowSpectators ?? true,
