@@ -68,8 +68,12 @@ export function RoomList({
               <span className={styles.cardName}>
                 {room.roomTitle} ({room.clients}/{room.maxClients})
               </span>
-              <button className={styles.joinButton} disabled={room.locked} onClick={() => onJoinRoom(room.roomId)}>
-                {room.locked ? "게임 중" : "입장"}
+              <button
+                className={styles.joinButton}
+                disabled={room.locked && !room.allowSpectators}
+                onClick={() => onJoinRoom(room.roomId)}
+              >
+                {room.locked ? (room.allowSpectators ? "관전하기" : "게임 중") : "입장"}
               </button>
             </div>
           );

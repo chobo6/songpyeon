@@ -25,6 +25,7 @@ export interface RoomListEntry {
   locked: boolean;
   hostNickname: string;
   roomTitle: string;
+  allowSpectators: boolean;
 }
 
 export async function listRooms(): Promise<RoomListEntry[]> {
