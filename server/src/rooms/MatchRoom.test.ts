@@ -183,6 +183,45 @@ describe("MatchRoom", () => {
     expect(room.state.phase).toBe("playing");
   });
 
+  test("room metadata reports phase: playing as soon as the countdown starts, not just once it finishes", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+
+    // state.phase (game logic) is still "lobby" during the countdown, but
+    // metadata.phase (room-list "is this joinable" signal) must already
+    // read "playing" — otherwise the public room list would show this room
+    // as still-joinable "입장" for the whole 3-2-1 countdown, even though
+    // the roster is already final and a click would just bounce off
+    // playerCapacity's rejection.
+    expect(room.state.phase).toBe("lobby");
+    expect(room.state.countdownSecondsLeft).toBeGreaterThan(0);
+    expect((room.metadata as { phase?: string })?.phase).toBe("playing");
+  });
+
+  test("aborting the countdown reverts room metadata phase back to lobby", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+    expect((room.metadata as { phase?: string })?.phase).toBe("playing");
+
+    await clients[0].leave();
+    await flush();
+
+    expect(room.state.countdownSecondsLeft).toBe(0);
+    expect((room.metadata as { phase?: string })?.phase).toBe("lobby");
+  });
+
   test("role picking is blocked once the pre-game countdown has started", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
     const clients: ClientRoom<MatchState>[] = [];

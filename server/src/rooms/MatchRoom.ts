@@ -360,7 +360,7 @@ export class MatchRoom extends Room<MatchState> {
     this.maybeStartGame();
   }
 
-  private maybeStartGame() {
+  private async maybeStartGame() {
     const ready = this.state.teams.every((t) => t.pigSessionId !== "" && t.rabbitSessionId !== "");
     if (!ready || this.state.countdownSecondsLeft > 0) return;
 
@@ -376,6 +376,15 @@ export class MatchRoom extends Room<MatchState> {
     // the roster is already final and must not accept new joiners during
     // the countdown either.
     this.setPrivate(true);
+    // Mirrored into metadata here too (not just beginPlaying), or else the
+    // public room list would show this room as still-joinable "입장" for the
+    // whole 3-2-1 countdown — a real player clicking it would bounce off
+    // playerCapacity's rejection since the roster is already final. This
+    // makes metadata.phase flip to "playing" slightly before state.phase
+    // does (state.phase only flips once beginPlaying() actually runs) —
+    // intentional: metadata.phase means "closed to new player joins", a
+    // narrower question than the game-logic phase.
+    await this.setMetadata({ phase: "playing" });
     this.startCountdown();
   }
 
@@ -405,7 +414,7 @@ export class MatchRoom extends Room<MatchState> {
   // leave — removePlayer already frees the vacated role slot, and the next
   // player to fill it re-triggers maybeStartGame's readiness check, which
   // starts a fresh countdown from COUNTDOWN_START_SECONDS.
-  private abortCountdown() {
+  private async abortCountdown() {
     if (this.state.countdownSecondsLeft === 0) return;
     this.state.countdownSecondsLeft = 0;
     this.countdownToken++;
@@ -414,6 +423,10 @@ export class MatchRoom extends Room<MatchState> {
     // cancelling it must undo that, or the now-short-a-player room stays
     // hidden forever and no one can matchmake into the freed slot.
     this.setPrivate(false);
+    // maybeStartGame() also flipped metadata.phase to "playing" early (see
+    // its own comment) — undo that too, or the room list keeps showing
+    // "게임 중" for a room that's actually back open for new players.
+    await this.setMetadata({ phase: "lobby" });
   }
 
   private async beginPlaying() {
