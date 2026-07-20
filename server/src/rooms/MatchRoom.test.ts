@@ -322,15 +322,19 @@ describe("MatchRoom", () => {
     expect(room.state.lobbyChat[1].text).toBe("또치님이 퇴장했습니다");
   });
 
-  test("a mid-match leave does not announce into lobbyChat (scoped to the lobby only)", async () => {
+  test("a mid-match leave announces into matchChat instead of lobbyChat", async () => {
     const { room, clients } = await fillRolesAndStart();
     const lobbyChatCountBeforeLeave = room.state.lobbyChat.length;
+    const leavingNickname = room.state.players.get(clients[0].sessionId)?.nickname;
 
     await clients[0].leave();
     await flush();
 
     expect(room.state.phase).toBe("playing");
     expect(room.state.lobbyChat).toHaveLength(lobbyChatCountBeforeLeave);
+    expect(room.state.matchChat).toHaveLength(1);
+    expect(room.state.matchChat[0].nickname).toBe("");
+    expect(room.state.matchChat[0].text).toBe(`${leavingNickname}님이 퇴장했습니다`);
   });
 
   test("chat history caps at 50 messages, dropping the oldest first", async () => {
