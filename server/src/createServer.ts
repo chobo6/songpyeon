@@ -60,14 +60,31 @@ export function createGameServer(): Server {
     const rooms = await matchMaker.query({ name: "match" });
     res.json(
       rooms.map((r) => {
-        const metadata = r.metadata as { hostNickname?: string; roomTitle?: string } | undefined;
+        const metadata = r.metadata as
+          | {
+              hostNickname?: string;
+              roomTitle?: string;
+              players?: { sessionId: string; nickname: string }[];
+              playerCapacity?: number;
+              allowSpectators?: boolean;
+              phase?: "lobby" | "playing";
+            }
+          | undefined;
         return {
           roomId: r.roomId,
-          clients: r.clients,
-          maxClients: r.maxClients,
-          locked: r.locked,
+          // maxClients는 관전자를 받기 위해 서버 내부적으로 크게 잡혀있다
+          // (MatchRoom.ts의 MAX_CLIENTS_WITH_SPECTATORS) — 방 목록에는 그
+          // 값이 아니라 실제 플레이어 수/정원만 보여야 "2/4"처럼 정확히 읽힌다.
+          clients: metadata?.players?.length ?? r.clients,
+          maxClients: metadata?.playerCapacity ?? r.maxClients,
+          // r.locked(Colyseus 자체 잠금 플래그)는 더 이상 안 쓴다 — MatchRoom.ts가
+          // lock() 대신 setPrivate()을 쓰도록 바뀌면서(관전자의 joinById가 막히지
+          // 않게 하기 위해, Task 1 참고) locked는 항상 false로 고정됐다. 대신
+          // 메타데이터에 직접 넣어둔 phase로 판단한다.
+          locked: metadata?.phase === "playing",
           hostNickname: metadata?.hostNickname ?? "?",
           roomTitle: metadata?.roomTitle ?? "이름 없는 방",
+          allowSpectators: metadata?.allowSpectators ?? true,
         };
       }),
     );
