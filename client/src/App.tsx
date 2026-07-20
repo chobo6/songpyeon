@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
-import type { JoinSpec } from "./colyseus";
+import { hasStoredReconnectToken, type JoinSpec } from "./colyseus";
 import { fetchMe, loginWithGoogle, type Profile } from "./game/auth";
 import { Game } from "./components/Game";
 import { GoogleLoginScreen } from "./components/GoogleLoginScreen";
@@ -41,7 +41,12 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
 
 function OnlineFlow({ onExit }: { onExit: () => void }) {
   const [me, setMe] = useState<Profile | null | undefined>(undefined);
-  const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(null);
+  // 저장된 재접속 토큰이 있으면 방 목록을 건너뛰고 곧장 재접속을 시도한다 — App 함수의 mode
+  // 초기값과 짝을 이뤄서 동작한다(아래 참고). 로그인 확인(fetchMe)은 그대로 거치되, 통과된
+  // 뒤에는 joinSpec이 이미 세팅돼 있으니 방 목록 없이 바로 ConnectedOnlineFlow로 들어간다.
+  const [joinSpec, setJoinSpec] = useState<JoinSpec | null>(() =>
+    hasStoredReconnectToken() ? { type: "reconnect" } : null,
+  );
   const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -110,7 +115,9 @@ function OfflineFlow({ onExit }: { onExit: () => void }) {
 }
 
 function App() {
-  const [mode, setMode] = useState<Mode>("select");
+  // 게임 도중 새로고침/탭을 닫았다 다시 열었을 때 모드 선택 화면 없이 곧장 재접속을 시도하기
+  // 위한 진입점 — 위 OnlineFlow의 joinSpec 초기값과 짝을 이룬다.
+  const [mode, setMode] = useState<Mode>(() => (hasStoredReconnectToken() ? "online" : "select"));
 
   return (
     <>
