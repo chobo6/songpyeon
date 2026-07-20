@@ -46,6 +46,14 @@ npm run lint   # oxlint
   `main.tsx`가 `window.location.pathname === "/admin"`으로 분기(라우터 라이브러리 없음).
   설계: `docs/superpowers/specs/2026-07-19-admin-monitoring-design.md`. **로그/세션 전부
   인메모리라 서버 재시작 시 초기화됨** — 의도된 동작.
+- **관리자 페이지 IP 제한** (2026-07-20~): EC2의 `/home/ec2-user/caddy/Caddyfile`이 `/admin`, `/api/admin/*` 경로를
+  관리자 PC의 IP(IPv4 정확히 매치, IPv6은 뒤쪽 인터페이스 식별자가 자주 바뀌어서 앞쪽 /64 대역
+  전체 허용)로만 제한하고 나머지는 403. `handle`/`handle`(첫 매치 우선, 명시적 순서 보장) 패턴으로
+  작성돼 있어 Caddyfile의 암묵적 디렉티브 순서에 기대지 않음. 관리자 비밀번호 로그인과는 별개의
+  추가 방어선(둘 다 통과해야 함) — 게임 자체(로그인/방 목록/입장)는 이 제한과 무관하게 그대로
+  전체 공개. **집 인터넷이 유동 IP라 IP가 바뀌면 관리자 페이지가 403으로 막힘** — 그럴 땐
+  `ssh songpyeon-ec2`로 들어가 Caddyfile의 `remote_ip` 목록을 새 IP로 갱신하고
+  `docker restart caddy`. 현재 값 백업은 같은 디렉토리에 `Caddyfile.bak-YYYYMMDD`로 남겨둠.
 - **배포**: AWS EC2 단일 인스턴스, Docker 컨테이너(`songpyeon`) + Caddy(`caddy`, HTTPS 리버스 프록시, `songpyeon-net` 도커 네트워크로 연결) — 재배포는 수동 flow(로컬 `docker build` → `docker save` → `scp` → EC2에서 `docker load` 후 컨테이너 교체, Caddy/네트워크는 그대로 둠). GitHub Actions 등 CI/CD 없음, 이미지 레지스트리도 안 씀(저작권 있는 `game-assets/`가 이미지에 포함되므로 제3자 서버 경유 안 함). 절차 상세는 `docs/superpowers/specs/2026-07-15-aws-light-deploy-test-design.md` 참고. **EC2 재시작으로 퍼블릭 IP가 바뀌면 접속 주소(nip.io, IP가 호스트네임에 그대로 박힘)도 통째로 바뀜** — 컨테이너는 `--restart unless-stopped`로 자동 복구되지만 `/home/ec2-user/caddy/Caddyfile`(호스트 bind mount)의 옛 호스트네임은 수동으로 갱신하고 `docker restart caddy`로 새 Let's Encrypt 인증서를 다시 받아야 함 (`docs/TROUBLESHOOTING.md` #18).
 
 ## Key docs
