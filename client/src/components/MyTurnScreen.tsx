@@ -9,6 +9,10 @@ import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
 import { TimerBar } from "./TimerBar";
 import styles from "./PlayingScreen.module.css";
 
+// Mirrors server/src/game/mortar.ts's STARTING_MORTARS — see
+// TeamRosterPanel.tsx for the same constant and reasoning.
+const MAX_MORTARS = 5;
+
 export function MyTurnScreen({
   room,
   me,
@@ -18,7 +22,8 @@ export function MyTurnScreen({
   me: PlayerState;
   clockOffsetMs: number;
 }) {
-  const { sequence, cursor, turnOutcome, round, turnEndsAt } = room.state;
+  const { sequence, cursor, turnOutcome, round, turnEndsAt, teams } = room.state;
+  const myTeam = teams.find((team) => team.id === me.teamId);
   const disabled = turnOutcome !== "pending";
   // My own presses already get instant local feedback (ButtonPanel plays on
   // press, before the server round-trip) — this is for hearing my
@@ -39,6 +44,22 @@ export function MyTurnScreen({
     <div className={styles.wrap}>
       <div className={styles.content}>
         <p className={styles.round}>ROUND {round}</p>
+        {myTeam && (
+          <div className={styles.myMortars}>
+            {Array.from({ length: MAX_MORTARS }, (_, i) => (
+              <img
+                key={i}
+                className={styles.myMortarHeart}
+                alt=""
+                src={
+                  i < myTeam.mortars
+                    ? "/game-assets/ui/thanksgiving_room_heart.png"
+                    : "/game-assets/ui/thanksgiving_room_heart_off.png"
+                }
+              />
+            ))}
+          </div>
+        )}
         <TimerBar turnEndsAt={turnEndsAt} clockOffsetMs={clockOffsetMs} />
         <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
         <div className={styles.boardArea}>

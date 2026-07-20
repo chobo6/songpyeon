@@ -58,6 +58,16 @@
   color: #f2c94c;
 }
 
+.myMortars {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.myMortarHeart {
+  width: 1.1rem;
+  aspect-ratio: 54 / 70;
+}
+
 .spectating {
   opacity: 0.8;
 }
