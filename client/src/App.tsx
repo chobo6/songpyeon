@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
 import { hasStoredReconnectToken, type JoinSpec } from "./colyseus";
 import { fetchMe, loginWithGoogle, type Profile } from "./game/auth";
@@ -30,8 +30,16 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
   // error screen implying the latter mid-match story would usually be wrong.
   // See docs/superpowers/specs/2026-07-20-mid-match-reconnection-design.md,
   // "데이터 흐름 요약" 3-b.
+  //
+  // autoExitedRef guards against calling handleExit() more than once — status
+  // only ever settles into "error" a single time in practice (useMatchRoom
+  // has no retry path back to "connecting"), but StrictMode's dev-only
+  // double-invoke of effects makes a defensive guard cheap insurance against
+  // cancelAndExit()/onExit() firing twice.
+  const autoExitedRef = useRef(false);
   useEffect(() => {
-    if (joinSpec.type === "reconnect" && status === "error") {
+    if (joinSpec.type === "reconnect" && status === "error" && !autoExitedRef.current) {
+      autoExitedRef.current = true;
       handleExit();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
