@@ -18,6 +18,7 @@ const DEFAULT_TURN_DURATION_MS = 4000;
 const DEFAULT_COUNTDOWN_TICK_MS = 1000;
 const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
+const DEFAULT_RECONNECT_GRACE_SECONDS = 20;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
@@ -28,6 +29,11 @@ interface MatchRoomOptions {
   countdownTickMs?: number;
   teamCount?: unknown;
   roomTitle?: unknown;
+  // Seconds to hold a disconnected player's seat open before freeing it for
+  // good — only consulted for a non-consented disconnect during "playing"
+  // (see onLeave). Overridable so tests can shrink it instead of waiting
+  // out the real default.
+  reconnectGraceSeconds?: number;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -35,6 +41,7 @@ export class MatchRoom extends Room<MatchState> {
 
   private turnDurationMs = DEFAULT_TURN_DURATION_MS;
   private countdownTickMs = DEFAULT_COUNTDOWN_TICK_MS;
+  private reconnectGraceSeconds = DEFAULT_RECONNECT_GRACE_SECONDS;
   private countdownToken = 0;
   private turnToken = 0;
   private turnsThisRound = 0;
@@ -54,6 +61,7 @@ export class MatchRoom extends Room<MatchState> {
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
     if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
+    if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -172,14 +180,7 @@ export class MatchRoom extends Room<MatchState> {
     await this.setMetadata(metadataUpdate);
   }
 
-  async onLeave(client: Client) {
-    // No reconnection grace: the client never persists a reconnection token
-    // and never attempts to resume (see client/src/colyseus.ts) — a refresh,
-    // closed tab, or dropped connection always lands back on the room list.
-    // Granting a grace period here just left a phantom player occupying a
-    // role/team slot (and the room looking occupied to others) for up to
-    // RECONNECTION_GRACE_SECONDS with nothing that could ever reconnect
-    // through it. Free the slot immediately instead.
+  async onLeave(client: Client, consented: boolean) {
     console.log(`[leave] session=${client.sessionId} ip=${client.auth?.ip}`);
     const leavingNickname = this.state.players.get(client.sessionId)?.nickname ?? "?";
     recordEvent({
@@ -190,6 +191,28 @@ export class MatchRoom extends Room<MatchState> {
       ip: String(client.auth?.ip ?? "unknown"),
       sessionId: client.sessionId,
     });
+
+    // A non-consented drop during an active match (refresh, closed tab,
+    // network blip — anything that isn't an explicit "나가기" click) gets a
+    // grace period to reconnect into the exact same seat instead of losing
+    // it immediately. Lobby disconnects and deliberate leaves skip this
+    // entirely and fall straight through to the removal below, same as
+    // before this feature existed.
+    if (this.state.phase === "playing" && !consented) {
+      try {
+        await this.allowReconnection(client, this.reconnectGraceSeconds);
+        // Reconnected in time. removePlayer was never called, so the seat,
+        // team assignment, and role are exactly as they were — just
+        // announce the comeback the same way a fresh join would be.
+        const player = this.state.players.get(client.sessionId);
+        if (player) this.pushChat(this.state.matchChat, "", `${player.nickname}님이 입장했습니다`);
+        return;
+      } catch {
+        // Grace period expired without a reconnect — fall through to the
+        // normal removal below, same as any other leave.
+      }
+    }
+
     this.removePlayer(client.sessionId);
     await this.setMetadata({ players: this.rosterForMetadata() });
   }

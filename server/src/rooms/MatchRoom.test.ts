@@ -337,6 +337,86 @@ describe("MatchRoom", () => {
     expect(room.state.matchChat[0].text).toBe(`${leavingNickname}님이 퇴장했습니다`);
   });
 
+  test(
+    "a non-consented disconnect during play, reconnected within the grace period, keeps the same seat and announces it in matchChat",
+    { timeout: 20000 },
+    async () => {
+      const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 2 });
+      const [firstClient] = clients;
+      const sessionId = firstClient.sessionId;
+      const reconnectToken = firstClient.reconnectionToken;
+      const nickname = room.state.players.get(sessionId)!.nickname;
+      const matchChatCountBefore = room.state.matchChat.length;
+
+      // consented=false — a raw connection close, the same thing a refresh
+      // or closed tab looks like to the server (see colyseus.js's
+      // Room.leave: consented sends a LEAVE_ROOM message, non-consented
+      // just closes the socket).
+      await firstClient.leave(false);
+      await flush();
+
+      // Still occupying its seat while the grace period is pending — no
+      // removal has happened yet.
+      expect(room.state.players.has(sessionId)).toBe(true);
+
+      const port = (colyseus.server as unknown as { port: number }).port;
+      const reconnected = await new ColyseusJsClient(`ws://127.0.0.1:${port}`).reconnect<MatchState>(
+        reconnectToken,
+      );
+      await flush();
+
+      expect(reconnected.sessionId).toBe(sessionId);
+      expect(room.state.players.has(sessionId)).toBe(true);
+      expect(room.state.matchChat).toHaveLength(matchChatCountBefore + 1);
+      expect(room.state.matchChat[room.state.matchChat.length - 1].text).toBe(`${nickname}님이 입장했습니다`);
+
+      await reconnected.leave();
+    },
+  );
+
+  test(
+    "a non-consented disconnect during play that is NOT reconnected within the grace period is removed like today",
+    { timeout: 20000 },
+    async () => {
+      const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 0.05 });
+      const [firstClient] = clients;
+      const sessionId = firstClient.sessionId;
+      const player = room.state.players.get(sessionId)!;
+      const nickname = player.nickname;
+      const team = room.state.teams.find((t) => t.id === player.teamId)!;
+
+      await firstClient.leave(false);
+      await waitUntil(() => !room.state.players.has(sessionId));
+
+      expect(team.pigSessionId).not.toBe(sessionId);
+      expect(team.rabbitSessionId).not.toBe(sessionId);
+      expect(room.state.matchChat[room.state.matchChat.length - 1].text).toBe(`${nickname}님이 퇴장했습니다`);
+    },
+  );
+
+  test("a non-consented disconnect during the lobby is removed immediately (no reconnection grace)", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { reconnectGraceSeconds: 5 });
+    const client = await connectAsUser(colyseus, room, "로비유저");
+    await flush();
+    const sessionId = client.sessionId;
+
+    await client.leave(false);
+    await flush();
+
+    expect(room.state.players.has(sessionId)).toBe(false);
+  });
+
+  test("a deliberate (consented) leave during play is removed immediately, without reconnection grace", async () => {
+    const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 5 });
+    const [firstClient] = clients;
+    const sessionId = firstClient.sessionId;
+
+    await firstClient.leave(); // consented=true (the default)
+    await flush();
+
+    expect(room.state.players.has(sessionId)).toBe(false);
+  });
+
   test("chat history caps at 50 messages, dropping the oldest first", async () => {
     const room = await colyseus.createRoom<MatchState>("match");
     const client = await connectAsUser(colyseus, room, "플레이어");
@@ -505,20 +585,20 @@ describe("MatchRoom", () => {
     expect(room.state.teams[room.state.activeTeamIndex].id).not.toBe(activeTeamId);
   });
 
-  test("a dropped connection during a match frees the player's role/team slot immediately", async () => {
-    const { room, clients } = await fillRolesAndStart();
+  test("a dropped connection during a match, unreconciled, frees the role/team slot once its grace period expires", async () => {
+    const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 0.05 });
     const { activeTeam, actingClient } = actingClientFor(room, clients);
     const droppedSessionId = actingClient.sessionId;
 
     await actingClient.leave(false); // simulated drop, not a deliberate leave
-    await flush();
 
-    // No reconnection grace (client never persists a token to resume with —
-    // see client/src/colyseus.ts) — the match keeps going for the rest of
-    // the room, but the dropped player's seat is freed right away instead of
-    // lingering as a phantom occupant.
+    // Reconnection grace (see MatchRoom.ts's onLeave) holds the seat open for
+    // a bit before freeing it — the match keeps going for the rest of the
+    // room, and the dropped player's seat is freed once the grace period
+    // above runs out, instead of lingering as a phantom occupant forever.
+    await waitUntil(() => !room.state.players.has(droppedSessionId));
+
     expect(room.state.phase).toBe("playing");
-    expect(room.state.players.has(droppedSessionId)).toBe(false);
     const teamAfterDrop = room.state.teams.find((t) => t.id === activeTeam.id);
     expect([teamAfterDrop?.pigSessionId, teamAfterDrop?.rabbitSessionId]).not.toContain(droppedSessionId);
   });
