@@ -132,12 +132,21 @@ export function createGameServer(): Server {
     res.json(
       rooms.map((r) => {
         const metadata = r.metadata as
-          | { hostNickname?: string; players?: { sessionId: string; nickname: string }[] }
+          | {
+              hostNickname?: string;
+              roomTitle?: string;
+              playerCapacity?: number;
+              players?: { sessionId: string; nickname: string }[];
+            }
           | undefined;
         return {
           roomId: r.roomId,
+          roomTitle: metadata?.roomTitle ?? "이름 없는 방",
           clients: r.clients,
-          maxClients: r.maxClients,
+          // r.maxClients는 관전자를 받기 위해 서버 내부적으로 크게 잡혀있다
+          // (MatchRoom.ts의 MAX_CLIENTS_WITH_SPECTATORS) — 관리자 페이지에도
+          // 실제 플레이어 정원(/api/rooms와 동일한 값)을 보여줘야 한다.
+          maxClients: metadata?.playerCapacity ?? r.maxClients,
           locked: r.locked,
           hostNickname: metadata?.hostNickname ?? "?",
           players: metadata?.players ?? [],

@@ -58,6 +58,11 @@
   border-radius: 0.4rem;
 }
 
+.hostLine {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
 .playerNames {
   font-size: 0.8rem;
   color: #6b7280;

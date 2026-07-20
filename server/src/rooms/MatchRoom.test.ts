@@ -1082,9 +1082,21 @@ describe("MatchRoom", () => {
       const joinEvent = events.find((e) => e.sessionId === client.sessionId && e.type === "join");
       expect(joinEvent?.nickname).toBe("철수");
       expect(joinEvent?.roomId).toBe(room.roomId);
+      expect(joinEvent?.roomTitle).toBe("이름 없는 방");
 
       const metadata = room.listing.metadata as { players?: { nickname: string }[] };
       expect(metadata.players?.map((p) => p.nickname)).toEqual(["철수"]);
+    });
+
+    test("recorded events show the room's actual title, not just its internal room id", async () => {
+      resetEventLog();
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1, roomTitle: "우리팀 놀이방" });
+      const client = await connectAsUser(colyseus, room, "철수");
+      await flush();
+
+      const joinEvent = getEvents().find((e) => e.sessionId === client.sessionId && e.type === "join");
+      expect(joinEvent?.roomTitle).toBe("우리팀 놀이방");
+      expect(joinEvent?.roomId).toBe(room.roomId);
     });
 
     test("onLeave records a leave event and removes the player from roster metadata", async () => {
@@ -1099,6 +1111,7 @@ describe("MatchRoom", () => {
       const events = getEvents();
       const leaveEvent = events.find((e) => e.sessionId === client.sessionId && e.type === "leave");
       expect(leaveEvent?.nickname).toBe("영희");
+      expect(leaveEvent?.roomTitle).toBe("이름 없는 방");
 
       const metadata = room.listing.metadata as { players?: { nickname: string }[] };
       expect(metadata.players ?? []).toEqual([]);

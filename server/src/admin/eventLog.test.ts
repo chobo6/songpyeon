@@ -7,6 +7,7 @@ function makeEvent(overrides: Partial<AdminEvent> = {}): AdminEvent {
     timestamp: Date.now(),
     nickname: "테스트",
     roomId: "room1",
+    roomTitle: "테스트방",
     ip: "127.0.0.1",
     sessionId: "sess1",
     ...overrides,

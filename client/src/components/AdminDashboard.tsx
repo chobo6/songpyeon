@@ -3,6 +3,7 @@ import styles from "./AdminDashboard.module.css";
 
 type RoomInfo = {
   roomId: string;
+  roomTitle: string;
   clients: number;
   maxClients: number;
   locked: boolean;
@@ -15,6 +16,7 @@ type AdminEvent = {
   timestamp: number;
   nickname: string;
   roomId: string;
+  roomTitle: string;
   ip: string;
   sessionId: string;
 };
@@ -147,8 +149,9 @@ export function AdminDashboard({
         <ul className={styles.roomList}>
           {rooms.map((room) => (
             <li key={room.roomId}>
-              <strong>{room.hostNickname}</strong> — {room.clients}/{room.maxClients}
+              <strong>{room.roomTitle}</strong> — {room.clients}/{room.maxClients}
               {room.locked ? " (진행 중)" : " (대기 중)"}
+              <div className={styles.hostLine}>{room.hostNickname}님의 방</div>
               <div className={styles.playerNames}>
                 {room.players.map((p) => p.nickname).join(", ") || "(없음)"}
               </div>
@@ -176,7 +179,7 @@ export function AdminDashboard({
                   <td>{new Date(event.timestamp).toLocaleTimeString()}</td>
                   <td>{event.type === "join" ? "입장" : "퇴장"}</td>
                   <td>{event.nickname}</td>
-                  <td>{event.roomId}</td>
+                  <td>{event.roomTitle}</td>
                   <td>{event.ip}</td>
                 </tr>
               ))}

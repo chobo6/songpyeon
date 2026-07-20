@@ -3,6 +3,7 @@ export type AdminEvent = {
   timestamp: number;
   nickname: string;
   roomId: string;
+  roomTitle: string;
   ip: string;
   sessionId: string;
 };

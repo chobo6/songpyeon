@@ -60,6 +60,10 @@ export class MatchRoom extends Room<MatchState> {
   // purpose now that maxClients itself is inflated to admit spectators
   // (see MAX_CLIENTS_WITH_SPECTATORS). Set once in onCreate.
   private playerCapacity = 0;
+  // 관리자 페이지의 입장/퇴장 로그가 방 번호(roomId) 대신 실제 방 제목을 보여줄 수
+  // 있도록 저장해둠 — metadata는 setMetadata 호출 시점에만 갱신되고 그 자체를 다시
+  // 읽어오는 API가 room 안에 따로 없어서, 값 자체를 필드로 들고 있는 게 더 간단함.
+  private roomTitle = "";
   private countdownToken = 0;
   private turnToken = 0;
   private turnsThisRound = 0;
@@ -116,8 +120,9 @@ export class MatchRoom extends Room<MatchState> {
     // anyone has joined. onJoin's later setMetadata calls (players,
     // hostNickname) shallow-merge on top of this, not over it.
     const roomTitle = sanitizeRoomTitle(options.roomTitle);
+    this.roomTitle = roomTitle || "이름 없는 방";
     await this.setMetadata({
-      roomTitle: roomTitle || "이름 없는 방",
+      roomTitle: this.roomTitle,
       playerCapacity: this.playerCapacity,
       allowSpectators: this.allowSpectators,
       phase: "lobby",
@@ -220,6 +225,7 @@ export class MatchRoom extends Room<MatchState> {
       timestamp: Date.now(),
       nickname: player.nickname,
       roomId: this.roomId,
+      roomTitle: this.roomTitle,
       ip: String(client.auth?.ip ?? "unknown"),
       sessionId: client.sessionId,
     });
@@ -246,6 +252,7 @@ export class MatchRoom extends Room<MatchState> {
       timestamp: Date.now(),
       nickname: leavingNickname,
       roomId: this.roomId,
+      roomTitle: this.roomTitle,
       ip: String(client.auth?.ip ?? "unknown"),
       sessionId: client.sessionId,
     });
