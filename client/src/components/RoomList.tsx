@@ -11,7 +11,7 @@ export function RoomList({
   onJoinRoom,
   onExit,
 }: {
-  onCreateRoom: (title: string, teamCount: number) => void;
+  onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
 }) {
@@ -81,9 +81,9 @@ export function RoomList({
       {showCreateModal && (
         <CreateRoomModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(title, teamCount) => {
+          onCreate={(title, teamCount, allowSpectators) => {
             setShowCreateModal(false);
-            onCreateRoom(title, teamCount);
+            onCreateRoom(title, teamCount, allowSpectators);
           }}
         />
       )}

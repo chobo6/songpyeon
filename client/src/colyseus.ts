@@ -43,7 +43,7 @@ export async function getRanking(): Promise<RankingEntry[]> {
 }
 
 export type JoinSpec =
-  | { type: "create"; teamCount: number; roomTitle: string }
+  | { type: "create"; teamCount: number; roomTitle: string; allowSpectators: boolean }
   | { type: "joinById"; roomId: string }
   | { type: "reconnect" };
 
@@ -79,7 +79,11 @@ let roomPromise: Promise<Room<unknown>> | null = null;
 // (MatchRoom.onAuth/onJoin 참고).
 async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
   if (spec.type === "create") {
-    const room = await client.create<T>("match", { teamCount: spec.teamCount, roomTitle: spec.roomTitle });
+    const room = await client.create<T>("match", {
+      teamCount: spec.teamCount,
+      roomTitle: spec.roomTitle,
+      allowSpectators: spec.allowSpectators,
+    });
     storeReconnectToken(room);
     return room;
   }
