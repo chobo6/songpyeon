@@ -9,7 +9,8 @@
     "predev": "node kill-ports.js",
     "dev": "concurrently -n server,client -c cyan,green \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
     "dev:client": "npm run dev --workspace client",
-    "dev:server": "npm run dev --workspace server"
+    "dev:server": "npm run dev --workspace server",
+    "sync-public": "node sync-public.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

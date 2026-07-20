@@ -9,6 +9,8 @@
 npm run dev          # server(2567)+client(5173) 동시 실행. predev가 두 포트 점유 프로세스 먼저 정리함
 npm run dev:server   # server만
 npm run dev:client   # client만
+npm run sync-public  # client 빌드 후 server/public에 복사 (관리자 페이지/구글 로그인처럼
+                      # same-origin이 필요한 기능을 로컬 2567 포트에서 확인할 때)
 ```
 
 server/:
@@ -72,8 +74,10 @@ npm run lint   # oxlint
 - **관리자 페이지(`/admin`)와 구글 로그인은 같은 오리진에서만 동작함** — `client/src/components/Admin*.tsx`와
   `game/auth.ts`는 상대경로(`/api/admin/...`, `/api/auth/...`)로 `fetch`하는데, `npm run dev`의
   Vite 서버(5173)와 게임 서버(2567)는 서로 다른 오리진이라 쿠키 기반 세션이 안 통함. 로컬에서
-  관리자 페이지를 확인하려면 `npm run build --workspace client` 후 그 결과물을 `server/public`에
-  복사해(Dockerfile이 하는 방식 재현) `server`가 직접 서빙하게 해야 함. 실제 배포(Caddy 뒤)는 항상
+  이 기능들을 확인하려면 `npm run sync-public`으로 client를 빌드해 `server/public`에 복사한 뒤
+  (Dockerfile이 하는 방식 재현) `server`가 직접 서빙하는 2567 포트로 접속해야 함. client 코드를
+  고칠 때마다 다시 실행해야 반영됨 — 실행을 깜빡하면 옛 빌드가 그대로 서빙되는데 화면상으로는
+  구분이 안 가서 "코드는 고쳤는데 반영이 안 된다"처럼 보이기 쉬움. 실제 배포(Caddy 뒤)는 항상
   같은 오리진이라 문제없음.
 - **서버 환경변수(`GOOGLE_CLIENT_ID`/`SESSION_JWT_SECRET`/`ADMIN_PASSWORD`)는 `server/.env`에서
   읽음** (`server/src/index.ts`가 시작 시 `dotenv/config`로 로드, git에는 안 올라감 —
