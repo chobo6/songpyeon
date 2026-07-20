@@ -55,7 +55,7 @@ export type JoinSpec =
 // reconnectGraceSeconds) 오래 남아있어도 재접속 시도가 실패할 뿐 위험하지 않다.
 const RECONNECT_TOKEN_KEY = "songpyeon:reconnectToken";
 
-function storeReconnectToken(room: Room<any>) {
+function storeReconnectToken<T>(room: Room<T>) {
   if (room.reconnectionToken) localStorage.setItem(RECONNECT_TOKEN_KEY, room.reconnectionToken);
 }
 
