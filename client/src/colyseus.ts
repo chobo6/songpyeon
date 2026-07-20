@@ -1,10 +1,14 @@
 import { Client, type Room } from "colyseus.js";
 
-const endpoint =
-  import.meta.env.VITE_SERVER_URL ??
-  (import.meta.env.PROD
-    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
-    : "ws://localhost:2567");
+// PROD builds always derive the endpoint from the page's own origin — both
+// the real deploy (behind Caddy) and a local `npm run sync-public` test on
+// :2567 rely on the game connection landing on the same host that served
+// the page, since the login session cookie is host-scoped and won't ride
+// along to a different host (e.g. client/.env.local's LAN IP, meant only
+// for dev-mode mobile testing — see VITE_SERVER_URL's own comment there).
+const endpoint = import.meta.env.PROD
+  ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`
+  : (import.meta.env.VITE_SERVER_URL ?? "ws://localhost:2567");
 
 export const client = new Client(endpoint);
 
