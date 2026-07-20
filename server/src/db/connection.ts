@@ -11,7 +11,7 @@ export function createDb(filename: string): Database.Database {
       name TEXT,
       nickname TEXT,
       max_round INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
   // SQLite's UNIQUE index treats each NULL as distinct from every other NULL,
@@ -30,6 +30,18 @@ export function createDb(filename: string): Database.Database {
   );
   if (!hasMaxRound) {
     db.exec(`ALTER TABLE users ADD COLUMN max_round INTEGER NOT NULL DEFAULT 0`);
+  }
+
+  // created_at used to default to UTC (datetime('now')); rows written before
+  // this changed to KST (+9 hours, above and in getOrCreateUser's INSERT)
+  // still hold UTC values. user_version gates the one-time shift so it never
+  // re-runs on a later startup and drifts already-corrected rows forward
+  // again — SQLite databases default to user_version 0 and nothing else in
+  // this app touches that pragma.
+  const schemaVersion = db.pragma("user_version", { simple: true }) as number;
+  if (schemaVersion < 1) {
+    db.exec(`UPDATE users SET created_at = datetime(created_at, '+9 hours')`);
+    db.pragma("user_version = 1");
   }
 
   return db;

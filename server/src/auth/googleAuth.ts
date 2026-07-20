@@ -31,8 +31,8 @@ export type UserProfile = { id: number; nickname: string | null };
 // 덮어쓰면 안 되기 때문 (신규 생성 시에만 nickname은 NULL로 남는다).
 export function getOrCreateUser(googleSub: string, info: { email?: string; name?: string }): UserProfile {
   db.prepare(
-    `INSERT INTO users (google_sub, email, name)
-     VALUES (?, ?, ?)
+    `INSERT INTO users (google_sub, email, name, created_at)
+     VALUES (?, ?, ?, datetime('now', '+9 hours'))
      ON CONFLICT(google_sub) DO UPDATE SET
        email = COALESCE(excluded.email, users.email),
        name = COALESCE(excluded.name, users.name)`,
