@@ -6,8 +6,9 @@ import cookieParser from "cookie-parser";
 import { Server, matchMaker } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
-import { checkPassword, createSession, destroySession, requireAdmin } from "./admin/auth";
+import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
 import { getEvents } from "./admin/eventLog";
+import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
 import { getOnlineUsers, touchPresence } from "./admin/presence";
 import {
@@ -26,6 +27,13 @@ const clientDistPath = path.join(__dirname, "../public");
 
 export function createGameServer(): Server {
   const app = express();
+  // Caddy is the only reverse proxy in front of this app (see CLAUDE.md) —
+  // trusting it lets Express read the real client IP (X-Forwarded-For, used
+  // by the admin login rate limiter below) and the real protocol
+  // (X-Forwarded-Proto, used for req.secure so cookies can be marked
+  // Secure in production without hardcoding a NODE_ENV check that could
+  // drift from how the app is actually being served).
+  app.set("trust proxy", true);
   app.use(express.static(clientDistPath));
   app.use(express.json());
   app.use(cookieParser());
@@ -73,13 +81,25 @@ export function createGameServer(): Server {
   });
 
   app.post("/api/admin/login", (req, res) => {
+    if (isRateLimited(req.ip ?? "unknown")) {
+      res.status(429).json({ error: "시도 횟수를 초과했어요. 15분 후 다시 시도해주세요." });
+      return;
+    }
+
     const { password } = req.body as { password?: unknown };
     if (typeof password !== "string" || !checkPassword(password)) {
+      recordFailedAttempt(req.ip ?? "unknown");
       res.status(401).json({ error: "invalid password" });
       return;
     }
+    recordSuccessfulLogin(req.ip ?? "unknown");
     const token = createSession();
-    res.cookie("admin_session", token, { httpOnly: true, sameSite: "lax" });
+    res.cookie("admin_session", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: req.secure,
+      maxAge: SESSION_TTL_MS,
+    });
     res.json({ ok: true });
   });
 
@@ -176,7 +196,12 @@ export function createGameServer(): Server {
       const { sub, email, name } = await verifyGoogleIdToken(credential);
       const user = getOrCreateUser(sub, { email, name });
       const token = signSession(user.id);
-      res.cookie(SESSION_COOKIE_NAME, token, { httpOnly: true, sameSite: "lax", maxAge: SESSION_MAX_AGE_MS });
+      res.cookie(SESSION_COOKIE_NAME, token, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: req.secure,
+        maxAge: SESSION_MAX_AGE_MS,
+      });
       res.json({ id: user.id, nickname: user.nickname });
     } catch (err) {
       console.error("구글 로그인 실패:", err);
