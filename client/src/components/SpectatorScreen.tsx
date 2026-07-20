@@ -12,12 +12,14 @@ export function SpectatorScreen({
   room,
   activeTeam,
   eliminated,
+  isSpectator,
   clockOffsetMs,
   onLeave,
 }: {
   room: Room<MatchState>;
   activeTeam: TeamState;
   eliminated: boolean;
+  isSpectator: boolean;
   clockOffsetMs: number;
   onLeave: () => void;
 }) {
@@ -61,7 +63,10 @@ export function SpectatorScreen({
     .join(",");
 
   function handleLeaveClick() {
-    if (matchOver) {
+    // 관전자는 재경기를 요청할 자격이 없다 — 매치가 끝나면(matchOver) 곧 Game.tsx의
+    // 자동 퇴장 effect가 방을 나가게 하겠지만, 그 전에 직접 "나가기"를 누르는 경우에도
+    // 그냥 나가야지 rematch를 보내면 안 된다.
+    if (matchOver && !isSpectator) {
       room.send("rematch");
       return;
     }
