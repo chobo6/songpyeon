@@ -975,6 +975,39 @@ describe("MatchRoom", () => {
     expect(room.state.phase).toBe("lobby");
   });
 
+  test(
+    "phase is mirrored into room metadata when the match starts and resets to lobby on rematch",
+    async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        teamCount: 1,
+        turnDurationMs: SHORT_TURN_MS,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+      });
+      const clients: ClientRoom<MatchState>[] = [];
+      for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+        const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+        client.send("chooseRole", { role });
+        clients.push(client);
+      }
+      await flush();
+      await waitForCountdown();
+
+      expect((room.metadata as { phase?: string })?.phase).toBe("playing");
+
+      // fail every turn until the single team is eliminated (isMatchOver).
+      while (room.state.teams.some((t) => !t.eliminated)) {
+        await wait(SHORT_TURN_MS + 200);
+      }
+
+      clients[0].send("rematch");
+      await flush();
+
+      expect(room.state.phase).toBe("lobby");
+      expect((room.metadata as { phase?: string })?.phase).toBe("lobby");
+    },
+    15000,
+  );
+
   describe("admin event log integration", () => {
     test("onJoin records a join event and updates the room's player roster metadata", async () => {
       resetEventLog();

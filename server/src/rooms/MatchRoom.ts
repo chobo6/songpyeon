@@ -120,6 +120,7 @@ export class MatchRoom extends Room<MatchState> {
       roomTitle: roomTitle || "이름 없는 방",
       playerCapacity: this.playerCapacity,
       allowSpectators: this.allowSpectators,
+      phase: "lobby",
     });
 
     this.onMessage("chooseRole", (client, message: { role: "pig" | "rabbit" }) => {
@@ -415,12 +416,18 @@ export class MatchRoom extends Room<MatchState> {
     this.setPrivate(false);
   }
 
-  private beginPlaying() {
+  private async beginPlaying() {
     this.state.phase = "playing";
     this.state.round = 1;
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;
     this.teamsAliveAtRoundStart = this.state.teams.length;
+    // room.locked (what /api/rooms used to read) never becomes true anymore
+    // now that maybeStartGame uses setPrivate instead of lock() — the public
+    // room list needs some other signal for "this match is in progress," so
+    // phase is mirrored into metadata here and reset to "lobby" in
+    // handleRematch.
+    await this.setMetadata({ phase: "playing" });
     this.startTurn();
   }
 
@@ -461,7 +468,7 @@ export class MatchRoom extends Room<MatchState> {
   // fires, silently applying one more mortar loss (and possibly starting a
   // phantom turn) to the new lobby before anyone has picked a role for the
   // next match. See docs/TROUBLESHOOTING.md #21.
-  private handleRematch() {
+  private async handleRematch() {
     if (this.state.phase !== "playing" || !this.isMatchOver()) return;
 
     this.invalidateInFlightTurn();
@@ -492,6 +499,7 @@ export class MatchRoom extends Room<MatchState> {
     // mid-match) can be backfilled by a new joiner while the room sits in
     // "lobby" again.
     this.setPrivate(false);
+    await this.setMetadata({ phase: "lobby" });
   }
 
   private startTurn() {
