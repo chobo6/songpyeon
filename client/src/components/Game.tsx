@@ -4,6 +4,7 @@ import type { MatchState } from "../game/matchTypes";
 import { RoleSelect } from "./RoleSelect";
 import { MyTurnScreen } from "./MyTurnScreen";
 import { SpectatorScreen } from "./SpectatorScreen";
+import { SpectatorCountBadge } from "./SpectatorCountBadge";
 import { BgmPlayer } from "./BgmPlayer";
 
 export function Game({
@@ -67,6 +68,7 @@ export function Game({
   return (
     <>
       <BgmPlayer />
+      {phase === "playing" && <SpectatorCountBadge room={room} />}
       {screen}
     </>
   );
