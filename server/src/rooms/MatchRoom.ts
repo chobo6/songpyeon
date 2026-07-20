@@ -172,7 +172,18 @@ export class MatchRoom extends Room<MatchState> {
   async onJoin(client: Client, _options: MatchRoomOptions = {}) {
     if (this.state.players.has(client.sessionId) || this.state.spectators.has(client.sessionId)) return;
 
-    if (this.state.phase !== "lobby") {
+    // The roster is genuinely still open for a new PLAYER only while phase
+    // is "lobby" AND no countdown is running — the countdown starting is
+    // exactly what makes maybeStartGame() setPrivate(true) the room and flip
+    // metadata.phase to "playing" early (see maybeStartGame's own comment),
+    // so the room list already advertises this room as "관전하기", not
+    // "입장", for that whole window. Routing purely on `state.phase` here
+    // would miss that window (phase itself doesn't flip to "playing" until
+    // beginPlaying() runs) and reject the joiner outright with "방이 가득
+    // 찼습니다" instead of seating them as a spectator — a real bug reported
+    // after the countdown-window room-list fix above.
+    const rosterOpenForPlayers = this.state.phase === "lobby" && this.state.countdownSecondsLeft === 0;
+    if (!rosterOpenForPlayers) {
       if (!this.allowSpectators) {
         throw new Error("이 방은 관전을 허용하지 않습니다.");
       }

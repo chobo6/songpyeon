@@ -222,6 +222,30 @@ describe("MatchRoom", () => {
     expect((room.metadata as { phase?: string })?.phase).toBe("lobby");
   });
 
+  test("a client joining while the pre-game countdown is running becomes a spectator instead of being rejected", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+    expect(room.state.phase).toBe("lobby");
+    expect(room.state.countdownSecondsLeft).toBeGreaterThan(0);
+
+    // The room list already shows this room as "관전하기" during the
+    // countdown (metadata.phase is "playing" — see the test above) — a join
+    // attempt now must actually be seated as a spectator, not rejected with
+    // "방이 가득 찼습니다" the way a genuinely-still-open lobby would reject
+    // an overflow player. Before the fix, this line itself would throw.
+    const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
+    await flush();
+
+    expect(room.state.spectators.has(spectatorClient.sessionId)).toBe(true);
+    expect(room.state.players.has(spectatorClient.sessionId)).toBe(false);
+  });
+
   test("role picking is blocked once the pre-game countdown has started", async () => {
     const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
     const clients: ClientRoom<MatchState>[] = [];
