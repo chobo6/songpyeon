@@ -23,6 +23,20 @@ function ConnectedOnlineFlow({ joinSpec, onExit }: { joinSpec: JoinSpec; onExit:
     onExit();
   }
 
+  // A failed auto-reconnect attempt (stale/expired token) falls back to the
+  // normal room list silently instead of an error screen — from here there's
+  // no way to tell "genuinely expired mid-match reconnect" apart from "token
+  // left over from just sitting in the lobby or a finished match", and an
+  // error screen implying the latter mid-match story would usually be wrong.
+  // See docs/superpowers/specs/2026-07-20-mid-match-reconnection-design.md,
+  // "데이터 흐름 요약" 3-b.
+  useEffect(() => {
+    if (joinSpec.type === "reconnect" && status === "error") {
+      handleExit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   if (status !== "connected" || !room) {
     return (
       <main className="connecting">
