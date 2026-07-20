@@ -1,6 +1,6 @@
 import { Room, Client, type AuthContext } from "colyseus";
 import type { ArraySchema } from "@colyseus/schema";
-import { MatchState, PlayerState, TeamState, ChatMessage } from "./MatchState";
+import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from "./MatchState";
 import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
@@ -19,6 +19,14 @@ const DEFAULT_COUNTDOWN_TICK_MS = 1000;
 const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
 const DEFAULT_RECONNECT_GRACE_SECONDS = 20;
+// Colyseus rejects ANY join (joinOrCreate AND joinById) once
+// clients.length + reservedSeats reaches maxClients — that check happens
+// before onJoin ever runs, so maxClients can't be used to cap "player"
+// seats only once spectators need to keep connecting past that point. Set
+// generously high so a full room of players never blocks a spectator's
+// joinById; the real player-seat limit is enforced by playerCapacity
+// instead (see onJoin).
+const MAX_CLIENTS_WITH_SPECTATORS = 1000;
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
@@ -34,6 +42,11 @@ interface MatchRoomOptions {
   // (see onLeave). Overridable so tests can shrink it instead of waiting
   // out the real default.
   reconnectGraceSeconds?: number;
+  // Whether a client joining after the match has already started (phase
+  // !== "lobby") is allowed to join as a spectator instead of being
+  // rejected outright. Defaults to true — only an explicit `false` opts a
+  // room out (see onCreate).
+  allowSpectators?: unknown;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -42,6 +55,11 @@ export class MatchRoom extends Room<MatchState> {
   private turnDurationMs = DEFAULT_TURN_DURATION_MS;
   private countdownTickMs = DEFAULT_COUNTDOWN_TICK_MS;
   private reconnectGraceSeconds = DEFAULT_RECONNECT_GRACE_SECONDS;
+  private allowSpectators = true;
+  // Real player-seat cap (teamCount * 2) — replaces maxClients for that
+  // purpose now that maxClients itself is inflated to admit spectators
+  // (see MAX_CLIENTS_WITH_SPECTATORS). Set once in onCreate.
+  private playerCapacity = 0;
   private countdownToken = 0;
   private turnToken = 0;
   private turnsThisRound = 0;
@@ -62,6 +80,7 @@ export class MatchRoom extends Room<MatchState> {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
     if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
     if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
+    this.allowSpectators = options.allowSpectators !== false;
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -79,7 +98,8 @@ export class MatchRoom extends Room<MatchState> {
     // maybeStartGame()'s readiness check and handleChooseRole()'s slot
     // search, both of which assume every team has exactly one pig and one
     // rabbit slot.
-    this.maxClients = teamCount * 2;
+    this.playerCapacity = teamCount * 2;
+    this.maxClients = MAX_CLIENTS_WITH_SPECTATORS;
 
     const state = new MatchState();
     for (let i = 0; i < teamCount; i++) {
@@ -96,7 +116,11 @@ export class MatchRoom extends Room<MatchState> {
     // anyone has joined. onJoin's later setMetadata calls (players,
     // hostNickname) shallow-merge on top of this, not over it.
     const roomTitle = sanitizeRoomTitle(options.roomTitle);
-    await this.setMetadata({ roomTitle: roomTitle || "이름 없는 방" });
+    await this.setMetadata({
+      roomTitle: roomTitle || "이름 없는 방",
+      playerCapacity: this.playerCapacity,
+      allowSpectators: this.allowSpectators,
+    });
 
     this.onMessage("chooseRole", (client, message: { role: "pig" | "rabbit" }) => {
       this.handleChooseRole(client, message.role);
@@ -145,10 +169,25 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   async onJoin(client: Client, _options: MatchRoomOptions = {}) {
-    if (this.state.players.has(client.sessionId)) return;
+    if (this.state.players.has(client.sessionId) || this.state.spectators.has(client.sessionId)) return;
 
     if (this.state.phase !== "lobby") {
-      throw new Error("Match already in progress");
+      if (!this.allowSpectators) {
+        throw new Error("이 방은 관전을 허용하지 않습니다.");
+      }
+      const spectator = new SpectatorState();
+      spectator.sessionId = client.sessionId;
+      spectator.nickname = client.auth?.nickname ?? "관전자";
+      this.state.spectators.set(client.sessionId, spectator);
+      return;
+    }
+
+    // maxClients is now inflated to admit spectators (see
+    // MAX_CLIENTS_WITH_SPECTATORS), so Colyseus's own seat-reservation check
+    // no longer caps how many players can join the lobby — playerCapacity
+    // does that job now.
+    if (this.state.players.size >= this.playerCapacity) {
+      throw new Error("방이 가득 찼습니다.");
     }
 
     // The first player to actually join (not the one who called client.create())
@@ -181,6 +220,13 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   async onLeave(client: Client, consented: boolean) {
+    // 관전자는 재접속 유예도, 이벤트 로그도, 퇴장 채팅 안내도 없이 즉시 제거한다 —
+    // 그냥 다시 관전 입장하면 되므로 플레이어 쪽 onLeave 로직과 완전히 분리해둔다.
+    if (this.state.spectators.has(client.sessionId)) {
+      this.state.spectators.delete(client.sessionId);
+      return;
+    }
+
     console.log(`[leave] session=${client.sessionId} ip=${client.auth?.ip}`);
     const leavingNickname = this.state.players.get(client.sessionId)?.nickname ?? "?";
     recordEvent({
@@ -252,10 +298,18 @@ export class MatchRoom extends Room<MatchState> {
     if (!text) return;
 
     const player = this.state.players.get(client.sessionId);
-    if (!player) return;
+    if (player) {
+      const list = this.state.phase === "lobby" ? this.state.lobbyChat : this.state.matchChat;
+      this.pushChat(list, player.nickname, text);
+      return;
+    }
 
-    const list = this.state.phase === "lobby" ? this.state.lobbyChat : this.state.matchChat;
-    this.pushChat(list, player.nickname, text);
+    const spectator = this.state.spectators.get(client.sessionId);
+    if (spectator) {
+      // 관전자는 진행 중인 매치(phase !== "lobby")에만 존재할 수 있으므로
+      // (onJoin 참고) 항상 matchChat으로 보낸다.
+      this.pushChat(this.state.matchChat, `${spectator.nickname} (관전)`, text);
+    }
   }
 
   private pushChat(list: ArraySchema<ChatMessage>, nickname: string, text: string) {
@@ -309,24 +363,18 @@ export class MatchRoom extends Room<MatchState> {
     const ready = this.state.teams.every((t) => t.pigSessionId !== "" && t.rabbitSessionId !== "");
     if (!ready || this.state.countdownSecondsLeft > 0) return;
 
-    // Colyseus auto-unlocks a maxClients-triggered lock the moment any
-    // client leaves (see _decrementClientCount), which would put this room
-    // back in joinOrCreate's matchmaking pool the instant an eliminated
-    // player leaves — exactly when we most need it hidden. An explicit
-    // lock() is not undone by that auto-unlock (it only fires when
-    // !_lockedExplicitly), so it's the real defense. Locked here (countdown
-    // start) rather than only once play begins, since the roster is already
-    // final and must not accept new joiners during the countdown either.
-    //
-    // maxClients stays at its fixed default (4, the class field above) —
-    // it must NOT be reassigned to room.clients.length here. Since lobby
-    // reconnection grace was added, a filled role slot can be held by a
-    // sessionId that's currently mid-grace (disconnected, not in
-    // room.clients), so room.clients.length at this exact moment can be
-    // less than 4 even though all 4 roles are genuinely taken — locking
-    // maxClients to that undercount would permanently cap the match below
-    // its real size.
-    this.lock();
+    // setPrivate (not lock()) to keep this room out of joinOrCreate's
+    // matchmaking pool once the roster is final — lock() would also make
+    // Colyseus's matchmaker reject spectators' joinById calls outright
+    // (checked before onJoin ever runs, same class of problem as maxClients
+    // — see MAX_CLIENTS_WITH_SPECTATORS above), which is exactly the path
+    // spectators need. private has no such effect on joinById, and (unlike
+    // an implicit maxClients-triggered lock) is never auto-toggled by
+    // Colyseus itself — only abortCountdown/handleRematch undo it below.
+    // Set here (countdown start) rather than only once play begins, since
+    // the roster is already final and must not accept new joiners during
+    // the countdown either.
+    this.setPrivate(true);
     this.startCountdown();
   }
 
@@ -360,11 +408,11 @@ export class MatchRoom extends Room<MatchState> {
     if (this.state.countdownSecondsLeft === 0) return;
     this.state.countdownSecondsLeft = 0;
     this.countdownToken++;
-    // maybeStartGame() locked the room the instant the countdown began (to
-    // stop new joins while it's running) — cancelling it must undo that, or
-    // the now-short-a-player room stays locked forever and no one can fill
-    // the freed slot.
-    this.unlock();
+    // maybeStartGame() made the room private the instant the countdown began
+    // (to keep it out of joinOrCreate matchmaking while it's running) —
+    // cancelling it must undo that, or the now-short-a-player room stays
+    // hidden forever and no one can matchmake into the freed slot.
+    this.setPrivate(false);
   }
 
   private beginPlaying() {
@@ -439,10 +487,11 @@ export class MatchRoom extends Room<MatchState> {
       player.teamId = "";
     }
 
-    // maybeStartGame()'s lock() from the match that just ended is still in
-    // effect — undo it so a freed slot (e.g. someone left mid-match) can be
-    // backfilled by a new joiner while the room sits in "lobby" again.
-    this.unlock();
+    // maybeStartGame()'s setPrivate(true) from the match that just ended is
+    // still in effect — undo it so a freed slot (e.g. someone left
+    // mid-match) can be backfilled by a new joiner while the room sits in
+    // "lobby" again.
+    this.setPrivate(false);
   }
 
   private startTurn() {

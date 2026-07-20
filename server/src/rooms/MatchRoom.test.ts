@@ -452,18 +452,19 @@ describe("MatchRoom", () => {
     expect(room.metadata?.hostNickname).toBe("방장");
   });
 
-  test("onCreate builds the requested number of teams and sizes maxClients to match", async () => {
+  test("onCreate builds the requested number of teams and sizes playerCapacity to match (maxClients is now fixed and inflated to admit spectators — see MAX_CLIENTS_WITH_SPECTATORS)", async () => {
     const oneTeam = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
     expect(oneTeam.state.teams).toHaveLength(1);
-    expect(oneTeam.maxClients).toBe(2);
+    expect((oneTeam.metadata as { playerCapacity?: number })?.playerCapacity).toBe(2);
+    expect(oneTeam.maxClients).toBeGreaterThan(2);
 
     const threeTeams = await colyseus.createRoom<MatchState>("match", { teamCount: 3 });
     expect(threeTeams.state.teams.map((t) => t.id)).toEqual(["team-1", "team-2", "team-3"]);
-    expect(threeTeams.maxClients).toBe(6);
+    expect((threeTeams.metadata as { playerCapacity?: number })?.playerCapacity).toBe(6);
 
     const fourTeams = await colyseus.createRoom<MatchState>("match", { teamCount: 4 });
     expect(fourTeams.state.teams.map((t) => t.id)).toEqual(["team-1", "team-2", "team-3", "team-4"]);
-    expect(fourTeams.maxClients).toBe(8);
+    expect((fourTeams.metadata as { playerCapacity?: number })?.playerCapacity).toBe(8);
   });
 
   test("onCreate sets the room title in metadata immediately, before anyone joins", async () => {
@@ -477,11 +478,11 @@ describe("MatchRoom", () => {
   test("onCreate defaults to 2 teams for a missing or out-of-range teamCount", async () => {
     const missing = await colyseus.createRoom<MatchState>("match");
     expect(missing.state.teams).toHaveLength(2);
-    expect(missing.maxClients).toBe(4);
+    expect((missing.metadata as { playerCapacity?: number })?.playerCapacity).toBe(4);
 
     const outOfRange = await colyseus.createRoom<MatchState>("match", { teamCount: 7 });
     expect(outOfRange.state.teams).toHaveLength(2);
-    expect(outOfRange.maxClients).toBe(4);
+    expect((outOfRange.metadata as { playerCapacity?: number })?.playerCapacity).toBe(4);
   });
 
   test("a 3-team room starts once all 3 teams have a pig and a rabbit", async () => {
@@ -792,19 +793,77 @@ describe("MatchRoom", () => {
     },
   );
 
-  test("a room in progress rejects a new connection attempt", async () => {
-    const { room } = await fillRolesAndStart();
+  test("a room in progress with spectators disabled rejects a new connection attempt", async () => {
+    const { room } = await fillRolesAndStart({ allowSpectators: false });
 
     await expect(connectAsUser(colyseus, room, "플레이어")).rejects.toThrow();
   });
 
-  test("a room still rejects new connections after a player leaves (maxClients lock can be auto-unlocked by Colyseus)", async () => {
-    const { room, clients } = await fillRolesAndStart();
+  test("a room with spectators disabled still rejects new connections after a player leaves (maxClients lock can be auto-unlocked by Colyseus)", async () => {
+    const { room, clients } = await fillRolesAndStart({ allowSpectators: false });
 
     await clients[0].leave();
     await flush();
 
     await expect(connectAsUser(colyseus, room, "플레이어")).rejects.toThrow();
+  });
+
+  test("a client joining an in-progress match becomes a spectator, not a player", async () => {
+    const { room } = await fillRolesAndStart();
+    const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
+    await flush();
+
+    expect(room.state.spectators.has(spectatorClient.sessionId)).toBe(true);
+    expect(room.state.spectators.get(spectatorClient.sessionId)?.nickname).toBe("관전자1");
+    expect(room.state.players.has(spectatorClient.sessionId)).toBe(false);
+  });
+
+  test("a spectator joining after a player left does not backfill the vacated player slot", async () => {
+    const { room, clients } = await fillRolesAndStart();
+    const vacatedTeam = room.state.teams.find((t) => t.pigSessionId === clients[0].sessionId)!;
+
+    await clients[0].leave();
+    await flush();
+
+    const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
+    await flush();
+
+    expect(room.state.spectators.has(spectatorClient.sessionId)).toBe(true);
+    expect(vacatedTeam.pigSessionId).toBe("");
+  });
+
+  test("a spectator leaving is removed immediately, without reconnection grace", async () => {
+    const { room } = await fillRolesAndStart();
+    const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
+    await flush();
+
+    await spectatorClient.leave(false); // non-consented, same as a dropped connection
+    await flush();
+
+    expect(room.state.spectators.has(spectatorClient.sessionId)).toBe(false);
+  });
+
+  test("a spectator's chat message is tagged with (관전) and only appears in matchChat", async () => {
+    const { room } = await fillRolesAndStart();
+    const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
+    await flush();
+    const lobbyChatCountBefore = room.state.lobbyChat.length;
+
+    spectatorClient.send("sendChat", { text: "안녕하세요" });
+    await flush();
+
+    expect(room.state.matchChat[room.state.matchChat.length - 1].nickname).toBe("관전자1 (관전)");
+    expect(room.state.matchChat[room.state.matchChat.length - 1].text).toBe("안녕하세요");
+    expect(room.state.lobbyChat).toHaveLength(lobbyChatCountBefore);
+  });
+
+  test("the lobby still rejects a join once every player slot is taken", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+    await connectAsUser(colyseus, room, "플레이어1");
+    await connectAsUser(colyseus, room, "플레이어2");
+    await flush();
+
+    await expect(connectAsUser(colyseus, room, "플레이어3")).rejects.toThrow();
   });
 
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {

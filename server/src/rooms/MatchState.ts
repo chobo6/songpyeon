@@ -26,6 +26,11 @@ export class ChatMessage extends Schema {
   @type("number") sentAt: number = 0;
 }
 
+export class SpectatorState extends Schema {
+  @type("string") sessionId: string = "";
+  @type("string") nickname: string = "";
+}
+
 export class MatchState extends Schema {
   @type("string") phase: Phase = "lobby";
   // 0 = no countdown running. Counts down 3→2→1 once every team has a pig
@@ -44,4 +49,7 @@ export class MatchState extends Schema {
   // commentary don't mix), each capped at MAX_CHAT_MESSAGES in MatchRoom.ts.
   @type([ChatMessage]) lobbyChat = new ArraySchema<ChatMessage>();
   @type([ChatMessage]) matchChat = new ArraySchema<ChatMessage>();
+  // 실제 플레이어(players)와 완전히 분리된 맵 — 재경기 시 역할 초기화 로직이나
+  // 방장 판정 등 기존 players 관련 코드를 하나도 안 건드리고 얹기 위함.
+  @type({ map: SpectatorState }) spectators = new MapSchema<SpectatorState>();
 }

@@ -28,6 +28,11 @@ export interface ChatMessage {
   sentAt: number;
 }
 
+export interface SpectatorState {
+  sessionId: string;
+  nickname: string;
+}
+
 export interface MatchState {
   phase: Phase;
   countdownSecondsLeft: number;
@@ -41,4 +46,5 @@ export interface MatchState {
   turnOutcome: TurnOutcome;
   lobbyChat: ChatMessage[];
   matchChat: ChatMessage[];
+  spectators: Map<string, SpectatorState>;
 }
