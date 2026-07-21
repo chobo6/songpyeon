@@ -3,11 +3,12 @@ import { boot, ColyseusTestServer } from "@colyseus/testing";
 import type { Room as ClientRoom } from "colyseus.js";
 import { Client as ColyseusJsClient } from "colyseus.js";
 import type { Room as ServerRoom } from "colyseus";
+import { MatchRoom } from "./MatchRoom";
 import { createGameServer } from "../createServer";
 import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors";
 import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
-import { getOrCreateUser, setNickname } from "../auth/googleAuth";
+import { getOrCreateUser, setNickname, setUserBanned } from "../auth/googleAuth";
 import { signSession } from "../auth/session";
 import { db } from "../db/connection";
 
@@ -1157,6 +1158,49 @@ describe("MatchRoom", () => {
       await flush();
 
       expect(getEvents().filter((e) => e.type === "leave")).toHaveLength(0);
+    });
+  });
+
+  describe("user ban", () => {
+    test("onAuth rejects a banned user's join attempt", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      testUserCounter += 1;
+      const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+      setNickname(user.id, "밴유저");
+      setUserBanned(user.id, true);
+      const token = signSession(user.id);
+      const port = (colyseus.server as unknown as { port: number }).port;
+      const client = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${token}` },
+      });
+
+      await expect(client.joinById<MatchState>(room.roomId)).rejects.toThrow("이용이 제한된 계정입니다");
+    });
+
+    test("kickUserId force-disconnects the given user's client from the room", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      testUserCounter += 1;
+      const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+      setNickname(user.id, "강퇴대상");
+      const token = signSession(user.id);
+      const port = (colyseus.server as unknown as { port: number }).port;
+      const client = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${token}` },
+      });
+      const joinedRoom = await client.joinById<MatchState>(room.roomId);
+      await flush();
+      expect(room.state.players.has(joinedRoom.sessionId)).toBe(true);
+
+      const kicked = (room as unknown as MatchRoom).kickUserId(user.id);
+      await flush();
+
+      expect(kicked).toBe(true);
+      expect(room.state.players.has(joinedRoom.sessionId)).toBe(false);
+    });
+
+    test("kickUserId returns false when the user isn't connected to this room", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      expect((room as unknown as MatchRoom).kickUserId(999999)).toBe(false);
     });
   });
 });

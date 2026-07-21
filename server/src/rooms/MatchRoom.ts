@@ -175,6 +175,9 @@ export class MatchRoom extends Room<MatchState> {
     if (!user || !user.nickname) {
       throw new Error("로그인이 필요합니다.");
     }
+    if (user.bannedAt) {
+      throw new Error("이용이 제한된 계정입니다.");
+    }
     return { ip: context.ip, userId: user.id, nickname: user.nickname };
   }
 
@@ -291,6 +294,19 @@ export class MatchRoom extends Room<MatchState> {
 
     this.removePlayer(client.sessionId);
     await this.setMetadata({ players: this.rosterForMetadata() });
+  }
+
+  // 관리자 밴 API에서 호출 — 이 방에 연결된 클라이언트 중 해당 유저를 찾아 서버
+  // 쪽에서 강제로 연결을 끊는다. this.clients는 플레이어/관전자 구분 없이 이
+  // 방에 연결된 모든 클라이언트를 담고 있고, client.auth는 onAuth가 반환한 값이
+  // 역할과 무관하게 그대로 들어있으므로 이 하나로 양쪽 다 찾아진다. client.leave()
+  // 호출은 정상적으로 이 방의 onLeave를 실행시켜(플레이어면 절구/로스터 정리,
+  // 관전자면 즉시 제거) 기존 퇴장 로직을 그대로 태운다.
+  kickUserId(userId: number): boolean {
+    const client = this.clients.find((c) => c.auth?.userId === userId);
+    if (!client) return false;
+    client.leave();
+    return true;
   }
 
   private rosterForMetadata(): { sessionId: string; nickname: string }[] {
