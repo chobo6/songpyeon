@@ -1204,6 +1204,34 @@ describe("MatchRoom", () => {
     });
 
     test(
+      "kickUserId during an active match drops the connection immediately, but roster cleanup follows the same reconnect-grace path as any other mid-match disconnect (not instant, unlike a lobby kick)",
+      { timeout: 20000 },
+      async () => {
+        const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 0.05 });
+        const [firstClient] = clients;
+        const sessionId = firstClient.sessionId;
+        const player = room.state.players.get(sessionId)!;
+        const userId = (
+          db.prepare(`SELECT id FROM users WHERE nickname = ?`).get(player.nickname) as { id: number }
+        ).id;
+
+        const kicked = (room as unknown as MatchRoom).kickUserId(userId);
+        expect(kicked).toBe(true);
+
+        // Unlike a lobby kick, the roster entry isn't cleared the instant
+        // client.leave() is called — it routes through the same
+        // phase === "playing" && !consented reconnect-grace branch as any
+        // other mid-match disconnect (see kickUserId's own comment).
+        await flush();
+        expect(room.state.players.has(sessionId)).toBe(true);
+
+        // Once the (shortened, for this test) grace period expires without
+        // a reconnect, cleanup happens exactly like any other abandoned seat.
+        await waitUntil(() => !room.state.players.has(sessionId));
+      },
+    );
+
+    test(
       "a user banned during their reconnection grace window is rejected on reconnect, not let back into the seat",
       { timeout: 20000 },
       async () => {

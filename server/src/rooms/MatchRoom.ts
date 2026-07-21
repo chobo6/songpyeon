@@ -327,9 +327,15 @@ export class MatchRoom extends Room<MatchState> {
   // 관리자 밴 API에서 호출 — 이 방에 연결된 클라이언트 중 해당 유저를 찾아 서버
   // 쪽에서 강제로 연결을 끊는다. this.clients는 플레이어/관전자 구분 없이 이
   // 방에 연결된 모든 클라이언트를 담고 있고, client.auth는 onAuth가 반환한 값이
-  // 역할과 무관하게 그대로 들어있으므로 이 하나로 양쪽 다 찾아진다. client.leave()
-  // 호출은 정상적으로 이 방의 onLeave를 실행시켜(플레이어면 절구/로스터 정리,
-  // 관전자면 즉시 제거) 기존 퇴장 로직을 그대로 태운다.
+  // 역할과 무관하게 그대로 들어있으므로 이 하나로 양쪽 다 찾아진다.
+  //
+  // client.leave()로 연결 자체는 항상 즉시 끊기지만, 로스터 정리 시점은 상황에
+  // 따라 다르다: 관전자거나 아직 로비 단계면 onLeave가 그 자리에서 바로 제거한다.
+  // 반면 상대가 진행 중인 매치의 플레이어면, 이 강제 종료도 여느 비정상 접속
+  // 끊김과 똑같이 onLeave의 재접속 유예(allowReconnection, 기본 20초) 경로를
+  // 그대로 타므로 로스터에서 실제로 빠지기까지 유예시간만큼 걸릴 수 있다.
+  // 그래도 그 유예시간 동안은 재접속 시도 자체가 (밴 상태를 다시 확인하는
+  // onLeave의 재접속 분기 덕에) 계속 막혀있으므로 밴이 뚫리진 않는다.
   kickUserId(userId: number): boolean {
     const client = this.clients.find((c) => c.auth?.userId === userId);
     if (!client) return false;
