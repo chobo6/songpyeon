@@ -46,6 +46,24 @@ npm run lint   # oxlint
   `main.tsx`가 `window.location.pathname === "/admin"`으로 분기(라우터 라이브러리 없음).
   설계: `docs/superpowers/specs/2026-07-19-admin-monitoring-design.md`. **로그/세션 전부
   인메모리라 서버 재시작 시 초기화됨** — 의도된 동작.
+- **민트 버튼 연타(스팸) 방어** (2026-07-21~, 온라인 매치에만 적용): 폰에 키보드/매크로를 연결해 토끼의 민트
+  버튼을 손가락 한계보다 빠르게 연타하는 부정행위를 막기 위한 서버 측 방어. `server/src/game/mintSpamGuard.ts`의
+  `isSpammedMintPress`가 직전 버튼 입력(색 무관)으로부터 `MINT_SPAM_THRESHOLD_MS`(현재 35ms) 미만이면 민트
+  버튼 입력을 조용히 무시(`MatchRoom.handlePressButton`)— 절구 감점도, 클라이언트 메시지도, 관리자 로그도
+  없음. 씹힌 시도를 포함해 매 입력마다 기준 시각을 갱신하는 자기-차단 구조라 빠른 연타가 계속되면 계속 막힘.
+  **혼자 연습 모드에는 의도적으로 적용 안 함**(로컬 전용 로직이라 부정행위와 무관). 임계값을 직접 재보기 위해
+  만들었던 계측용 임시 도구(민트 버튼만 뜨는 화면 + ms 표시 + z/x 키보드 매핑)는 검증 끝나고 삭제함 — 전체
+  코드는 `docs/TROUBLESHOOTING.md` #25에 재사용 가능하게 기록해둠.
+- **유저 밴 기능** (2026-07-21~): 관리자 유저 목록(`/admin` → 유저 정보)에서 계정을 밴/해제하는 토글.
+  `users.banned_at`(NULL이면 정상) 하나로 관리하는 영구 밴만 지원(기간제 없음), 사유 입력 UI 없음. 밴은
+  **온라인 매치 입장/생성만** 차단하고 로그인·방 목록 열람은 그대로 허용 — `MatchRoom.onAuth`가 유일한 차단
+  지점(`server/src/auth/googleAuth.ts`의 `setUserBanned`/`getUserById`가 밴 상태를 관리). 밴 즉시 강제
+  퇴장까지 처리: `POST /api/admin/users/:id/ban`이 DB 갱신 후 `matchMaker.getLocalRoomById`로 이 프로세스에
+  떠 있는 모든 방을 뒤져 `MatchRoom.kickUserId(userId)`로 연결을 끊는다(단일 프로세스 배포라 가능한 방식 —
+  `getRoomById`와 달리 `getLocalRoomById`만 실제 살아있는 룸 인스턴스를 반환함, 아래 Gotchas 참고). 로비
+  단계 강퇴는 즉시 로스터에서 빠지지만, **진행 중인 매치에서 강퇴하면 연결은 즉시 끊겨도 로스터 정리는 기존
+  재접속 유예(20초) 경로를 그대로 탐** — 그 사이 재입장이 막히는 건 별도 처리 덕분(아래 Gotchas의 Colyseus
+  재접속 항목 참고). 설계: `docs/superpowers/specs/2026-07-21-user-ban-design.md`.
 - **관리자 페이지 IP 제한** (2026-07-20~): EC2의 `/home/ec2-user/caddy/Caddyfile`이 `/admin`, `/api/admin/*` 경로를
   관리자 PC의 IP(IPv4 정확히 매치, IPv6은 뒤쪽 인터페이스 식별자가 자주 바뀌어서 앞쪽 /64 대역
   전체 허용)로만 제한하고 나머지는 403. `handle`/`handle`(첫 매치 우선, 명시적 순서 보장) 패턴으로
@@ -92,6 +110,15 @@ npm run lint   # oxlint
   `client/.env.local`과 같은 역할). 이 파일이 없거나 값이 비어있으면 구글 로그인이
   `GOOGLE_CLIENT_ID가 설정되지 않았습니다` 에러로 즉시 실패함.
 - **Windows에서 `tsx watch`(server dev)가 `server/src/**` 파일을 고칠 때마다 재시작을 시도하다 `EADDRINUSE`로 실패하는 경우가 있음** — 직전 프로세스가 포트 2567을 바로 안 놓아서 생기는 타이밍 문제로, 몇 초 뒤 재시도해서 결국 성공하기도 하고 그대로 죽은 채 예전 프로세스가 계속 응답하기도 함(콘솔에 `EADDRINUSE` 에러가 찍혀도 방 생성/입장 같은 기본 동작은 옛 코드로 계속 "정상 작동"하는 것처럼 보여서 눈치채기 어려움). 서버 쪽 파일을 고친 직후 실제 동작을 확인해야 한다면 `netstat -ano | grep :2567`로 리스닝 PID가 바뀌었는지 먼저 확인할 것 — 안 바뀌었으면 옛 코드를 테스트하고 있는 것. 확실히 하려면 `taskkill //F //PID <pid> //T`로 관련 프로세스를 다 죽이고 `npm run dev`를 처음부터 다시 실행.
+- **Colyseus의 `matchMaker.getRoomById(roomId)`는 실제 룸 인스턴스가 아니라 룸 목록 캐시(driver의 `RoomCache`)를 반환한다** — 메서드 호출이나 `state` 조작이 필요하면 `matchMaker.getLocalRoomById(roomId)`를 써야 함(이 프로세스에 살아있는 실제 `Room` 인스턴스 반환, 없으면 `undefined`). 이 프로젝트는 단일 프로세스 배포라 "이 프로세스에 있는 것만"이 곧 전부라 문제없이 쓸 수 있음. 유저 밴 기능의 강제 퇴장(`server/src/createServer.ts`의 `/api/admin/users/:id/ban`)이 이 차이 때문에 실제로 헷갈렸던 지점 — `node_modules/@colyseus/core/build/MatchMaker.js`의 `getRoomById`/`getLocalRoomById` 함수 정의 주석에 "This method does not return the actual room instance, use `getLocalRoomById` for that" 라고 명시돼 있음.
+- **Colyseus의 재접속(`allowReconnection`)은 `onAuth`를 다시 안 거친다** — 연결이 끊긴 클라이언트가 재접속 유예시간(기본 20초, `MatchRoom.ts`의 `DEFAULT_RECONNECT_GRACE_SECONDS`) 안에 재접속 토큰으로 돌아오면, Colyseus는 원래 `onAuth`가 반환했던 `client.auth` 객체를 그대로 재사용(`previousClient.auth`를 새 클라이언트에 복사)할 뿐 `onAuth`를 다시 호출하지 않음. `onAuth` 시점에만 확인하는 검사(예: 로그인 여부, 밴 상태)는 그 유예시간 동안엔 최신 상태가 아닐 수 있다는 뜻 — 실제로 유저 밴 기능에서 "재접속 유예 중에 밴되면 그대로 다시 들어와버리는" 버그로 발견됨(`MatchRoom.ts`의 `onLeave`, `allowReconnection` 성공 직후 최신 밴 상태를 다시 조회해 막도록 수정). 이런 상황을 고치려고 재접속 성공 직후 `client.leave()`를 다시 호출할 땐 **반드시 `removePlayer`로 먼저 로스터에서 빼고 나서** 호출할 것 — 안 그러면 그 `client.leave()`가 `onLeave`를 재귀 호출하면서 `phase === "playing" && !consented` 분기에 다시 걸려 새 재접속 유예를 또 부여해버리는 무한 루프가 생김(`onLeave` 맨 위의 `if (!this.state.players.has(...)) return;` 가드가 이 재귀를 끊어줌).
+- **Docker 배포 시 데이터 볼륨을 named volume과 bind mount로 헷갈리면 실제 프로덕션 DB 대신 빈 DB를 보게 됨** — 실제 사용하는 건 `-v /home/ec2-user/songpyeon-data:/app/server/data`(호스트 디렉토리 **바인드 마운트**)인데, 이름이 비슷해서 `-v songpyeon-data:/app/server/data`(Docker **네임드 볼륨** — 완전히 다른 저장 공간)로 잘못 쓰기 쉬움. 둘 다 `docker volume ls`엔 안 걸리는 게 아니라 오히려 네임드 볼륨 쪽이 과거 실수로 이미 만들어져 있어서 겉보기엔 정상 작동하는 것처럼 보임 — 새 컨테이너가 텅 빈 스키마로 시작하는데도 에러가 안 남. 재배포할 때마다 정확한 커맨드를 매번 재구성하지 말고 아래를 그대로 쓸 것(env 값은 실제 배포 시 `docker inspect songpyeon --format '{{json .Config.Env}}'`로 기존 값 재확인 후 그대로 재사용):
+  ```
+  docker run -d --name songpyeon --network songpyeon-net --restart unless-stopped \
+    -e ADMIN_PASSWORD=... -e GOOGLE_CLIENT_ID=... -e SESSION_JWT_SECRET=... \
+    -v /home/ec2-user/songpyeon-data:/app/server/data songpyeon:latest
+  ```
+  잘못된 볼륨으로 이미 배포해버렸다면: 실제 데이터는 바인드 마운트 경로에 그대로 안전하게 남아있음(컨테이너를 지워도 안 지워짐) — 컨테이너만 올바른 마운트로 재생성하면 즉시 복구됨. 다만 그 사이 로그인한 사람이 있었다면 세션 쿠키가 (텅 빈 DB 기준으로 새로 매겨진) 엉뚱한 낮은 id를 가리키게 돼 실제 DB로 복구한 뒤에도 다른 사람 계정으로 로그인된 것처럼 보이는 2차 문제가 생김 — `SESSION_JWT_SECRET`을 새로 발급해 재배포하면(기존 세션 전부 무효화, 재로그인 시 `google_sub` 기준으로 정확한 계정을 다시 찾음) 해결됨.
 
 ## Workflow
 

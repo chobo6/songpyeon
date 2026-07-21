@@ -1415,4 +1415,131 @@ export function ReactionTimeTest({ onBack }: { onBack: () => void }) {
 - `client/src/game/useSoloMatch.ts` (가드 이식했다가 되돌림)
 - `client/src/components/ReactionTimeTest.tsx`, `.module.css` (과거 구현, 지금은 삭제됨 — 위 코드로 복원)
 - `client/src/components/SoloRoleSelect.tsx`, `client/src/App.tsx` (진입점 wiring도 제거됨)
-- `client/src/game/clickSound.ts`
+
+---
+
+## #26 관리자 페이지 입장/퇴장 로그에 닉네임 "?"인 유령 퇴장이 찍힘 — onAuth는 통과했지만 onJoin이 거절한 세션
+
+### 증상
+
+관리자 페이지의 입장/퇴장 로그에 대응하는 "입장" 기록 없이 뜬금없이 닉네임 "?"인 "퇴장" 기록만 남는 경우가
+있었음. 방이 꽉 찼을 때 들어오려던 사람, 관전 비허용 방에 관전하려던 사람들이 이걸 유발함.
+
+### 원인 (확정, `node_modules/@colyseus/core/build/Room.js`의 `_onJoin` 확인)
+
+Colyseus는 `onAuth`가 성공한 뒤 `onJoin`을 호출하는데, `onJoin`이 그 안에서 로직상 이유로(방이 꽉 참,
+관전 비허용 등) `throw`하면 `_onJoin`의 catch 블록이 뒷정리로 `this._onLeave(client, ...)`를 호출해서
+우리 `onLeave`가 실행된다. 문제는 이 시점에 그 세션은 `state.players`(또는 `state.spectators`)에 **한
+번도 등록된 적이 없다**는 것 — `onJoin`이 `state.players.set(...)`에 도달하기 전에 이미 throw했기
+때문. 그래서 `MatchRoom.ts`의 옛 `onLeave`가 `this.state.players.get(client.sessionId)?.nickname ??
+"?"`로 닉네임을 못 찾아 "?"를 기록했음. 즉 **"입장 시도 자체가 거절된 상황"이 로그에는 "퇴장"으로 잘못
+기록되는 것** — 실제 "입장" 로그는 아예 안 남고(`state.players.set` 전에 throw했으므로 join 이벤트 기록
+코드에도 도달 못 함), "퇴장(닉네임 ?)"만 남아서 더 헷갈리게 보였음.
+
+### 수정
+
+`onLeave` 맨 위(관전자 분기 바로 다음)에 가드 추가: `if (!this.state.players.has(client.sessionId))
+return;` — 이 세션이 `state.players`에 등록된 적이 없으면(=진짜 퇴장이 아니라 onJoin 뒷정리로 불린
+것) 아무 것도 기록하지 않고 조용히 무시. 이 가드는 나중에 유저 밴 기능의 재접속 우회 수정(`#28`)에서도
+그대로 재활용됨(재귀 호출된 `onLeave`를 끊어주는 역할).
+
+### 검증
+
+`server/src/rooms/MatchRoom.test.ts`에 "방이 꽉 찬 상태에서 입장 거절당해도 관리자 로그에 '퇴장' 이벤트가
+안 남는지" 회귀 테스트 추가.
+
+### 관련 파일
+- `server/src/rooms/MatchRoom.ts`, `server/src/rooms/MatchRoom.test.ts`
+
+---
+
+## #27 Docker 재배포 시 볼륨을 named volume으로 잘못 잡아 실제 DB 대신 빈 DB를 보게 됨 + 뒤이은 세션 계정 뒤섞임
+
+### 증상
+
+관리자 밴 기능 배포 중, 컨테이너 교체 직후 "DB가 다 날아갔다"는 보고. 실제로는 유저 174명이 있어야 하는데
+새 컨테이너가 완전히 텅 빈 스키마로 시작한 것처럼 보임. 곧이어 별개로 "닉네임이 다 꼬여있다"(A라는
+닉네임 계정에 로그인했는데 실제로는 B의 계정 데이터가 보임)는 보고도 들어옴.
+
+### 원인 (확정)
+
+**1차 원인 — 볼륨 종류 혼동:** 이 프로젝트는 SQLite DB를 EC2 호스트의 `/home/ec2-user/songpyeon-data/`
+디렉토리에 **바인드 마운트**(`-v /home/ec2-user/songpyeon-data:/app/server/data`)해서 영속시킨다
+(`docs/superpowers/plans/2026-07-19-google-login.md`에 원래 설계돼 있음). 그런데 컨테이너 교체
+커맨드를 새로 짤 때 `-v songpyeon-data:/app/server/data`라고 씀 — 앞에 슬래시가 없어서 이건 호스트 경로가
+아니라 Docker가 관리하는 완전히 별개의 저장 공간인 **네임드 볼륨**으로 해석됨. 공교롭게도 이 이름의
+네임드 볼륨이 과거(다른 시점의 시행착오로) 이미 만들어져 있던 상태라 `docker volume ls`로 봐도 "어 이미
+있네" 하고 그냥 넘어가기 쉬웠음. 새 컨테이너는 이 텅 빈(또는 예전에 살짝만 쓰인) 네임드 볼륨을 보고
+시작했으므로, 실제 유저 174명이 있는 진짜 DB(바인드 마운트 경로)는 전혀 건드리지 않은 채 그대로 안전하게
+남아있었지만, 컨테이너 입장에서는 안 보이는 상태였음.
+
+**2차 원인 — 세션 쿠키가 숫자 id를 그대로 담고 있음:** `server/src/auth/session.ts`의 `signSession`이
+세션 JWT에 `userId`(숫자 PK)를 그대로 서명해 넣는다. 1차 원인으로 인한 잘못된(텅 빈) DB가 떠 있던
+동안, 이미 로그인돼 있던 몇몇 친구들이 뭔가 요청을 보내거나 재로그인을 하면서 `getOrCreateUser`가 그
+텅 빈 DB 기준으로 새 계정을 만들었는데, 이때 발급된 새 세션 쿠키는 텅 빈 DB에서 막 배정된 **낮은
+id**(3, 7 등)를 담고 있었음. 나중에 볼륨을 올바르게 고쳐서 진짜 DB로 다시 연결했을 때, 그 사람들의
+브라우저엔 여전히 "텅 빈 DB 기준 낮은 id"가 담긴 쿠키가 남아있었고, 그 id가 진짜 DB에서는 완전히 다른
+(아주 초기에 가입한) 사람의 계정을 가리키는 바람에 로그인 상태가 서로 뒤섞인 것처럼 보였음.
+
+### 수정
+
+1. 컨테이너를 중지·삭제하고, 올바른 바인드 마운트(`-v /home/ec2-user/songpyeon-data:/app/server/data`)로
+   재생성 — 진짜 DB가 그대로 있었으므로 즉시 복구됨(`docker exec songpyeon node -e "...better-sqlite3...
+   SELECT COUNT(*)..."`로 유저 수 직접 확인).
+2. `SESSION_JWT_SECRET`을 새로 발급해서 다시 컨테이너에 반영 — 기존에 발급된 세션 쿠키를 (꼬인 것/정상인
+   것 구분 없이) 전부 한 번에 무효화함. 이후 접속하는 사람은 전부 구글 로그인을 다시 하게 되는데, 이때는
+   `google_sub`(구글 고유 id) 기준으로 계정을 다시 찾아가므로 확실하게 원래 계정으로 복구됨. 옛 시크릿으로
+   서명한 토큰이 실제로 거부되는지 `/api/auth/me`에 그 쿠키를 직접 넣어 `null`이 나오는 걸로 확인.
+
+### 재발 방지
+
+`CLAUDE.md`의 Gotchas에 정확한 `docker run` 커맨드를 그대로 박아둠 — 재배포할 때마다 볼륨 경로를 기억에
+의존해 재구성하지 말고 그 커맨드를 그대로 쓸 것. env 값(`ADMIN_PASSWORD`/`GOOGLE_CLIENT_ID`/
+`SESSION_JWT_SECRET`)은 교체 직전에 `docker inspect songpyeon --format '{{json .Config.Env}}'`로 기존
+컨테이너에서 재확인 후 그대로 재사용.
+
+### 관련 파일
+- 배포 절차 자체(코드 변경 없음) — `CLAUDE.md`의 Gotchas, `docs/superpowers/plans/2026-07-19-google-login.md`
+- `server/src/auth/session.ts` (세션 쿠키에 숫자 id를 담는 방식 자체는 변경 안 함, 이 사고의 2차 원인일 뿐)
+
+---
+
+## #28 Colyseus 재접속이 onAuth를 다시 안 거쳐서, onAuth 시점에만 하는 검사(로그인/밴 등)가 재접속 유예 중엔 최신 상태가 아닐 수 있음
+
+### 증상 (유저 밴 기능 리뷰 중 발견 — 실제 프로덕션 장애는 아니었음)
+
+관리자가 어떤 유저를 밴하면 `MatchRoom.onAuth`가 이후 모든 입장/생성 시도를 거절하도록 구현했는데, 리뷰
+과정에서 다음 시나리오가 뚫린다는 게 발견됨: 그 유저가 마침 연결이 끊겨 재접속 유예시간(기본 20초) 안에
+있는 상태에서 관리자가 밴을 걸면, 유예시간 안에 재접속 토큰으로 돌아왔을 때 `onAuth`를 안 거치므로 밴
+체크 자체가 실행 안 되어 다시 들어와버림.
+
+### 원인 (확정, `node_modules/@colyseus/core/build/Room.js` 직접 확인)
+
+`Room.allowReconnection(previousClient, seconds)`는 재접속을 위한 좌석을
+`this._reserveSeat(sessionId, true, previousClient.auth, seconds, true)`로 예약하는데, 이때
+`previousClient.auth`(원래 `onAuth`가 반환했던, 그 시점 기준 값)를 그대로 넘겨서 재사용한다. 재접속이
+실제로 성사되면 `newClient.auth = previousClient.auth`로 그 값을 새 클라이언트에 그대로 복사할 뿐,
+`onAuth`를 다시 호출하지 않는다. 즉 `onAuth`에서만 확인하는 어떤 검사든(로그인 여부, 밴 여부 등) 재접속
+경로에서는 원래 접속 시점의 스냅샷 그대로 남아있고 갱신되지 않는다.
+
+### 수정
+
+`MatchRoom.ts`의 `onLeave`에서 `await this.allowReconnection(client, this.reconnectGraceSeconds)`가
+성공(재접속 성사)한 직후, `client.auth.userId`로 최신 유저 정보를 DB에서 다시 조회해 밴 상태를 재확인한다.
+밴돼 있으면 그 자리에서 다시 내보내는데, 이때 `client.leave()`를 무작정 먼저 부르면 안 됨 — Colyseus가
+그 `client.leave()`로 인해 **같은 세션에 대해 `onLeave`를 재귀 호출**하고, 그 시점에 아직
+`state.players`에 이 플레이어가 남아있으면 `phase === "playing" && !consented` 분기에 또 걸려 **새
+재접속 유예를 한 번 더 부여**해버리는 무한 루프가 생긴다. 그래서 반드시 `removePlayer`로 로스터에서
+먼저 빼고 `setMetadata`까지 반영한 다음에 `client.leave()`를 불러야 한다 — 그러면 재귀 호출된 `onLeave`가
+맨 위의 `if (!this.state.players.has(client.sessionId)) return;` 가드에 걸려 즉시 끝난다(이 가드는 원래
+onJoin이 거절한 세션의 유령 퇴장 로그를 막기 위해 먼저 추가돼 있던 것 — `#26` 참고, 여기서 재활용됨).
+
+### 검증
+
+`server/src/rooms/MatchRoom.test.ts`에 재접속 유예 중 밴 → 재접속 시도 → 결국 자리에서 빠지는지 확인하는
+회귀 테스트 추가(재접속 프로미스 자체의 성공/실패 여부는 Colyseus 내부 마이크로태스크 순서에 따라 갈릴 수
+있어 단정하지 않고, room 쪽 상태만으로 검증).
+
+### 관련 파일
+- `server/src/rooms/MatchRoom.ts`, `server/src/rooms/MatchRoom.test.ts`
+- 설계: `docs/superpowers/specs/2026-07-21-user-ban-design.md`, 계획: `docs/superpowers/plans/2026-07-21-user-ban.md`
