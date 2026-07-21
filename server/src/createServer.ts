@@ -18,6 +18,7 @@ import {
   getUserById,
   listUsers,
   setNickname,
+  setUserBanned,
   verifyGoogleIdToken,
 } from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
@@ -201,6 +202,38 @@ export function createGameServer(): Server {
       res.status(409).json({ error: "이미 사용 중인 닉네임이에요." });
       return;
     }
+    res.json({ ok: true });
+  });
+
+  // 밴 즉시 강제 퇴장까지 처리한다 — DB만 갱신하고 끝내면 이미 접속 중인
+  // 세션은 다음 방 입장 시도 전까지 계속 게임을 할 수 있어 "즉시 퇴장"
+  // 요구사항을 못 지킨다. getLocalRoomById는 이 프로세스에 떠 있는 실제 룸
+  // 인스턴스를 반환한다(getRoomById와 달리 — 그건 룸 목록 캐시만 반환함).
+  // 이 프로젝트는 단일 프로세스 배포라 "이 프로세스에 있는 것만"이 곧 전부다.
+  app.post("/api/admin/users/:id/ban", requireAdmin, async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    setUserBanned(userId, true);
+
+    const rooms = await matchMaker.query({ name: "match" });
+    for (const r of rooms) {
+      const room = matchMaker.getLocalRoomById(r.roomId) as MatchRoom | undefined;
+      room?.kickUserId(userId);
+    }
+
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/users/:id/unban", requireAdmin, async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    setUserBanned(userId, false);
     res.json({ ok: true });
   });
 
