@@ -5,7 +5,7 @@ import type { Color } from "./colors";
 // 걸 막는 게 목적. 토끼의 민트 버튼에 한정(다른 색은 그대로 둠) — 이 게임에서 같은
 // 버튼을 반복해서 눌러야 하는 유일한 패턴이 민트 런(mint run, server/src/game/fragments.ts)
 // 이라, 손가락 재입력 속도의 한계가 가장 잘 드러나는 자리이기 때문.
-export const MINT_SPAM_THRESHOLD_MS = 50;
+export const MINT_SPAM_THRESHOLD_MS = 35;
 
 // msSinceLastPress: 직전 버튼 입력(색 무관)으로부터 지난 시간(ms). null이면 이번
 // 턴의 첫 입력이라는 뜻이라 비교 대상이 없으므로 항상 통과시킨다.

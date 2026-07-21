@@ -249,8 +249,13 @@ export class MatchRoom extends Room<MatchState> {
       return;
     }
 
+    // onAuth는 통과했지만 onJoin이 그 뒤 로직상 이유로(방이 꽉 참, 관전 비허용 등)
+    // throw하면, Colyseus가 뒷정리로 onLeave를 자동 호출한다 — 이 세션은
+    // state.players에 등록된 적이 없으므로 실제 퇴장이 아니다. 조용히 무시.
+    if (!this.state.players.has(client.sessionId)) return;
+
     console.log(`[leave] session=${client.sessionId} ip=${client.auth?.ip}`);
-    const leavingNickname = this.state.players.get(client.sessionId)?.nickname ?? "?";
+    const leavingNickname = this.state.players.get(client.sessionId)!.nickname;
     recordEvent({
       type: "leave",
       timestamp: Date.now(),

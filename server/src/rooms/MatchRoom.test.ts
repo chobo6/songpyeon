@@ -1126,5 +1126,22 @@ describe("MatchRoom", () => {
       const metadata = room.listing.metadata as { players?: { nickname: string }[] };
       expect(metadata.players ?? []).toEqual([]);
     });
+
+    test("a join attempt rejected after onAuth (room full) does not record a spurious leave event", async () => {
+      resetEventLog();
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      await connectAsUser(colyseus, room, "플레이어1");
+      await connectAsUser(colyseus, room, "플레이어2");
+      await flush();
+
+      // onAuth passes (real logged-in user) but onJoin itself then throws
+      // "방이 가득 찼습니다" before this session is ever added to
+      // state.players — Colyseus still calls onLeave as cleanup for that
+      // failed join, which used to log a "leave" event with nickname "?".
+      await expect(connectAsUser(colyseus, room, "플레이어3")).rejects.toThrow();
+      await flush();
+
+      expect(getEvents().filter((e) => e.type === "leave")).toHaveLength(0);
+    });
   });
 });
