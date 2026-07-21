@@ -8,6 +8,7 @@ import {
   listUsers,
   recordRoundAchievement,
   setNickname,
+  setUserBanned,
 } from "./googleAuth";
 
 describe("getOrCreateUser", () => {
@@ -169,5 +170,29 @@ describe("getTopRanking", () => {
     const user = getOrCreateUser("sub-19", {});
     setNickname(user.id, "구경꾼");
     expect(getTopRanking(10)).toEqual([]);
+  });
+});
+
+describe("setUserBanned", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("banning a user sets bannedAt, unbanning clears it", () => {
+    const user = getOrCreateUser("sub-20", {});
+    expect(getUserById(user.id)?.bannedAt).toBeNull();
+
+    setUserBanned(user.id, true);
+    expect(getUserById(user.id)?.bannedAt).toBeTruthy();
+
+    setUserBanned(user.id, false);
+    expect(getUserById(user.id)?.bannedAt).toBeNull();
+  });
+
+  test("listUsers reflects the banned status", () => {
+    const user = getOrCreateUser("sub-21", {});
+    setUserBanned(user.id, true);
+    const row = listUsers().find((u) => u.id === user.id);
+    expect(row?.bannedAt).toBeTruthy();
   });
 });

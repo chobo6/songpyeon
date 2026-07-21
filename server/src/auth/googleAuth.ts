@@ -24,7 +24,7 @@ export async function verifyGoogleIdToken(
   return { sub: payload.sub, email: payload.email, name: payload.name };
 }
 
-export type UserProfile = { id: number; nickname: string | null };
+export type UserProfile = { id: number; nickname: string | null; bannedAt: string | null };
 
 // googleSub 기준 upsert — UNIQUE(google_sub) + ON CONFLICT로 존재 확인/생성/갱신을 원자적으로 처리.
 // 닉네임은 이 시점에 건드리지 않는다 — 로그인할 때마다 구글 실명(name)이 사용자가 정한 닉네임을
@@ -38,7 +38,9 @@ export function getOrCreateUser(googleSub: string, info: { email?: string; name?
        name = COALESCE(excluded.name, users.name)`,
   ).run(googleSub, info.email ?? null, info.name ?? null);
 
-  return db.prepare(`SELECT id, nickname FROM users WHERE google_sub = ?`).get(googleSub) as UserProfile;
+  return db
+    .prepare(`SELECT id, nickname, banned_at AS bannedAt FROM users WHERE google_sub = ?`)
+    .get(googleSub) as UserProfile;
 }
 
 export type SetNicknameResult = "ok" | "already_set" | "taken";
@@ -55,7 +57,9 @@ export function setNickname(userId: number, nickname: string): SetNicknameResult
 }
 
 export function getUserById(userId: number): UserProfile | undefined {
-  return db.prepare(`SELECT id, nickname FROM users WHERE id = ?`).get(userId) as UserProfile | undefined;
+  return db
+    .prepare(`SELECT id, nickname, banned_at AS bannedAt FROM users WHERE id = ?`)
+    .get(userId) as UserProfile | undefined;
 }
 
 export type AdminUserRow = {
@@ -63,12 +67,15 @@ export type AdminUserRow = {
   email: string | null;
   name: string | null;
   nickname: string | null;
+  bannedAt: string | null;
   createdAt: string;
 };
 
 export function listUsers(): AdminUserRow[] {
   return db
-    .prepare(`SELECT id, email, name, nickname, created_at AS createdAt FROM users ORDER BY id DESC`)
+    .prepare(
+      `SELECT id, email, name, nickname, banned_at AS bannedAt, created_at AS createdAt FROM users ORDER BY id DESC`,
+    )
     .all() as AdminUserRow[];
 }
 
@@ -84,6 +91,14 @@ export function adminSetNickname(userId: number, nickname: string): AdminSetNick
   if (taken) return "taken";
   db.prepare(`UPDATE users SET nickname = ? WHERE id = ?`).run(clean, userId);
   return "ok";
+}
+
+export function setUserBanned(userId: number, banned: boolean): void {
+  if (banned) {
+    db.prepare(`UPDATE users SET banned_at = datetime('now', '+9 hours') WHERE id = ?`).run(userId);
+  } else {
+    db.prepare(`UPDATE users SET banned_at = NULL WHERE id = ?`).run(userId);
+  }
 }
 
 // Only ever raises a user's personal best — MAX() in the UPDATE itself means
