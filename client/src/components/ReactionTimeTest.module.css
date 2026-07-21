@@ -31,24 +31,16 @@
   background-color: #1b3a37;
   background-size: cover;
   background-position: center;
-  opacity: 0.35;
-  filter: grayscale(0.8);
-  transition:
-    opacity 0.1s ease,
-    filter 0.1s ease,
-    transform 0.1s ease;
   margin: 1.5rem 0;
+  transition: transform 0.05s ease;
 }
 
-.armed {
-  opacity: 1;
-  filter: none;
-  transform: scale(1.08);
-  box-shadow: 0 0 32px 8px rgba(46, 196, 182, 0.75);
+.button:active {
+  transform: scale(0.94);
 }
 
 .status {
-  min-height: 2rem;
+  min-height: 3.5rem;
 }
 
 .result {
@@ -57,16 +49,15 @@
   font-weight: 700;
 }
 
-.falseStart {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ff8a80;
+.average {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
 }
 
 .history {
   width: 100%;
-  max-width: 20rem;
+  max-width: 22rem;
 }
 
 .historyLabel {
@@ -89,6 +80,12 @@
   font-size: 0.85rem;
 }
 
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
 .backLink {
   background: none;
   border: none;
@@ -96,7 +93,6 @@
   opacity: 0.75;
   font-size: 0.9rem;
   cursor: pointer;
-  margin-top: 1rem;
 }
 
 .backLink:hover {
