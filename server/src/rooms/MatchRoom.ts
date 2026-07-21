@@ -200,6 +200,7 @@ export class MatchRoom extends Room<MatchState> {
       spectator.sessionId = client.sessionId;
       spectator.nickname = client.auth?.nickname ?? "관전자";
       this.state.spectators.set(client.sessionId, spectator);
+      await this.setMetadata({ spectators: this.spectatorsForMetadata() });
       return;
     }
 
@@ -246,6 +247,7 @@ export class MatchRoom extends Room<MatchState> {
     // 그냥 다시 관전 입장하면 되므로 플레이어 쪽 onLeave 로직과 완전히 분리해둔다.
     if (this.state.spectators.has(client.sessionId)) {
       this.state.spectators.delete(client.sessionId);
+      await this.setMetadata({ spectators: this.spectatorsForMetadata() });
       return;
     }
 
@@ -295,6 +297,13 @@ export class MatchRoom extends Room<MatchState> {
     return [...this.state.players.values()].map((p) => ({
       sessionId: p.sessionId,
       nickname: p.nickname,
+    }));
+  }
+
+  private spectatorsForMetadata(): { sessionId: string; nickname: string }[] {
+    return [...this.state.spectators.values()].map((s) => ({
+      sessionId: s.sessionId,
+      nickname: s.nickname,
     }));
   }
 

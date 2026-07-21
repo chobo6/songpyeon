@@ -157,12 +157,18 @@ export function createGameServer(): Server {
 
   // 로그인된 상태로 온라인에 접속 중인 전체 유저 — 방에 들어가 있는지 여부와
   // 무관하게, 방 목록 화면에서 대기 중인 사람까지 포함한다 (닉네임이 이제
-  // 계정당 유일하므로 닉네임으로 중복 제거).
+  // 계정당 유일하므로 닉네임으로 중복 제거). 관전자도 실제 접속자이므로 포함한다 —
+  // 방 목록의 "N/M" 표시나 공개 /api/rooms의 플레이어 수와는 별개 기준.
   app.get("/api/admin/online", requireAdmin, async (_req, res) => {
     const rooms = await matchMaker.query({ name: "match" });
     const roomNicknames = rooms.flatMap((r) => {
-      const metadata = r.metadata as { players?: { nickname: string }[] } | undefined;
-      return metadata?.players?.map((p) => p.nickname) ?? [];
+      const metadata = r.metadata as
+        | { players?: { nickname: string }[]; spectators?: { nickname: string }[] }
+        | undefined;
+      return [
+        ...(metadata?.players?.map((p) => p.nickname) ?? []),
+        ...(metadata?.spectators?.map((s) => s.nickname) ?? []),
+      ];
     });
     const lobbyNicknames = getOnlineUsers().map((u) => u.nickname);
     res.json([...new Set([...roomNicknames, ...lobbyNicknames])]);

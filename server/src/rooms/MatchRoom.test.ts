@@ -916,6 +916,21 @@ describe("MatchRoom", () => {
     expect(room.state.spectators.has(spectatorClient.sessionId)).toBe(false);
   });
 
+  test("spectators are mirrored into room metadata on join and removed on leave (admin's 현재 접속자 count reads this)", async () => {
+    const { room } = await fillRolesAndStart();
+    const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
+    await flush();
+
+    const metadataAfterJoin = room.listing.metadata as { spectators?: { nickname: string }[] };
+    expect(metadataAfterJoin.spectators?.map((s) => s.nickname)).toEqual(["관전자1"]);
+
+    await spectatorClient.leave(false);
+    await flush();
+
+    const metadataAfterLeave = room.listing.metadata as { spectators?: { nickname: string }[] };
+    expect(metadataAfterLeave.spectators).toEqual([]);
+  });
+
   test("a spectator's chat message is tagged with (관전) and only appears in matchChat", async () => {
     const { room } = await fillRolesAndStart();
     const spectatorClient = await connectAsUser(colyseus, room, "관전자1");
