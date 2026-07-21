@@ -628,6 +628,52 @@ describe("MatchRoom", () => {
     expect(room.state.cursor).toBe(0);
   });
 
+  test("a wrong button records the presser's own role as missedRole", async () => {
+    const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+    const { dueColor, actingClient } = actingClientFor(room, clients);
+    const pressingRole = colorRole(dueColor);
+    const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+
+    actingClient.send("pressButton", { color: wrongColor });
+    await flush();
+
+    expect(room.state.missedRole).toBe(pressingRole);
+  });
+
+  test("a wrong button sent by the OTHER role (out of turn) records THEIR role, not the due color's role", async () => {
+    const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+    const { activeTeam, dueColor } = actingClientFor(room, clients);
+    const dueRole = colorRole(dueColor);
+    const otherRole = dueRole === "pig" ? "rabbit" : "pig";
+    const otherSessionId = otherRole === "pig" ? activeTeam.pigSessionId : activeTeam.rabbitSessionId;
+    const otherClient = clients.find((c) => c.sessionId === otherSessionId)!;
+    // The other role can only ever send their own colors from their own
+    // button panel — sending any of those while it's not their turn (the
+    // due color belongs to dueRole) can never equal dueColor, so it's
+    // always a wrong press.
+    const otherRoleColors = otherRole === "pig" ? PIG_COLORS : RABBIT_COLORS;
+
+    otherClient.send("pressButton", { color: otherRoleColors[0] });
+    await flush();
+
+    expect(room.state.turnOutcome).toBe("fail");
+    expect(room.state.missedRole).toBe(otherRole);
+  });
+
+  test("missedRole resets to empty once the next turn starts", async () => {
+    const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+    const { dueColor, actingClient } = actingClientFor(room, clients);
+    const wrongColor = ALL_COLORS.find((c) => c !== dueColor)!;
+
+    actingClient.send("pressButton", { color: wrongColor });
+    await flush();
+    expect(room.state.missedRole).not.toBe("");
+
+    await wait(SHORT_TURN_MS + 200);
+
+    expect(room.state.missedRole).toBe("");
+  });
+
   test("completing the sequence keeps the success state on screen until the original timer, then hands off", async () => {
     const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
 

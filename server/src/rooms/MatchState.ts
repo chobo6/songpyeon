@@ -45,6 +45,11 @@ export class MatchState extends Schema {
   @type("number") cursor: number = 0;
   @type("number") turnEndsAt: number = 0;
   @type("string") turnOutcome: TurnOutcome = "pending";
+  // 오답으로 턴이 실패했을 때, 그 색이 원래 누구 것인지가 아니라 실제로 잘못된
+  // 버튼을 누른 플레이어의 역할을 기록한다(handlePressButton 참고) — 클라이언트가
+  // 그 역할의 miss 애니메이션을 보여주는 데 씀. 시간초과로 실패한 경우는 대상이
+  // 없으므로 빈 문자열로 남는다(onTurnTimerExpired는 이 필드를 건드리지 않음).
+  @type("string") missedRole: RoleChoice = "";
   // Independent histories (spec decision — lobby banter and in-match
   // commentary don't mix), each capped at MAX_CHAT_MESSAGES in MatchRoom.ts.
   @type([ChatMessage]) lobbyChat = new ArraySchema<ChatMessage>();

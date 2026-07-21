@@ -609,6 +609,7 @@ export class MatchRoom extends Room<MatchState> {
     sequence.forEach((color) => this.state.sequence.push(color));
     this.state.cursor = 0;
     this.state.turnOutcome = "pending";
+    this.state.missedRole = "";
     this.state.turnEndsAt = Date.now() + this.turnDurationMs;
     this.turnDecided = false;
     this.lastPressAt = null;
@@ -654,6 +655,8 @@ export class MatchRoom extends Room<MatchState> {
       this.turnDecided = true;
       this.applyMortarLoss(activeTeam);
       this.state.turnOutcome = "fail";
+      // player.role is already typed RoleChoice on PlayerState — no cast needed.
+      this.state.missedRole = player.role;
       // Turn hand-off is intentionally deferred to onTurnTimerExpired, at the
       // turn's original 4s mark, so the fail state stays on screen instead of
       // instantly cutting to the next team.
