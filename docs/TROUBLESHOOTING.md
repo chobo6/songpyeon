@@ -1126,4 +1126,293 @@ private 메서드로 추출해 두 곳 다 이걸 호출하도록 변경 — 동
 - `client/src/components/ChatBox.tsx`
 - `client/src/components/TurnOutcomeBanner.tsx`
 - `client/src/components/TeamRosterPanel.tsx`
+
+---
+
+## #25 민트 버튼 연타(스팸) 방어 — 온라인 매치에만 적용, 계측용 임시 도구는 재사용 설계만 기록 후 삭제
+
+### 배경
+
+친구 중 한 명이 폰에 키보드/매크로 앱을 연결해 버튼 위치에 키를 매핑, 손가락 한계보다 빠르게
+연타하는 방식으로 플레이한다는 걸 알게 됨(밴은 불가 — 친구라서). 웹에는 "키보드가 연결돼
+있는지" 감지하는 API가 없고(WebHID는 사용자 권한 필요+iOS Safari 미지원, Keyboard API는
+레이아웃 조회용, Gamepad API는 무관), 애초에 이런 부정행위는 OS 레벨 키 리매핑으로 합성
+터치/클릭을 만들어내는 방식이라 JS 이벤트만 봐서는 손가락 입력과 구분 자체가 불가능함. 그래서
+탐지 대신 **타이밍 임계값으로 너무 빠른 입력을 그냥 막아버리는** 방향으로 결정.
+
+### 결정 사항
+
+- **민트 버튼(토끼)에 한정** — 이 게임에서 같은 버튼을 반복해서 눌러야 하는 유일한 패턴이 민트 런
+  (`mintRun`, `server/src/game/fragments.ts`)이라, 손가락 재입력 속도의 한계가 가장 잘 드러나는
+  자리이기 때문. 다른 색은 건드리지 않음.
+- **모든 프레스에 적용**(턴의 첫 프레스만이 아니라) — `SequenceBoard.tsx`가 전체 시퀀스를 미리
+  보여주므로 숙련자가 뒷부분을 미리 계획해 빠르게 누르는 것도 이론상 가능하지만, 더 공격적인
+  쪽을 선택(사용자 확인).
+- **임계값 50ms** — 연구 기반 수치가 아니라, 아래에서 설명하는 임시 계측 도구로 사용자가 직접
+  터치/z·x키 연타 속도를 재보고 정한 값. `server/src/game/mintSpamGuard.ts`의
+  `MINT_SPAM_THRESHOLD_MS`.
+- **씹힘 방식은 완전 무시** — 절구 감점이나 오답 판정 없이 그냥 `return`(상태 변화도, 클라이언트
+  메시지도, 관리자 이벤트 로그도 없음). 손가락으로 누른 게 그냥 안 눌린 것과 동일하게 보임.
+- **직전 프레스 시각은 색 무관, 씹힌 시도 포함 매번 갱신** — 연타가 임계값보다 빠르게 계속되면
+  그 다음 시도도 계속 직전(씹힌) 시도를 기준으로 재판정되어 스스로 계속 막히는 자기-차단 구조.
+
+### 왜 온라인 매치(`MatchRoom.ts`)에만 있고 혼자 연습 모드엔 없는지
+
+처음엔 클라이언트 쪽 `useSoloMatch.ts`(혼자 연습 모드)에도 서버와 동일한 로직을
+`client/src/game/mintSpamGuard.ts`로 수동 이식해서 넣어봤음(`soloEngine.ts`가 서버 게임 로직을
+클라이언트에 미러링해두는 것과 같은 패턴). 브라우저로 실제 확인도 했고(6연속 민트 연타 중
+1개만 통과, 나머지는 자기-차단으로 계속 씹힘) 정상 동작했음.
+
+하지만 목적을 다시 생각해보면 **부정행위는 온라인 매치에서만 문제가 됨** — 혼자 연습 모드는
+서버를 아예 거치지 않는 로컬 전용 로직(`soloEngine.ts`)이라 다른 사람과 경쟁하는 자리가 아니고,
+여기서 빠르게 누른다고 누구에게도 피해가 안 감. 그래서 최종적으로 **온라인 매치의 서버 코드
+(`server/src/rooms/MatchRoom.ts`)에만 가드를 남기고**, 혼자 연습 모드 쪽 이식은 되돌림 —
+`useSoloMatch.ts`에서 관련 코드 제거, `client/src/game/mintSpamGuard.ts`(클라이언트 사본)는
+완전히 삭제. 서버 쪽 `server/src/game/mintSpamGuard.ts`/`server/src/rooms/MatchRoom.ts`의 가드는
+그대로 유지됨 — 지금 실제로 배포되는 코드는 이것 하나뿐.
+
+### 삭제된 임시 계측 도구 — 나중에 비슷한 걸 또 만들 상황이 오면 재사용
+
+50ms 임계값을 직접 정하기 위해, 혼자 연습 모드 진입 화면에 임시 버튼으로 진입하는 계측 전용
+화면을 만들었었음(`ReactionTimeTest.tsx`) — 민트 버튼 하나만 뜨는 화면에서 터치/키보드 z·x키로
+연타하면 직전 입력과의 간격(ms)을 바로 아래에 보여주고, 최근 20개 평균도 계산. 나중엔 여기에도
+위 가드를 그대로 적용해서 50ms 미만 입력이 "⛔ 씹힘 (Nms — 50ms 미만)"으로 표시되게 만들어서
+실제 게임과 동일한 체감을 여기서도 확인할 수 있게 했었음.
+
+이 도구는 실제 게임 화면에 반영할 계획이 없는 순수 계측용이라 사용자 요청으로 완전히 삭제함
+(온라인에만 가드를 남기기로 한 결정과 같은 이유 — 실제 배포 코드엔 필요 없음). 한 번도 git에
+커밋된 적이 없어서 커밋 이력으로 복원이 안 됨 — 나중에 또 필요하면 아래 전체 코드를 그대로
+복사해서 쓰면 됨.
+
+**`client/src/components/ReactionTimeTest.tsx` (최종 버전 — 가드 적용 포함):**
+
+```tsx
+import { useCallback, useEffect, useRef, useState } from "react";
+import { COLOR_TOKEN } from "../game/colors";
+import { isSpammedMintPress } from "../game/mintSpamGuard"; // 삭제됨 — 재사용 시
+  // server/src/game/mintSpamGuard.ts를 client/src/game/mintSpamGuard.ts로 그대로 복사
+import styles from "./ReactionTimeTest.module.css";
+
+const HISTORY_LIMIT = 20;
+
+export function ReactionTimeTest({ onBack }: { onBack: () => void }) {
+  const [lastIntervalMs, setLastIntervalMs] = useState<number | null>(null);
+  const [history, setHistory] = useState<number[]>([]);
+  const [blockedIntervalMs, setBlockedIntervalMs] = useState<number | null>(null);
+  const lastPressAtRef = useRef<number | null>(null);
+
+  const handlePress = useCallback(() => {
+    const now = Date.now();
+    const previous = lastPressAtRef.current;
+    lastPressAtRef.current = now;
+    if (previous === null) return;
+
+    const interval = now - previous;
+    if (isSpammedMintPress("mint", interval)) {
+      setBlockedIntervalMs(interval);
+      return;
+    }
+
+    setBlockedIntervalMs(null);
+    setLastIntervalMs(interval);
+    setHistory((prev) => [interval, ...prev].slice(0, HISTORY_LIMIT));
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const key = e.key.toLowerCase();
+      if (key === "z" || key === "x") handlePress();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handlePress]);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    e.preventDefault();
+    handlePress();
+  }
+
+  function handleReset() {
+    lastPressAtRef.current = null;
+    setLastIntervalMs(null);
+    setHistory([]);
+    setBlockedIntervalMs(null);
+  }
+
+  const average =
+    history.length > 0 ? Math.round(history.reduce((sum, ms) => sum + ms, 0) / history.length) : null;
+
+  return (
+    <div className={styles.wrap}>
+      <h1 className={styles.title}>입력 속도 테스트 (임시)</h1>
+      <p className={styles.hint}>화면을 연타하거나 키보드 z / x 키를 연타해보세요 — 누른 간격(ms)을 잽니다</p>
+
+      <button
+        type="button"
+        className={styles.button}
+        onTouchStart={handleTouchStart}
+        onClick={handlePress}
+        style={{ backgroundImage: `url(${COLOR_TOKEN.mint})` }}
+        aria-label="mint"
+      />
+
+      <div className={styles.status}>
+        {blockedIntervalMs !== null ? (
+          <p className={styles.result}>⛔ 씹힘 ({blockedIntervalMs}ms — 50ms 미만)</p>
+        ) : lastIntervalMs !== null ? (
+          <p className={styles.result}>간격: {lastIntervalMs}ms</p>
+        ) : (
+          <p className={styles.result}>버튼을 눌러 시작하세요</p>
+        )}
+        {average !== null && (
+          <p className={styles.average}>
+            평균 {average}ms ({history.length}회)
+          </p>
+        )}
+      </div>
+
+      {history.length > 0 && (
+        <div className={styles.history}>
+          <p className={styles.historyLabel}>최근 기록 (ms, 최신순)</p>
+          <div className={styles.historyList}>
+            {history.map((ms, i) => (
+              <span key={i} className={styles.historyItem}>
+                {ms}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className={styles.actions}>
+        <button className={styles.backLink} onClick={handleReset}>
+          기록 초기화
+        </button>
+        <button className={styles.backLink} onClick={onBack}>
+          ← 뒤로
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**`client/src/components/ReactionTimeTest.module.css`:**
+
+```css
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.hint {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.button {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background-color: #1b3a37;
+  background-size: cover;
+  background-position: center;
+  margin: 1.5rem 0;
+  transition: transform 0.05s ease;
+}
+
+.button:active {
+  transform: scale(0.94);
+}
+
+.status {
+  min-height: 3.5rem;
+}
+
+.result {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.average {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.history {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.historyLabel {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.historyList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.historyItem {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: #fff;
+  opacity: 0.75;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.backLink:hover {
+  opacity: 1;
+}
+```
+
+**진입 지점 wiring** (`SoloRoleSelect.tsx`/`App.tsx`에 있던 것 — 지금은 제거됨): `SoloRoleSelect`가
+`onOpenReactionTest: () => void` prop을 받아 역할 선택 버튼들 아래에 "반응속도 테스트 (임시)"
+버튼을 하나 더 렌더링했고, `App.tsx`의 `OfflineFlow`가 `showReactionTest` state로 그 버튼 클릭 시
+`<ReactionTimeTest onBack={...} />`를 역할 선택 화면 대신 렌더링하도록 분기했음. 재사용 시 이
+두 파일에 각각 prop 하나, state 하나, 분기 하나만 다시 추가하면 됨(둘 다 몇 줄 안 됨, 이 문서를
+읽는 사람이 직접 짜도 충분히 간단한 수준이라 diff는 따로 안 남김).
+
+### 관련 파일
+- `server/src/game/mintSpamGuard.ts`, `server/src/game/mintSpamGuard.test.ts` (실제 배포되는 가드)
+- `server/src/rooms/MatchRoom.ts`, `server/src/rooms/MatchRoom.test.ts`
+- `client/src/game/useSoloMatch.ts` (가드 이식했다가 되돌림)
+- `client/src/components/ReactionTimeTest.tsx`, `.module.css` (과거 구현, 지금은 삭제됨 — 위 코드로 복원)
+- `client/src/components/SoloRoleSelect.tsx`, `client/src/App.tsx` (진입점 wiring도 제거됨)
 - `client/src/game/clickSound.ts`

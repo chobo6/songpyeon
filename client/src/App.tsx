@@ -9,7 +9,6 @@ import { NicknameEntry } from "./components/NicknameEntry";
 import { RoomList } from "./components/RoomList";
 import { SoloRoleSelect } from "./components/SoloRoleSelect";
 import { SoloPlayScreen } from "./components/SoloPlayScreen";
-import { ReactionTimeTest } from "./components/ReactionTimeTest";
 import type { Role } from "./game/colors";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
 import "./App.css";
@@ -131,17 +130,9 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
 
 function OfflineFlow({ onExit }: { onExit: () => void }) {
   const [role, setRole] = useState<Role | null>(null);
-  // 임시 — 반응속도 테스트 도구 진입 상태. SoloRoleSelect.tsx의 진입 버튼과 짝.
-  const [showReactionTest, setShowReactionTest] = useState(false);
-
-  if (showReactionTest) {
-    return <ReactionTimeTest onBack={() => setShowReactionTest(false)} />;
-  }
 
   if (!role) {
-    return (
-      <SoloRoleSelect onChoose={setRole} onBack={onExit} onOpenReactionTest={() => setShowReactionTest(true)} />
-    );
+    return <SoloRoleSelect onChoose={setRole} onBack={onExit} />;
   }
 
   return <SoloPlayScreen role={role} onExit={onExit} />;

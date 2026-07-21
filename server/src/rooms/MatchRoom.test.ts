@@ -133,14 +133,17 @@ describe("MatchRoom", () => {
     clients: ClientRoom<MatchState>[],
     turnDurationMs: number,
   ) {
+    // Presses need to be spaced out past MatchRoom.ts's mint-spam-guard
+    // threshold (50ms) — flush()'s 10ms gap would have every mint-run press
+    // silently ignored as spam, stalling the sequence forever.
     while (room.state.cursor < room.state.sequence.length - 1) {
       const { dueColor, actingClient } = actingClientFor(room, clients);
       actingClient.send("pressButton", { color: dueColor });
-      await flush();
+      await wait(70);
     }
     const { dueColor, actingClient } = actingClientFor(room, clients);
     actingClient.send("pressButton", { color: dueColor });
-    await flush();
+    await wait(70);
     await wait(turnDurationMs + 200);
   }
 
@@ -628,14 +631,16 @@ describe("MatchRoom", () => {
     const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
 
     const activeTeamId = room.state.teams[room.state.activeTeamIndex].id;
+    // 70ms spacing (not flush()'s 10ms) — stays past the mint-spam-guard's
+    // 50ms threshold so mint-run presses in the sequence aren't dropped.
     while (room.state.cursor < room.state.sequence.length - 1) {
       const { dueColor, actingClient } = actingClientFor(room, clients);
       actingClient.send("pressButton", { color: dueColor });
-      await flush();
+      await wait(70);
     }
     const { dueColor, actingClient } = actingClientFor(room, clients);
     actingClient.send("pressButton", { color: dueColor });
-    await flush();
+    await wait(70);
 
     // the completing press resolves immediately...
     expect(room.state.turnOutcome).toBe("success");
@@ -705,7 +710,10 @@ describe("MatchRoom", () => {
 
   test(
     "the surviving team keeps receiving turns after the other team is eliminated",
-    { timeout: 45000 },
+    // completeActiveTurn's per-press spacing was widened past the
+    // mint-spam-guard's 50ms threshold, which pushed this multi-round
+    // elimination loop past the old 45s budget.
+    { timeout: 90000 },
     async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const teamAId = room.state.teams[0].id;
@@ -743,7 +751,9 @@ describe("MatchRoom", () => {
 
   test(
     "eliminated and surviving players each get their max_round recorded",
-    { timeout: 45000 },
+    // same reason as the elimination test above — wider per-press spacing
+    // needs more wall-clock budget.
+    { timeout: 90000 },
     async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       // fillRolesAndStart assigns players in join order: 플레이어0/1 to the
