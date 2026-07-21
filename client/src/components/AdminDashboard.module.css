@@ -19,6 +19,11 @@
   margin: 0;
 }
 
+.topRowButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .usersButton {
   padding: 0.5rem 1rem;
   font-size: 0.9rem;

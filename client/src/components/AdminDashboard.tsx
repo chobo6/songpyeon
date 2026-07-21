@@ -40,9 +40,11 @@ async function fetchAdminJson<T>(
 export function AdminDashboard({
   onUnauthorized,
   onOpenUsers,
+  onOpenKeyTest,
 }: {
   onUnauthorized: () => void;
   onOpenUsers: () => void;
+  onOpenKeyTest: () => void;
 }) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
@@ -114,9 +116,14 @@ export function AdminDashboard({
     <main className={styles.wrap}>
       <div className={styles.topRow}>
         <h1>관리자 대시보드</h1>
-        <button className={styles.usersButton} onClick={onOpenUsers}>
-          유저 정보
-        </button>
+        <div className={styles.topRowButtons}>
+          <button className={styles.usersButton} onClick={onOpenUsers}>
+            유저 정보
+          </button>
+          <button className={styles.usersButton} onClick={onOpenKeyTest}>
+            입력속도 테스트 (임시)
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleAnnounce} className={styles.announceForm}>

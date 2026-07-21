@@ -3,10 +3,11 @@ import { AdminLogin } from "./AdminLogin";
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminUsers } from "./AdminUsers";
 import { AdminPressMonitor } from "./AdminPressMonitor";
+import { AdminKeyTestTool } from "./AdminKeyTestTool";
 
 export function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [view, setView] = useState<"dashboard" | "users" | "monitor">("dashboard");
+  const [view, setView] = useState<"dashboard" | "users" | "monitor" | "keytest">("dashboard");
   const [monitorTarget, setMonitorTarget] = useState<{ userId: number; nickname: string } | null>(null);
 
   function handleUnauthorized() {
@@ -16,6 +17,10 @@ export function AdminPage() {
 
   if (!loggedIn) {
     return <AdminLogin onSuccess={() => setLoggedIn(true)} />;
+  }
+
+  if (view === "keytest") {
+    return <AdminKeyTestTool onBack={() => setView("dashboard")} />;
   }
 
   if (view === "monitor" && monitorTarget) {
@@ -41,5 +46,11 @@ export function AdminPage() {
     );
   }
 
-  return <AdminDashboard onUnauthorized={handleUnauthorized} onOpenUsers={() => setView("users")} />;
+  return (
+    <AdminDashboard
+      onUnauthorized={handleUnauthorized}
+      onOpenUsers={() => setView("users")}
+      onOpenKeyTest={() => setView("keytest")}
+    />
+  );
 }

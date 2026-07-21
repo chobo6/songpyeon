@@ -1,0 +1,101 @@
+.wrap {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #111827;
+  background: #f9fafb;
+  min-height: 100svh;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.backButton {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.button {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background-color: #1b3a37;
+  background-size: cover;
+  background-position: center;
+  margin: 1rem 0;
+  transition: transform 0.05s ease;
+}
+
+.button:active {
+  transform: scale(0.94);
+}
+
+.status {
+  min-height: 3.5rem;
+}
+
+.result {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.average {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.history {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.historyLabel {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.historyList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.historyItem {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+  font-size: 0.85rem;
+}
+
+.resetButton {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
