@@ -5,3 +5,4 @@ dist/
 server/data/*
 !server/data/.gitkeep
 server/public/
+.superpowers/
