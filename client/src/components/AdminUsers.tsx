@@ -8,6 +8,7 @@ type UserRow = {
   email: string | null;
   name: string | null;
   nickname: string | null;
+  bannedAt: string | null;
   createdAt: string;
 };
 
@@ -28,6 +29,7 @@ export function AdminUsers({ onUnauthorized, onBack }: { onUnauthorized: () => v
   const [editValue, setEditValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [banningId, setBanningId] = useState<number | null>(null);
 
   async function loadUsers() {
     const result = await fetchJson<UserRow[]>("/api/admin/users");
@@ -85,6 +87,31 @@ export function AdminUsers({ onUnauthorized, onBack }: { onUnauthorized: () => v
     }
   }
 
+  async function toggleBan(user: UserRow) {
+    setBanningId(user.id);
+    setError(null);
+    try {
+      const endpoint = user.bannedAt ? "unban" : "ban";
+      const res = await fetch(`/api/admin/users/${user.id}/${endpoint}`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setError("처리에 실패했습니다");
+        return;
+      }
+      await loadUsers();
+    } catch {
+      setError("처리에 실패했습니다");
+    } finally {
+      setBanningId(null);
+    }
+  }
+
   return (
     <main className={styles.wrap}>
       <div className={styles.header}>
@@ -111,7 +138,7 @@ export function AdminUsers({ onUnauthorized, onBack }: { onUnauthorized: () => v
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id}>
+                <tr key={user.id} className={user.bannedAt ? styles.bannedRow : undefined}>
                   <td>{user.id}</td>
                   <td>{user.email ?? "-"}</td>
                   <td>{user.name ?? "-"}</td>
@@ -144,9 +171,18 @@ export function AdminUsers({ onUnauthorized, onBack }: { onUnauthorized: () => v
                         </button>
                       </>
                     ) : (
-                      <button className={styles.smallButton} onClick={() => startEdit(user)}>
-                        수정
-                      </button>
+                      <>
+                        <button className={styles.smallButton} onClick={() => startEdit(user)}>
+                          수정
+                        </button>
+                        <button
+                          className={styles.smallButton}
+                          onClick={() => toggleBan(user)}
+                          disabled={banningId === user.id}
+                        >
+                          {user.bannedAt ? "밴 해제" : "밴"}
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
