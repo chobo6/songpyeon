@@ -16,6 +16,10 @@ function chunk<T>(items: T[], size: number): T[][] {
   return rows;
 }
 
+function missFrameUrl(role: Role, frame: number): string {
+  return `/game-assets/ui/miss/thanksgiving_room_miss_${role}${frame}.webp`;
+}
+
 // Cycles through the 16 miss-reaction frames for the role that actually
 // pressed the wrong button. Kept as its own tiny component (rather than
 // inline state on Token) so the 80ms re-render this causes is scoped to
@@ -26,15 +30,19 @@ function MissFrame({ role }: { role: Role }) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
     setFrame(0);
+    // Preload all 16 frames up front — without this, each frame's image is
+    // only requested the instant it's needed (one request every 80ms), and
+    // on a cold cache the fetch can lose that race, leaving a blank/stale
+    // frame on screen until it lands — visible as flicker on the first miss
+    // of a session. Firing all 16 requests in parallel here means most are
+    // already cached well before their turn comes up in the loop.
+    for (let i = 0; i < MISS_FRAME_COUNT; i++) {
+      new Image().src = missFrameUrl(role, i);
+    }
     const id = setInterval(() => setFrame((f) => (f + 1) % MISS_FRAME_COUNT), MISS_FRAME_INTERVAL_MS);
     return () => clearInterval(id);
   }, [role]);
-  return (
-    <div
-      className={styles.missToken}
-      style={{ backgroundImage: `url(/game-assets/ui/miss/thanksgiving_room_miss_${role}${frame}.webp)` }}
-    />
-  );
+  return <div className={styles.missToken} style={{ backgroundImage: `url(${missFrameUrl(role, frame)})` }} />;
 }
 
 // Every press re-renders the whole board (colyseus mutates its schema
