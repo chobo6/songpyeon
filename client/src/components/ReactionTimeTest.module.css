@@ -1,0 +1,104 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #fff;
+  text-align: center;
+  flex: 1;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.hint {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.button {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background-color: #1b3a37;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.35;
+  filter: grayscale(0.8);
+  transition:
+    opacity 0.1s ease,
+    filter 0.1s ease,
+    transform 0.1s ease;
+  margin: 1.5rem 0;
+}
+
+.armed {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.08);
+  box-shadow: 0 0 32px 8px rgba(46, 196, 182, 0.75);
+}
+
+.status {
+  min-height: 2rem;
+}
+
+.result {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.falseStart {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ff8a80;
+}
+
+.history {
+  width: 100%;
+  max-width: 20rem;
+}
+
+.historyLabel {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.historyList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.historyItem {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+}
+
+.backLink {
+  background: none;
+  border: none;
+  color: #fff;
+  opacity: 0.75;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.backLink:hover {
+  opacity: 1;
+}
