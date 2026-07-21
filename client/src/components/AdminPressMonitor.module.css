@@ -7,6 +7,9 @@
   min-height: 100svh;
   box-sizing: border-box;
   align-content: start;
+  max-width: 75rem;
+  margin: 0 auto;
+  text-align: left;
 }
 
 .header {

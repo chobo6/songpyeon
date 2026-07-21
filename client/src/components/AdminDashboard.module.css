@@ -6,6 +6,13 @@
   background: #f9fafb;
   min-height: 100svh;
   box-sizing: border-box;
+  max-width: 75rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.wrap h2 {
+  font-size: 1.1rem;
 }
 
 .topRow {
@@ -13,10 +20,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .topRow h1 {
   margin: 0;
+  font-size: 1.5rem;
 }
 
 .topRowButtons {
@@ -41,6 +50,12 @@
 .announceForm input {
   flex: 1;
   padding: 0.5rem;
+}
+
+.searchHint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 0.5rem;
 }
 
 .error {

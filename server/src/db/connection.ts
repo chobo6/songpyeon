@@ -20,6 +20,22 @@ export function createDb(filename: string): Database.Database {
   // collide with each other — only two non-null nicknames can't match.
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname)`);
 
+  // 입장/퇴장 로그(IP 포함) — 예전엔 서버 메모리에만 있어서 재배포/재시작마다
+  // 사라졌음(admin/eventLog.ts 참고). DB로 옮겨 재시작을 견디게 함.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      timestamp INTEGER NOT NULL,
+      nickname TEXT NOT NULL,
+      room_id TEXT NOT NULL,
+      room_title TEXT NOT NULL,
+      ip TEXT NOT NULL,
+      session_id TEXT NOT NULL
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`);
+
   // CREATE TABLE IF NOT EXISTS only defines max_round/banned_at for a
   // brand-new database — it does nothing to the production DB file, which
   // already has a users table from before these columns existed. ALTER

@@ -82,6 +82,22 @@ html {
   background-repeat: no-repeat;
 }
 
+/* 관리자 페이지(main.tsx)는 같은 #root를 공유하지만 모바일 게임 화면이 아니라
+   PC에서 쓰는 일반 관리 도구라, 위 게임용 480px 고정폭/센터정렬/다크 배경을
+   그대로 물려받으면 데스크톱 화면에서 콘텐츠가 좁은 열 하나로 눌리고 제목
+   글자가 겹쳐 보이는 문제가 있었음. Admin*.tsx 각 컴포넌트가 이미 자기
+   .wrap에서 min-height: 100svh와 배경을 스스로 지정하므로 여기선 폭 제한만
+   풀어주면 됨. */
+#root.admin-root {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 100svh;
+  display: block;
+  text-align: initial;
+  background-image: none;
+}
+
 body {
   margin: 0;
   background: #0d0e24;

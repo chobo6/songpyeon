@@ -33,6 +33,7 @@ export function AdminUsers({
 }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +121,10 @@ export function AdminUsers({
     }
   }
 
+  const filteredUsers = searchQuery.trim()
+    ? users.filter((user) => (user.nickname ?? "").includes(searchQuery.trim()))
+    : users;
+
   return (
     <main className={styles.wrap}>
       <div className={styles.header}>
@@ -128,9 +133,17 @@ export function AdminUsers({
         </button>
         <h1 className={styles.heading}>유저 정보 ({users.length})</h1>
       </div>
+      <input
+        className={styles.searchInput}
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="닉네임으로 검색 (일부만 입력해도 됨)"
+      />
       {error && <p className={styles.error}>{error}</p>}
       {loading ? (
         <p>불러오는 중...</p>
+      ) : filteredUsers.length === 0 ? (
+        <p className={styles.noResults}>일치하는 유저가 없어요.</p>
       ) : (
         <div className={styles.tableScroll}>
           <table className={styles.table}>
@@ -145,7 +158,7 @@ export function AdminUsers({
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <tr key={user.id} className={user.bannedAt ? styles.bannedRow : undefined}>
                   <td>{user.id}</td>
                   <td>{user.email ?? "-"}</td>

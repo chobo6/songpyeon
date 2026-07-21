@@ -53,6 +53,11 @@ export function AdminDashboard({
   const [sending, setSending] = useState(false);
   const [announceError, setAnnounceError] = useState<string | null>(null);
 
+  const [searchInput, setSearchInput] = useState("");
+  const [searchResults, setSearchResults] = useState<AdminEvent[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -110,6 +115,38 @@ export function AdminDashboard({
     } finally {
       setSending(false);
     }
+  }
+
+  async function handleEventSearch(e: FormEvent) {
+    e.preventDefault();
+    const nickname = searchInput.trim();
+    if (!nickname) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const res = await fetch(`/api/admin/events/search?nickname=${encodeURIComponent(nickname)}`, {
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setSearchError("검색에 실패했습니다");
+        return;
+      }
+      setSearchResults((await res.json()) as AdminEvent[]);
+    } catch {
+      setSearchError("검색에 실패했습니다");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function clearEventSearch() {
+    setSearchInput("");
+    setSearchResults(null);
+    setSearchError(null);
   }
 
   return (
@@ -193,6 +230,57 @@ export function AdminDashboard({
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section>
+        <h2>닉네임으로 접속 기록 검색</h2>
+        <p className={styles.searchHint}>위 "최근 입장/퇴장"보다 오래된 기록도 찾을 수 있어요 (최대 90일 전까지).</p>
+        <form onSubmit={handleEventSearch} className={styles.announceForm}>
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="닉네임 (일부만 입력해도 검색됨)"
+          />
+          <button type="submit" disabled={searching || !searchInput.trim()}>
+            검색
+          </button>
+          {searchResults !== null && (
+            <button type="button" onClick={clearEventSearch}>
+              지우기
+            </button>
+          )}
+        </form>
+        {searchError && <p className={styles.error}>{searchError}</p>}
+        {searchResults !== null && (
+          <div className={styles.eventTableScroll}>
+            {searchResults.length === 0 ? (
+              <p className={styles.searchHint}>일치하는 기록이 없어요.</p>
+            ) : (
+              <table className={styles.eventTable}>
+                <thead>
+                  <tr>
+                    <th>일시</th>
+                    <th>종류</th>
+                    <th>닉네임</th>
+                    <th>방</th>
+                    <th>IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResults.map((event) => (
+                    <tr key={`${event.sessionId}-${event.timestamp}-${event.type}`}>
+                      <td>{new Date(event.timestamp).toLocaleString()}</td>
+                      <td>{event.type === "join" ? "입장" : "퇴장"}</td>
+                      <td>{event.nickname}</td>
+                      <td>{event.roomTitle}</td>
+                      <td>{event.ip}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </section>
     </main>
   );

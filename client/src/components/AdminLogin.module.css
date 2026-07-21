@@ -12,6 +12,11 @@
   color: #fff;
 }
 
+.form h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
 .form input {
   padding: 0.5rem;
   border-radius: 0.4rem;

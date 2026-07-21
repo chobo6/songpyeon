@@ -40,12 +40,16 @@ npm run lint   # oxlint
   `async`이며, 방 메타데이터(`setMetadata`)에 현재 방 인원 명단(`players`)도 매번 갱신함.
 - **관리자 모니터링 페이지** (`/admin`, 고정 비밀번호 인증 — `ADMIN_PASSWORD` 환경변수): 현재
   활성 방/인원, 최근 입장·퇴장 로그, 전체 공지 배너(SSE)를 제공. `server/src/admin/`
-  (`eventLog.ts`=인메모리 최근 500개 로그, `auth.ts`=비밀번호+세션, `announcements.ts`=SSE 방송),
+  (`eventLog.ts`=입장·퇴장 로그(IP 포함), `auth.ts`=비밀번호+세션, `announcements.ts`=SSE 방송),
   라우트는 `createServer.ts`의 `/api/admin/*` + `/api/announcements/stream`. 클라이언트는
   `client/src/components/Admin*.tsx` + `AnnouncementBanner.tsx`(전역 마운트), 진입은
   `main.tsx`가 `window.location.pathname === "/admin"`으로 분기(라우터 라이브러리 없음).
-  설계: `docs/superpowers/specs/2026-07-19-admin-monitoring-design.md`. **로그/세션 전부
-  인메모리라 서버 재시작 시 초기화됨** — 의도된 동작.
+  설계: `docs/superpowers/specs/2026-07-19-admin-monitoring-design.md`. **세션은 인메모리라
+  서버 재시작 시 초기화됨**(의도된 동작) — 단 입장·퇴장 로그(`eventLog.ts`)는 2026-07-22부터
+  `events` 테이블(`server/src/db/connection.ts`)에 저장돼 재시작을 견딤, 90일 지난 로그는
+  매 기록 시점에 자동 정리됨(`RETENTION_DAYS`). `/api/admin/events`가 돌려주는 건 항상 최근
+  500건까지뿐이라, 그보다 오래된 특정 유저의 IP 등을 찾으려면 DB(`events` 테이블)를 직접
+  조회해야 함.
 - **유저별 실시간 입력 모니터링** (2026-07-21~, `/admin` → 유저 정보 → 모니터링 버튼): 키보드/매크로
   의심 유저를 지정하면 그 유저가 온라인 매치에서 누르는 버튼마다 색상·직전 입력과의 간격(ms)·
   `inputSpamGuard`에 씹혔는지를 실시간으로 보여줌. `server/src/admin/pressMonitor.ts`가

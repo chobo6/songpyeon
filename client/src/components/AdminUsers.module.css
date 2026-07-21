@@ -7,6 +7,9 @@
   min-height: 100svh;
   box-sizing: border-box;
   align-content: start;
+  max-width: 75rem;
+  margin: 0 auto;
+  text-align: left;
 }
 
 .header {
@@ -33,6 +36,21 @@
   color: #d33;
   font-size: 0.85rem;
   margin: 0;
+}
+
+.searchInput {
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.4rem;
+  width: 100%;
+  max-width: 20rem;
+  box-sizing: border-box;
+}
+
+.noResults {
+  color: #6b7280;
+  font-size: 0.85rem;
 }
 
 .tableScroll {

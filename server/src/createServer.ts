@@ -7,7 +7,7 @@ import { Server, matchMaker } from "colyseus";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
-import { getEvents } from "./admin/eventLog";
+import { getEvents, searchEventsByNickname } from "./admin/eventLog";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
 import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
@@ -178,6 +178,17 @@ export function createGameServer(): Server {
 
   app.get("/api/admin/events", requireAdmin, (_req, res) => {
     res.json(getEvents().slice(-100));
+  });
+
+  // getEvents()는 최근 500건까지만 보므로, 그보다 오래된 특정 유저의 접속 기록(IP
+  // 등)을 찾을 땐 DB를 직접(부분 일치로) 검색한다.
+  app.get("/api/admin/events/search", requireAdmin, (req, res) => {
+    const nickname = req.query.nickname;
+    if (typeof nickname !== "string" || nickname.trim().length === 0) {
+      res.status(400).json({ error: "nickname 쿼리 파라미터가 필요합니다." });
+      return;
+    }
+    res.json(searchEventsByNickname(nickname.trim()));
   });
 
   app.get("/api/admin/users", requireAdmin, (_req, res) => {
