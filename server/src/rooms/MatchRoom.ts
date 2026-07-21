@@ -5,7 +5,7 @@ import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated, STARTING_MORTARS } from "../game/mortar";
-import { isSpammedMintPress } from "../game/mintSpamGuard";
+import { isSpammedPress } from "../game/inputSpamGuard";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
 import { sanitizeTeamCount } from "../game/teamCount";
@@ -80,8 +80,8 @@ export class MatchRoom extends Room<MatchState> {
   // part of the broadcast state) can find the right row without exposing
   // the DB id on PlayerState to every client in the room.
   private playerUserIds = new Map<string, number>();
-  // 직전 버튼 입력(색 무관) 시각 — 민트 버튼 연타 속도 제한에만 씀(handlePressButton의
-  // isSpammedMintPress 호출부 참고). 매 턴 시작마다 초기화.
+  // 직전 버튼 입력(색 무관) 시각 — 민트/돼지 연타 속도 제한에만 씀(handlePressButton의
+  // isSpammedPress 호출부 참고). 매 턴 시작마다 초기화.
   private lastPressAt: number | null = null;
 
   async onCreate(options: MatchRoomOptions = {}) {
@@ -634,8 +634,8 @@ export class MatchRoom extends Room<MatchState> {
     const now = Date.now();
     const sinceLastPress = this.lastPressAt === null ? null : now - this.lastPressAt;
     this.lastPressAt = now;
-    if (isSpammedMintPress(color, sinceLastPress)) {
-      // 너무 빠른 민트 연타는 무시 — 손가락으로는 사실상 낼 수 없는 속도라, 폰에
+    if (isSpammedPress(color, sinceLastPress)) {
+      // 너무 빠른 입력은 무시 — 손가락으로는 사실상 낼 수 없는 속도라, 폰에
       // 키보드/매크로를 연결해 버튼 위치에 키를 매핑해 연타하는 걸 억제하기 위함.
       return;
     }

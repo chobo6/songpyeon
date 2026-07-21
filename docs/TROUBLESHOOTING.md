@@ -1410,11 +1410,27 @@ export function ReactionTimeTest({ onBack }: { onBack: () => void }) {
 읽는 사람이 직접 짜도 충분히 간단한 수준이라 diff는 따로 안 남김).
 
 ### 관련 파일
-- `server/src/game/mintSpamGuard.ts`, `server/src/game/mintSpamGuard.test.ts` (실제 배포되는 가드)
+- `server/src/game/mintSpamGuard.ts`, `server/src/game/mintSpamGuard.test.ts` (당시 실제 배포되던 가드 — **이후
+  `inputSpamGuard.ts`/`inputSpamGuard.test.ts`로 이름이 바뀌고 돼지 4색까지 대상이 넓어짐, 아래 참고**)
 - `server/src/rooms/MatchRoom.ts`, `server/src/rooms/MatchRoom.test.ts`
 - `client/src/game/useSoloMatch.ts` (가드 이식했다가 되돌림)
 - `client/src/components/ReactionTimeTest.tsx`, `.module.css` (과거 구현, 지금은 삭제됨 — 위 코드로 복원)
 - `client/src/components/SoloRoleSelect.tsx`, `client/src/App.tsx` (진입점 wiring도 제거됨)
+
+### 업데이트 (2026-07-21) — 돼지까지 확장, 파일명 변경
+
+민트에 한정됐던 가드를 돼지 4색(빨강/주황/노랑/보라)까지 넓힘. 돼지 조각(`[색상, 보라]`)은 같은 색이 연속으로
+나오는 구조 자체가 없어서(민트 런과 달리) "같은 버튼 연타"가 아니라 "색이 바뀌었는데도 인식·반응하기엔 너무
+빠른 입력"을 잡는 용도 — 그래서 민트(35ms)보다 훨씬 타이트한 `PIG_SPAM_THRESHOLD_MS = 5`를 씀. 더 이상
+"민트 전용"이 아니라서 파일도 `server/src/game/mintSpamGuard.ts` → `inputSpamGuard.ts`로, 함수도
+`isSpammedMintPress(color, ms)` → `isSpammedPress(color, ms)`(내부에서 `color === "mint"`면 민트 임계값,
+`colorRole(color) === "pig"`면 돼지 임계값 적용)로 이름을 바꿈. 위 코드 예시(계측용 도구, 강제 퇴장 관련 등)의
+`isSpammedMintPress`/`mintSpamGuard.ts` 표기는 당시 기준 그대로 남겨둠 — 재사용할 땐 이 업데이트를 반영해서
+`isSpammedPress`/`inputSpamGuard.ts`로 옮겨 쓸 것.
+
+### 관련 파일 (2026-07-21 이후 실제 배포되는 가드)
+- `server/src/game/inputSpamGuard.ts`, `server/src/game/inputSpamGuard.test.ts`
+- `server/src/rooms/MatchRoom.ts`
 
 ---
 
