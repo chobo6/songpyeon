@@ -46,6 +46,14 @@ npm run lint   # oxlint
   `main.tsx`가 `window.location.pathname === "/admin"`으로 분기(라우터 라이브러리 없음).
   설계: `docs/superpowers/specs/2026-07-19-admin-monitoring-design.md`. **로그/세션 전부
   인메모리라 서버 재시작 시 초기화됨** — 의도된 동작.
+- **유저별 실시간 입력 모니터링** (2026-07-21~, `/admin` → 유저 정보 → 모니터링 버튼): 키보드/매크로
+  의심 유저를 지정하면 그 유저가 온라인 매치에서 누르는 버튼마다 색상·직전 입력과의 간격(ms)·
+  `inputSpamGuard`에 씹혔는지를 실시간으로 보여줌. `server/src/admin/pressMonitor.ts`가
+  `announcements.ts`와 같은 SSE 패턴이되 **전체 브로드캐스트가 아니라 userId별로 구독자를 분리**
+  — `MatchRoom.handlePressButton`이 매 프레스마다 `notifyPress(userId, ...)`를 호출하지만
+  아무도 그 유저를 안 보고 있으면 맵 조회 한 번으로 끝나 비용이 거의 없음. 라우트는
+  `GET /api/admin/monitor/:userId/stream`(공지 배너 스트림과 달리 `requireAdmin` 필요 — 민감한
+  개인 데이터라서). 클라이언트는 `AdminPressMonitor.tsx`.
 - **입력 연타(스팸) 방어** (2026-07-21~, 온라인 매치에만 적용): 폰에 키보드/매크로를 연결해 버튼 위치에 키를
   매핑해 연타하는 부정행위를 막기 위한 서버 측 방어. `server/src/game/inputSpamGuard.ts`의 `isSpammedPress`가
   직전 버튼 입력(색 무관)으로부터 역할별 임계값 미만이면 해당 입력을 조용히 무시(`MatchRoom.handlePressButton`)
