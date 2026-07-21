@@ -11,6 +11,7 @@ export function createDb(filename: string): Database.Database {
       name TEXT,
       nickname TEXT,
       max_round INTEGER NOT NULL DEFAULT 0,
+      banned_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
@@ -19,17 +20,18 @@ export function createDb(filename: string): Database.Database {
   // collide with each other — only two non-null nicknames can't match.
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname)`);
 
-  // CREATE TABLE IF NOT EXISTS only defines max_round for a brand-new
-  // database — it does nothing to the production DB file, which already has
-  // a users table from before this column existed. ALTER TABLE ADD COLUMN
-  // is the migration for that case; guarded so re-running it on an
-  // already-migrated DB (every subsequent server start) is a no-op instead
-  // of an error.
-  const hasMaxRound = (db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[]).some(
-    (col) => col.name === "max_round",
-  );
-  if (!hasMaxRound) {
+  // CREATE TABLE IF NOT EXISTS only defines max_round/banned_at for a
+  // brand-new database — it does nothing to the production DB file, which
+  // already has a users table from before these columns existed. ALTER
+  // TABLE ADD COLUMN is the migration for that case; guarded so re-running
+  // it on an already-migrated DB (every subsequent server start) is a no-op
+  // instead of an error.
+  const columns = (db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[]).map((col) => col.name);
+  if (!columns.includes("max_round")) {
     db.exec(`ALTER TABLE users ADD COLUMN max_round INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!columns.includes("banned_at")) {
+    db.exec(`ALTER TABLE users ADD COLUMN banned_at TEXT`);
   }
 
   // created_at used to default to UTC (datetime('now')); rows written before

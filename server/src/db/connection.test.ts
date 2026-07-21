@@ -96,4 +96,14 @@ describe("createDb", () => {
       for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(tmpPath + suffix, { force: true });
     }
   });
+
+  test("users get a banned_at column that defaults to NULL", () => {
+    const db = createDb(":memory:");
+    db.prepare(`INSERT INTO users (google_sub) VALUES (?)`).run("sub-ban");
+
+    const row = db.prepare(`SELECT banned_at FROM users WHERE google_sub = ?`).get("sub-ban") as {
+      banned_at: string | null;
+    };
+    expect(row.banned_at).toBeNull();
+  });
 });
