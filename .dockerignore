@@ -3,6 +3,7 @@ node_modules
 .git
 *.log
 client/dist
+server/public
 .env
 .env.*
 **/.env
