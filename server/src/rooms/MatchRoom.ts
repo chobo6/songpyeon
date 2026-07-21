@@ -12,6 +12,7 @@ import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
+import { notifyPress } from "../admin/pressMonitor";
 import { getUserById, recordRoundAchievement } from "../auth/googleAuth";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
@@ -634,7 +635,17 @@ export class MatchRoom extends Room<MatchState> {
     const now = Date.now();
     const sinceLastPress = this.lastPressAt === null ? null : now - this.lastPressAt;
     this.lastPressAt = now;
-    if (isSpammedPress(color, sinceLastPress)) {
+    const blocked = isSpammedPress(color, sinceLastPress);
+
+    // 관리자가 이 유저를 모니터링 중이면(관리자 페이지 → 유저 정보 → 모니터링)
+    // 실시간으로 입력 간격을 보내준다 — 아무도 안 보고 있으면 pressMonitor 안에서
+    // 맵 조회 한 번으로 끝나서 매 프레스마다 불러도 부담 없음.
+    const monitoredUserId = this.playerUserIds.get(client.sessionId);
+    if (monitoredUserId !== undefined) {
+      notifyPress(monitoredUserId, { color, sinceLastPressMs: sinceLastPress, blocked, timestamp: now });
+    }
+
+    if (blocked) {
       // 너무 빠른 입력은 무시 — 손가락으로는 사실상 낼 수 없는 속도라, 폰에
       // 키보드/매크로를 연결해 버튼 위치에 키를 매핑해 연타하는 걸 억제하기 위함.
       return;

@@ -22,7 +22,15 @@ async function fetchJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: 
   }
 }
 
-export function AdminUsers({ onUnauthorized, onBack }: { onUnauthorized: () => void; onBack: () => void }) {
+export function AdminUsers({
+  onUnauthorized,
+  onBack,
+  onOpenMonitor,
+}: {
+  onUnauthorized: () => void;
+  onBack: () => void;
+  onOpenMonitor: (userId: number, nickname: string) => void;
+}) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -181,6 +189,12 @@ export function AdminUsers({ onUnauthorized, onBack }: { onUnauthorized: () => v
                           disabled={banningId === user.id}
                         >
                           {user.bannedAt ? "밴 해제" : "밴"}
+                        </button>
+                        <button
+                          className={styles.smallButton}
+                          onClick={() => onOpenMonitor(user.id, user.nickname ?? `유저 ${user.id}`)}
+                        >
+                          모니터링
                         </button>
                       </>
                     )}

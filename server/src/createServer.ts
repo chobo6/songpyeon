@@ -10,6 +10,7 @@ import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL
 import { getEvents } from "./admin/eventLog";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
+import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
 import { getOnlineUsers, touchPresence } from "./admin/presence";
 import {
   adminSetNickname,
@@ -235,6 +236,18 @@ export function createGameServer(): Server {
     }
     setUserBanned(userId, false);
     res.json({ ok: true });
+  });
+
+  // 공지 배너 스트림(/api/announcements/stream)과 달리 전체 공개가 아니라
+  // requireAdmin으로 막혀있음 — 특정 유저의 실시간 입력 패턴은 민감한 감시 데이터라
+  // 관리자만 볼 수 있어야 함.
+  app.get("/api/admin/monitor/:userId/stream", requireAdmin, (req, res) => {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    subscribeToPressMonitor(userId, req, res);
   });
 
   app.post("/api/admin/announce", requireAdmin, (req, res) => {

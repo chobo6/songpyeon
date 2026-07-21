@@ -8,6 +8,7 @@ import { createGameServer } from "../createServer";
 import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors";
 import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
+import { _resetForTest as resetPressMonitor, subscribe as subscribeToPressMonitor } from "../admin/pressMonitor";
 import { getOrCreateUser, setNickname, setUserBanned } from "../auth/googleAuth";
 import { signSession } from "../auth/session";
 import { db } from "../db/connection";
@@ -39,6 +40,24 @@ function flush() {
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Minimal Express Request/Response stand-in for pressMonitor.subscribe(),
+// which only needs headers/flushHeaders/write plus the two "close" event
+// hooks it registers — matches server/src/admin/pressMonitor.test.ts's own
+// helper. Captures written SSE chunks so a test can assert on them.
+function makeMockSseClient() {
+  const written: string[] = [];
+  const req = { on: () => {} } as unknown as Parameters<typeof subscribeToPressMonitor>[1];
+  const res = {
+    setHeader: () => {},
+    flushHeaders: () => {},
+    write: (chunk: string) => {
+      written.push(chunk);
+    },
+    on: () => {},
+  } as unknown as Parameters<typeof subscribeToPressMonitor>[2];
+  return { req, res, written };
 }
 
 // Waits out the pre-game 3/2/1 countdown (always exactly 3 ticks — see
@@ -1322,5 +1341,75 @@ describe("MatchRoom", () => {
         expect(team.rabbitSessionId).not.toBe(sessionId);
       },
     );
+  });
+
+  describe("press monitoring", () => {
+    test("a press by a monitored user is reported with its color and blocked status", async () => {
+      resetPressMonitor();
+      const { room, clients } = await fillRolesAndStart();
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      const player = room.state.players.get(actingClient.sessionId)!;
+      const userId = (
+        db.prepare(`SELECT id FROM users WHERE nickname = ?`).get(player.nickname) as { id: number }
+      ).id;
+      const monitor = makeMockSseClient();
+      subscribeToPressMonitor(userId, monitor.req, monitor.res);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(monitor.written).toHaveLength(1);
+      const event = JSON.parse(monitor.written[0].replace(/^data: /, "").trim());
+      expect(event.color).toBe(dueColor);
+      expect(event.blocked).toBe(false);
+      // First press of the turn has nothing to compare against.
+      expect(event.sinceLastPressMs).toBeNull();
+    });
+
+    test("a press by a user nobody is monitoring is not reported to any other subscriber", async () => {
+      resetPressMonitor();
+      const { room, clients } = await fillRolesAndStart();
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+
+      // Subscribe to some unrelated userId, not the one actually pressing.
+      const monitor = makeMockSseClient();
+      subscribeToPressMonitor(999999, monitor.req, monitor.res);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(monitor.written).toHaveLength(0);
+    });
+
+    test("a blocked (too-fast) press is still reported to the monitor, with blocked: true", async () => {
+      resetPressMonitor();
+      const { room, clients } = await fillRolesAndStart();
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      const player = room.state.players.get(actingClient.sessionId)!;
+      const userId = (
+        db.prepare(`SELECT id FROM users WHERE nickname = ?`).get(player.nickname) as { id: number }
+      ).id;
+      const monitor = makeMockSseClient();
+      subscribeToPressMonitor(userId, monitor.req, monitor.res);
+
+      // First press: the real due color — guaranteed to pass the guard,
+      // since the first press of a turn has no previous press to compare
+      // against. Advances the cursor without deciding the turn.
+      actingClient.send("pressButton", { color: dueColor });
+      // Second press: sent immediately after, so its interval since the
+      // first is well under either guard threshold (5ms pig / 35ms mint).
+      // Pig colors are all guarded, so any pig color works; for rabbit only
+      // mint is, so use "mint" specifically so this reliably trips the
+      // guard regardless of what dueColor actually was.
+      const secondColor = player.role === "pig" ? PIG_COLORS[0] : "mint";
+      actingClient.send("pressButton", { color: secondColor });
+      await flush();
+
+      const events = monitor.written.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()));
+      expect(events).toHaveLength(2);
+      expect(events[0].blocked).toBe(false);
+      expect(events[1].blocked).toBe(true);
+      expect(events[1].color).toBe(secondColor);
+    });
   });
 });
