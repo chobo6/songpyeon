@@ -44,6 +44,7 @@ export interface MatchState {
   cursor: number;
   turnEndsAt: number;
   turnOutcome: TurnOutcome;
+  missedRole: RoleChoice;
   lobbyChat: ChatMessage[];
   matchChat: ChatMessage[];
   spectators: Map<string, SpectatorState>;

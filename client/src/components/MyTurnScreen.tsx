@@ -22,7 +22,7 @@ export function MyTurnScreen({
   me: PlayerState;
   clockOffsetMs: number;
 }) {
-  const { sequence, cursor, turnOutcome, round, turnEndsAt, teams } = room.state;
+  const { sequence, cursor, turnOutcome, missedRole, round, turnEndsAt, teams } = room.state;
   const myTeam = teams.find((team) => team.id === me.teamId);
   const disabled = turnOutcome !== "pending";
   // My own presses already get instant local feedback (ButtonPanel plays on
@@ -63,7 +63,7 @@ export function MyTurnScreen({
         <TimerBar turnEndsAt={turnEndsAt} clockOffsetMs={clockOffsetMs} />
         <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
         <div className={styles.boardArea}>
-          <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} />
+          <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} missedRole={missedRole} />
           <TurnOutcomeBanner outcome={turnOutcome} />
         </div>
       </div>

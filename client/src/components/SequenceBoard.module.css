@@ -88,29 +88,14 @@
   border-top: 8px solid #fff;
 }
 
-/* The token everyone missed (wrong press or timeout never advances the
-   cursor — see SequenceBoard.tsx's missedIndex comment) — a pulsing red
-   ring so it's obvious at a glance which position broke the turn, visible
-   to teammates and spectators too since it's driven by synced state
-   (turnOutcome/cursor), not anything local to whoever pressed. Overrides
-   .token's own filter (same specificity, later in the file wins) rather
-   than stacking with it, so the base drop-shadow is re-declared alongside
-   the glow instead of being lost. */
-.missed {
-  border-radius: 50%;
-  outline: 3px solid #ef4444;
-  outline-offset: 2px;
-  animation: missedPulse 1s ease-in-out infinite;
-}
-
-@keyframes missedPulse {
-  0%,
-  100% {
-    outline-color: #ef4444;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 5px rgba(239, 68, 68, 0.9));
-  }
-  50% {
-    outline-color: #fca5a5;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 10px rgba(239, 68, 68, 1));
-  }
+/* miss 애니메이션(MissFrame)이 그리는 이미지 박스 — 기존 .token과 같은 크기의
+   박스를 그대로 써서(--token-width, 140/160 비율) 레이아웃이 안 흔들리게 하되,
+   miss 프레임 자체는 정사각형에 가까운 원형 배지라 object-fit 대신
+   background-size: contain으로 중앙에 그대로 담는다. */
+.missToken {
+  width: var(--token-width);
+  aspect-ratio: 140 / 160;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }

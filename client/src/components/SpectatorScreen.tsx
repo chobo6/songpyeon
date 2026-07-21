@@ -23,7 +23,7 @@ export function SpectatorScreen({
   clockOffsetMs: number;
   onLeave: () => void;
 }) {
-  const { sequence, cursor, turnOutcome, round, teams, turnEndsAt, players, matchChat } = room.state;
+  const { sequence, cursor, turnOutcome, missedRole, round, teams, turnEndsAt, players, matchChat } = room.state;
   // No role to exclude while spectating — every press heard here belongs to
   // whichever team is actually playing, none of it is "my own" instant-fed
   // press (spectators don't have a ButtonPanel at all).
@@ -96,7 +96,7 @@ export function SpectatorScreen({
         )}
         {!matchOver && (
           <div className={styles.boardArea}>
-            <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} />
+            <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} missedRole={missedRole} />
           </div>
         )}
         <ChatBox
