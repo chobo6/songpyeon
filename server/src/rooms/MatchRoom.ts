@@ -280,6 +280,34 @@ export class MatchRoom extends Room<MatchState> {
     if (this.state.phase === "playing" && !consented) {
       try {
         await this.allowReconnection(client, this.reconnectGraceSeconds);
+
+        // allowReconnection does NOT run onAuth again — Colyseus just
+        // copies the ORIGINAL client's `.auth` object verbatim onto the
+        // reconnected client (see @colyseus/core Room.js's _reserveSeat/
+        // allowReconnection resolution). So client.auth here can be stale:
+        // if an admin banned this user while the grace period was open,
+        // the onAuth-only `if (user.bannedAt) throw` check never re-runs
+        // for a reconnect, and a banned user could otherwise walk right
+        // back into their seat. Re-check the ban status fresh from the DB,
+        // keyed by userId (that part of auth IS still reliable — only
+        // bannedAt can have changed since the original login).
+        const freshUser = client.auth?.userId ? getUserById(client.auth.userId) : undefined;
+        if (freshUser?.bannedAt) {
+          // Remove from state.players BEFORE calling client.leave(), not
+          // after — client.leave() re-fires this same onLeave recursively
+          // for this client, and if state.players still contained this
+          // player at that point, the recursive call would hit this exact
+          // "playing && !consented" branch again and grant ANOTHER
+          // reconnection grace period, looping forever without ever
+          // actually locking the banned user out. Removing first means the
+          // recursive onLeave instead hits the `!this.state.players.has(...)`
+          // guard near the top of this method and returns immediately.
+          this.removePlayer(client.sessionId);
+          await this.setMetadata({ players: this.rosterForMetadata() });
+          client.leave();
+          return;
+        }
+
         // Reconnected in time. removePlayer was never called, so the seat,
         // team assignment, and role are exactly as they were — just
         // announce the comeback the same way a fresh join would be.

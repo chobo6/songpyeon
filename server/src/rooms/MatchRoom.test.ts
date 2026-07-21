@@ -1202,5 +1202,51 @@ describe("MatchRoom", () => {
       const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
       expect((room as unknown as MatchRoom).kickUserId(999999)).toBe(false);
     });
+
+    test(
+      "a user banned during their reconnection grace window is rejected on reconnect, not let back into the seat",
+      { timeout: 20000 },
+      async () => {
+        const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 5 });
+        const [firstClient] = clients;
+        const sessionId = firstClient.sessionId;
+        const reconnectToken = firstClient.reconnectionToken;
+        const player = room.state.players.get(sessionId)!;
+        const team = room.state.teams.find((t) => t.id === player.teamId)!;
+
+        // Same non-consented drop as the existing reconnection tests — the
+        // grace period is open, the seat is still held.
+        await firstClient.leave(false);
+        await flush();
+        expect(room.state.players.has(sessionId)).toBe(true);
+
+        // Ban the account WHILE the grace period is still open — this is
+        // exactly the path onAuth's ban check can't cover, since
+        // allowReconnection never re-runs onAuth (see onLeave's own
+        // comment).
+        const bannedUserId = (
+          db.prepare(`SELECT id FROM users WHERE nickname = ?`).get(player.nickname) as { id: number }
+        ).id;
+        setUserBanned(bannedUserId, true);
+
+        // Whether the reconnect handshake itself resolves and is then
+        // immediately kicked, or rejects outright, depends on exact
+        // microtask ordering inside Colyseus's allowReconnection resolution
+        // — either is an acceptable outcome here, so don't assert on it.
+        // What actually matters is the room-side state afterward.
+        const port = (colyseus.server as unknown as { port: number }).port;
+        try {
+          await new ColyseusJsClient(`ws://127.0.0.1:${port}`).reconnect<MatchState>(reconnectToken);
+        } catch {
+          // rejection is an acceptable way to observe the ban being enforced.
+        }
+
+        await waitUntil(() => !room.state.players.has(sessionId));
+
+        expect(room.state.players.has(sessionId)).toBe(false);
+        expect(team.pigSessionId).not.toBe(sessionId);
+        expect(team.rabbitSessionId).not.toBe(sessionId);
+      },
+    );
   });
 });
