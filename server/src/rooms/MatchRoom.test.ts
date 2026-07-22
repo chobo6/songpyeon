@@ -1492,20 +1492,20 @@ describe("MatchRoom", () => {
       // since the first press of a turn has no previous press to compare
       // against. Advances the cursor without deciding the turn.
       actingClient.send("pressButton", { color: dueColor });
-      // Second press: sent immediately after, so its interval since the
-      // first is well under either guard threshold (5ms pig / 35ms mint).
-      // Pig colors are all guarded, so any pig color works; for rabbit only
-      // mint is, so use "mint" specifically so this reliably trips the
-      // guard regardless of what dueColor actually was.
-      const secondColor = player.role === "pig" ? PIG_COLORS[0] : "mint";
-      actingClient.send("pressButton", { color: secondColor });
+      // Second press: always "mint", regardless of the acting player's role.
+      // isSpammedPress's mint branch keys purely on the button's color, not
+      // on who's pressing it, so this reliably trips MINT_SPAM_THRESHOLD_MS
+      // no matter which role happened to be due — unlike the pig branch,
+      // which can be tuned down to 0 (see PIG_SPAM_THRESHOLD_MS), making
+      // "too fast" impossible to trigger via any real, non-negative interval.
+      actingClient.send("pressButton", { color: "mint" });
       await flush();
 
       const events = monitor.written.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()));
       expect(events).toHaveLength(2);
       expect(events[0].blocked).toBe(false);
       expect(events[1].blocked).toBe(true);
-      expect(events[1].color).toBe(secondColor);
+      expect(events[1].color).toBe("mint");
     });
   });
 });

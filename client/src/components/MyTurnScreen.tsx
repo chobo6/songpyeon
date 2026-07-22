@@ -3,6 +3,7 @@ import type { Room } from "colyseus.js";
 import type { MatchState, PlayerState } from "../game/matchTypes";
 import type { Color } from "../game/colors";
 import { useSequencePressSound } from "../game/useSequencePressSound";
+import { useColorKeyPress } from "../game/useColorKeyPress";
 import { SequenceBoard } from "./SequenceBoard";
 import { ButtonPanel } from "./ButtonPanel";
 import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
@@ -39,6 +40,8 @@ export function MyTurnScreen({
     },
     [room],
   );
+
+  useColorKeyPress(me.role as "pig" | "rabbit", disabled, press);
 
   return (
     <div className={styles.wrap}>
