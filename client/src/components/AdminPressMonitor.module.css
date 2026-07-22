@@ -48,6 +48,12 @@
   color: #6b7280;
 }
 
+.average {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .empty {
   color: #9ca3af;
   font-size: 0.85rem;

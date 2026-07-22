@@ -19,6 +19,7 @@ import {
   getUserById,
   listUsers,
   setNickname,
+  setNicknameColor,
   setUserBanned,
   verifyGoogleIdToken,
 } from "./auth/googleAuth";
@@ -139,6 +140,7 @@ export function createGameServer(): Server {
               roomTitle?: string;
               playerCapacity?: number;
               players?: { sessionId: string; nickname: string }[];
+              phase?: "lobby" | "playing";
             }
           | undefined;
         return {
@@ -149,7 +151,11 @@ export function createGameServer(): Server {
           // (MatchRoom.ts의 MAX_CLIENTS_WITH_SPECTATORS) — 관리자 페이지에도
           // 실제 플레이어 정원(/api/rooms와 동일한 값)을 보여줘야 한다.
           maxClients: metadata?.playerCapacity ?? r.maxClients,
-          locked: r.locked,
+          // r.locked(Colyseus 자체 잠금 플래그)는 안 쓴다 — /api/rooms와 같은 이유
+          // (MatchRoom.ts가 lock() 대신 setPrivate()을 쓰도록 바뀌면서 locked는
+          // 항상 false로 고정됨). 이 라우트만 그 수정이 누락돼 있었음 — 게임이
+          // 진행 중이어도 관리자 대시보드에 계속 "대기 중"으로 보이던 버그.
+          locked: metadata?.phase === "playing",
           hostNickname: metadata?.hostNickname ?? "?",
           players: metadata?.players ?? [],
         };
@@ -212,6 +218,27 @@ export function createGameServer(): Server {
     const result = adminSetNickname(userId, nickname);
     if (result === "taken") {
       res.status(409).json({ error: "이미 사용 중인 닉네임이에요." });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  // 닉네임 자체와 완전히 독립된 별도 수정 — VIP/이벤트 당첨자 등 특정 유저의
+  // 닉네임에 관리자가 단색을 입혀 게임 내 전체(로스터/채팅/관전/랭킹)에 보이게 함.
+  app.post("/api/admin/users/:id/nickname-color", requireAdmin, (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    const { color } = req.body as { color?: unknown };
+    if (color !== null && typeof color !== "string") {
+      res.status(400).json({ error: "color는 문자열 또는 null이어야 합니다." });
+      return;
+    }
+    const result = setNicknameColor(userId, color);
+    if (result === "invalid") {
+      res.status(400).json({ error: "#RRGGBB 형식의 색상 코드를 입력해주세요." });
       return;
     }
     res.json({ ok: true });

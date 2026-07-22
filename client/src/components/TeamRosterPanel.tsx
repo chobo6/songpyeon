@@ -38,15 +38,19 @@ function teamRosterPropsEqual(prev: TeamRosterPanelProps, next: TeamRosterPanelP
 
 function Seat({
   nickname,
+  nicknameColor,
   roleIcon,
 }: {
   nickname: string | undefined;
+  nicknameColor: string | undefined;
   roleIcon: string;
 }) {
   return (
     <div className={styles.seat}>
       <img className={styles.seatIcon} src={roleIcon} alt="" />
-      <span className={styles.seatName}>{nickname ?? "-"}</span>
+      <span className={styles.seatName} style={{ color: nicknameColor || undefined }}>
+        {nickname ?? "-"}
+      </span>
     </div>
   );
 }
@@ -59,10 +63,12 @@ export const TeamRosterPanel = memo(function TeamRosterPanel({ teams, players }:
           <div key={team.id} className={styles.column}>
             <Seat
               nickname={players.get(team.pigSessionId)?.nickname}
+              nicknameColor={players.get(team.pigSessionId)?.nicknameColor}
               roleIcon="/game-assets/ui/thanksgiving_room_start_player_pig.png"
             />
             <Seat
               nickname={players.get(team.rabbitSessionId)?.nickname}
+              nicknameColor={players.get(team.rabbitSessionId)?.nicknameColor}
               roleIcon="/game-assets/ui/thanksgiving_room_start_player_rabbit.png"
             />
             {team.eliminated ? (

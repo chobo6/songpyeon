@@ -29,6 +29,10 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
     return sessionId ? (room.state.players.get(sessionId)?.nickname ?? "?") : "대기 중";
   }
 
+  function nicknameColorFor(sessionId: string): string | undefined {
+    return sessionId ? room.state.players.get(sessionId)?.nicknameColor || undefined : undefined;
+  }
+
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
@@ -45,7 +49,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             <span className={styles.pendingLabel}>역할 선택 중</span>
             <div className={styles.pendingNames}>
               {unassignedPlayers.map((p) => (
-                <span key={p.sessionId} className={styles.pendingName}>
+                <span key={p.sessionId} className={styles.pendingName} style={{ color: p.nicknameColor || undefined }}>
                   {p.nickname}
                 </span>
               ))}
@@ -82,8 +86,12 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
       <div className={styles.roster}>
         {teams.map((team) => (
           <div key={team.id} className={styles.rosterTeam}>
-            <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
-            <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
+            <span className={styles.rosterName} style={{ color: nicknameColorFor(team.pigSessionId) }}>
+              {nicknameFor(team.pigSessionId)}
+            </span>
+            <span className={styles.rosterName} style={{ color: nicknameColorFor(team.rabbitSessionId) }}>
+              {nicknameFor(team.rabbitSessionId)}
+            </span>
           </div>
         ))}
       </div>

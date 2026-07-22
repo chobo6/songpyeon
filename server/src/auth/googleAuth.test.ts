@@ -8,6 +8,7 @@ import {
   listUsers,
   recordRoundAchievement,
   setNickname,
+  setNicknameColor,
   setUserBanned,
 } from "./googleAuth";
 
@@ -131,7 +132,7 @@ describe("recordRoundAchievement", () => {
     recordRoundAchievement(user.id, 7);
     expect(getTopRanking(10)).toEqual([]); // no nickname yet, excluded from ranking
     setNickname(user.id, "달리기");
-    expect(getTopRanking(10)).toEqual([{ nickname: "달리기", maxRound: 7 }]);
+    expect(getTopRanking(10)).toEqual([{ nickname: "달리기", nicknameColor: null, maxRound: 7 }]);
   });
 
   test("never lowers an existing max_round", () => {
@@ -139,7 +140,7 @@ describe("recordRoundAchievement", () => {
     setNickname(user.id, "버티기");
     recordRoundAchievement(user.id, 9);
     recordRoundAchievement(user.id, 2);
-    expect(getTopRanking(10)).toEqual([{ nickname: "버티기", maxRound: 9 }]);
+    expect(getTopRanking(10)).toEqual([{ nickname: "버티기", nicknameColor: null, maxRound: 9 }]);
   });
 });
 
@@ -161,8 +162,8 @@ describe("getTopRanking", () => {
     }
 
     expect(getTopRanking(2)).toEqual([
-      { nickname: "1등후보", maxRound: 12 },
-      { nickname: "2등후보", maxRound: 8 },
+      { nickname: "1등후보", nicknameColor: null, maxRound: 12 },
+      { nickname: "2등후보", nicknameColor: null, maxRound: 8 },
     ]);
   });
 
@@ -170,6 +171,47 @@ describe("getTopRanking", () => {
     const user = getOrCreateUser("sub-19", {});
     setNickname(user.id, "구경꾼");
     expect(getTopRanking(10)).toEqual([]);
+  });
+});
+
+describe("setNicknameColor", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("stores a valid #RRGGBB color", () => {
+    const user = getOrCreateUser("sub-22", {});
+    const result = setNicknameColor(user.id, "#ff6b6b");
+    expect(result).toBe("ok");
+    expect(getUserById(user.id)?.nicknameColor).toBe("#ff6b6b");
+  });
+
+  test("reflects the color in listUsers and getTopRanking", () => {
+    const user = getOrCreateUser("sub-23", {});
+    setNickname(user.id, "색깔유저");
+    recordRoundAchievement(user.id, 4);
+    setNicknameColor(user.id, "#00ff00");
+
+    expect(listUsers().find((u) => u.id === user.id)?.nicknameColor).toBe("#00ff00");
+    expect(getTopRanking(10)).toEqual([{ nickname: "색깔유저", nicknameColor: "#00ff00", maxRound: 4 }]);
+  });
+
+  test.each(["red", "#fff", "#gggggg", "#ff6b6b1", "not-a-color"])(
+    "rejects an invalid color format: %s",
+    (invalid) => {
+      const user = getOrCreateUser(`sub-invalid-${invalid}`, {});
+      const result = setNicknameColor(user.id, invalid);
+      expect(result).toBe("invalid");
+      expect(getUserById(user.id)?.nicknameColor).toBeNull();
+    },
+  );
+
+  test("passing null clears an existing color", () => {
+    const user = getOrCreateUser("sub-24", {});
+    setNicknameColor(user.id, "#123456");
+    const result = setNicknameColor(user.id, null);
+    expect(result).toBe("ok");
+    expect(getUserById(user.id)?.nicknameColor).toBeNull();
   });
 });
 

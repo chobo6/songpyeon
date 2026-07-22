@@ -10,6 +10,7 @@ export type TurnOutcome = "pending" | "success" | "fail";
 export interface PlayerState {
   sessionId: string;
   nickname: string;
+  nicknameColor: string;
   role: RoleChoice;
   teamId: string;
 }
@@ -24,6 +25,7 @@ export interface TeamState {
 
 export interface ChatMessage {
   nickname: string;
+  nicknameColor: string;
   text: string;
   sentAt: number;
 }
@@ -31,6 +33,7 @@ export interface ChatMessage {
 export interface SpectatorState {
   sessionId: string;
   nickname: string;
+  nicknameColor: string;
 }
 
 export interface MatchState {

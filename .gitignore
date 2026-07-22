@@ -6,3 +6,4 @@ server/data/*
 !server/data/.gitkeep
 server/public/
 .superpowers/
+songpyeon-deploy.tar

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import styles from "./AdminUsers.module.css";
 
 const MAX_NICKNAME_LENGTH = 10;
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 type UserRow = {
   id: number;
@@ -9,6 +10,7 @@ type UserRow = {
   name: string | null;
   nickname: string | null;
   bannedAt: string | null;
+  nicknameColor: string | null;
   createdAt: string;
 };
 
@@ -39,6 +41,11 @@ export function AdminUsers({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [banningId, setBanningId] = useState<number | null>(null);
+  // 닉네임 수정과 완전히 독립된 별도 상태 — 한쪽을 고치는 동안 다른 쪽 편집 UI가
+  // 안 열려있어도 되고, 서로의 저장/취소가 서로에게 영향을 안 준다.
+  const [colorEditingId, setColorEditingId] = useState<number | null>(null);
+  const [colorEditValue, setColorEditValue] = useState("");
+  const [colorSaving, setColorSaving] = useState(false);
 
   async function loadUsers() {
     const result = await fetchJson<UserRow[]>("/api/admin/users");
@@ -93,6 +100,50 @@ export function AdminUsers({
       setError("닉네임 변경에 실패했습니다");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startColorEdit(user: UserRow) {
+    setColorEditingId(user.id);
+    setColorEditValue(user.nicknameColor ?? "");
+    setError(null);
+  }
+
+  function cancelColorEdit() {
+    setColorEditingId(null);
+    setError(null);
+  }
+
+  async function saveColorEdit(id: number) {
+    const trimmed = colorEditValue.trim();
+    if (trimmed && !HEX_COLOR_PATTERN.test(trimmed)) {
+      setError("#RRGGBB 형식의 색상 코드를 입력해주세요.");
+      return;
+    }
+    setColorSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${id}/nickname-color`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ color: trimmed || null }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? "색상 변경에 실패했습니다");
+        return;
+      }
+      setColorEditingId(null);
+      await loadUsers();
+    } catch {
+      setError("색상 변경에 실패했습니다");
+    } finally {
+      setColorSaving(false);
     }
   }
 
@@ -153,6 +204,7 @@ export function AdminUsers({
                 <th>이메일</th>
                 <th>이름</th>
                 <th>닉네임</th>
+                <th>색상</th>
                 <th>가입일</th>
                 <th></th>
               </tr>
@@ -174,6 +226,40 @@ export function AdminUsers({
                       />
                     ) : (
                       user.nickname ?? "-"
+                    )}
+                  </td>
+                  <td>
+                    {colorEditingId === user.id ? (
+                      <div className={styles.colorEditRow}>
+                        <input
+                          className={styles.colorInput}
+                          value={colorEditValue}
+                          onChange={(e) => setColorEditValue(e.target.value)}
+                          placeholder="#ff6b6b"
+                          autoFocus
+                        />
+                        <button
+                          className={styles.smallButton}
+                          onClick={() => saveColorEdit(user.id)}
+                          disabled={colorSaving}
+                        >
+                          저장
+                        </button>
+                        <button className={styles.smallButton} onClick={cancelColorEdit} disabled={colorSaving}>
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={styles.colorDisplayRow}>
+                        <span
+                          className={styles.colorSwatch}
+                          style={{ background: user.nicknameColor ?? "transparent" }}
+                        />
+                        <span>{user.nicknameColor ?? "-"}</span>
+                        <button className={styles.smallButton} onClick={() => startColorEdit(user)}>
+                          수정
+                        </button>
+                      </div>
                     )}
                   </td>
                   <td>{user.createdAt}</td>

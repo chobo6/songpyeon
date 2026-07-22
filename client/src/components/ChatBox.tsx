@@ -80,7 +80,9 @@ export const ChatBox = memo(function ChatBox({ messages, lastMessageAt, onSend, 
         {messages.map((m, i) =>
           m.nickname ? (
             <p key={i} className={styles.line}>
-              <span className={styles.nickname}>{m.nickname}</span>
+              <span className={styles.nickname} style={{ color: m.nicknameColor || undefined }}>
+                {m.nickname}
+              </span>
               <span className={styles.text}>{m.text}</span>
             </p>
           ) : (

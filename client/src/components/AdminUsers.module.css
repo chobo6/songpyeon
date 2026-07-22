@@ -110,3 +110,27 @@
 .bannedRow {
   opacity: 0.5;
 }
+
+.colorDisplayRow,
+.colorEditRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.colorSwatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+
+.colorInput {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.3rem;
+  width: 6rem;
+}

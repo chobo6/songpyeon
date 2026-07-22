@@ -12,6 +12,7 @@ export function createDb(filename: string): Database.Database {
       nickname TEXT,
       max_round INTEGER NOT NULL DEFAULT 0,
       banned_at TEXT,
+      nickname_color TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
@@ -48,6 +49,9 @@ export function createDb(filename: string): Database.Database {
   }
   if (!columns.includes("banned_at")) {
     db.exec(`ALTER TABLE users ADD COLUMN banned_at TEXT`);
+  }
+  if (!columns.includes("nickname_color")) {
+    db.exec(`ALTER TABLE users ADD COLUMN nickname_color TEXT`);
   }
 
   // created_at used to default to UTC (datetime('now')); rows written before

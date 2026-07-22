@@ -9,7 +9,7 @@ import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors
 import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
 import { _resetForTest as resetPressMonitor, subscribe as subscribeToPressMonitor } from "../admin/pressMonitor";
-import { getOrCreateUser, setNickname, setUserBanned } from "../auth/googleAuth";
+import { getOrCreateUser, setNickname, setNicknameColor, setUserBanned } from "../auth/googleAuth";
 import { signSession } from "../auth/session";
 import { db } from "../db/connection";
 
@@ -87,10 +87,16 @@ let testUserCounter = 0;
 // colyseus.js Client를 커스텀 Cookie 헤더로 직접 연결한다 (@colyseus/testing의 connectTo는
 // 헤더를 커스터마이즈할 수 없어서 이 방식이 필요 — colyseus.js가 Node 환경에서 WebSocket
 // 업그레이드 요청에 커스텀 헤더를 지원하는 것을 확인하고 쓰는 것).
-async function connectAsUser(colyseus: ColyseusTestServer, room: ServerRoom<MatchState>, nickname: string) {
+async function connectAsUser(
+  colyseus: ColyseusTestServer,
+  room: ServerRoom<MatchState>,
+  nickname: string,
+  nicknameColor?: string,
+) {
   testUserCounter += 1;
   const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
   setNickname(user.id, nickname);
+  if (nicknameColor) setNicknameColor(user.id, nicknameColor);
   const token = signSession(user.id);
   const port = (colyseus.server as unknown as { port: number }).port;
   const client = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
@@ -1161,6 +1167,63 @@ describe("MatchRoom", () => {
     },
     15000,
   );
+
+  describe("nickname color propagation", () => {
+    test("a player with a nickname color has it reflected in PlayerState", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "색깔돼지", "#ff6b6b");
+      await flush();
+
+      expect(room.state.players.get(client.sessionId)?.nicknameColor).toBe("#ff6b6b");
+    });
+
+    test("a player with no nickname color has an empty string, not null/undefined", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "무색플레이어");
+      await flush();
+
+      expect(room.state.players.get(client.sessionId)?.nicknameColor).toBe("");
+    });
+
+    test("a chat message from a colored player carries the same color", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "채팅색깔", "#00ff00");
+      client.send("sendChat", { text: "안녕" });
+      await flush();
+
+      const message = room.state.lobbyChat.find((m) => m.text === "안녕");
+      expect(message?.nicknameColor).toBe("#00ff00");
+    });
+
+    test("a spectator with a nickname color has it reflected in SpectatorState, and in their chat messages", async () => {
+      const { room } = await fillRolesAndStart();
+      const spectatorClient = await connectAsUser(colyseus, room, "관전색깔", "#0000ff");
+      await flush();
+
+      expect(room.state.spectators.get(spectatorClient.sessionId)?.nicknameColor).toBe("#0000ff");
+
+      spectatorClient.send("sendChat", { text: "구경중" });
+      await flush();
+
+      const message = room.state.matchChat.find((m) => m.text === "구경중");
+      expect(message?.nicknameColor).toBe("#0000ff");
+    });
+
+    test("join/leave system messages never carry a nickname color, even for a colored player", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "시스템색깔", "#abcdef");
+      await flush();
+
+      const joinMessage = room.state.lobbyChat.find((m) => m.text === "시스템색깔님이 입장했습니다");
+      expect(joinMessage?.nicknameColor).toBe("");
+
+      await client.leave();
+      await flush();
+
+      const leaveMessage = room.state.lobbyChat.find((m) => m.text === "시스템색깔님이 퇴장했습니다");
+      expect(leaveMessage?.nicknameColor).toBe("");
+    });
+  });
 
   describe("admin event log integration", () => {
     test("onJoin records a join event and updates the room's player roster metadata", async () => {
