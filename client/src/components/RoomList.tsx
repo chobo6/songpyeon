@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
+import { InquiryModal } from "./InquiryModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -18,6 +19,7 @@ export function RoomList({
   const [rooms, setRooms] = useState<RoomListEntry[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +84,9 @@ export function RoomList({
       <button className={styles.exitButton} onClick={onExit}>
         나가기
       </button>
+      <button className={styles.inquiryButton} onClick={() => setShowInquiryModal(true)}>
+        문의하기
+      </button>
       {showCreateModal && (
         <CreateRoomModal
           onClose={() => setShowCreateModal(false)}
@@ -92,6 +97,7 @@ export function RoomList({
         />
       )}
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
+      {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
     </div>
   );
 }

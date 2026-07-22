@@ -1,0 +1,75 @@
+.wrap {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  color: #111827;
+  background: #f9fafb;
+  min-height: 100svh;
+  box-sizing: border-box;
+  align-content: start;
+  max-width: 75rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.backButton {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+
+.noResults {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.tableScroll {
+  max-height: calc(100svh - 8rem);
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.4rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+.table th,
+.table td:not(.contentCell) {
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+}
+
+.contentCell {
+  white-space: pre-wrap;
+  min-width: 16rem;
+}

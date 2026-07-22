@@ -37,6 +37,20 @@ export function createDb(filename: string): Database.Database {
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`);
 
+  // 관리자에게 보내는 1회성 문의(답장 없음) — 누가 보냈는지 추적할 수 있게
+  // user_id/nickname을 같이 저장한다. events와 달리 개인정보(IP) 보관 목적이
+  // 아니라 실제 민원 기록이라 별도 만료 없이 계속 보관한다.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS inquiries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      nickname TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `);
+
   // CREATE TABLE IF NOT EXISTS only defines max_round/banned_at for a
   // brand-new database — it does nothing to the production DB file, which
   // already has a users table from before these columns existed. ALTER

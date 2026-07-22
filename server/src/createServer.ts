@@ -8,6 +8,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
 import { getEvents, searchEventsByNickname } from "./admin/eventLog";
+import { getInquiries, recordInquiry } from "./admin/inquiries";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
 import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
@@ -201,6 +202,10 @@ export function createGameServer(): Server {
     res.json(listUsers());
   });
 
+  app.get("/api/admin/inquiries", requireAdmin, (_req, res) => {
+    res.json(getInquiries());
+  });
+
   // 자기 자신은 최초 1회만 설정 가능한 일반 /api/auth/nickname과 달리, 관리자는
   // 이미 설정된 닉네임도 덮어쓸 수 있다 (오타/부적절한 닉네임 수정용) — 다른
   // 계정과 겹치는 닉네임은 여전히 거부한다.
@@ -359,6 +364,26 @@ export function createGameServer(): Server {
     }
     const user = getUserById(userId);
     res.json({ id: userId, nickname: user?.nickname ?? null });
+  });
+
+  // 로비(방 목록) 화면의 "문의하기" 버튼에서만 호출됨 — 온라인 입장 자체가
+  // 구글 로그인을 요구하므로 여기 도달했다는 건 항상 로그인된 유저라는 뜻이고,
+  // 그래서 누가 보냈는지(닉네임) 항상 같이 기록할 수 있다. 답장 기능은 없음.
+  app.post("/api/inquiries", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    const user = userId ? getUserById(userId) : null;
+    if (!user?.nickname) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { title, content } = req.body as { title?: unknown; content?: unknown };
+    if (typeof title !== "string" || !title.trim() || typeof content !== "string" || !content.trim()) {
+      res.status(400).json({ error: "제목과 내용을 입력해주세요." });
+      return;
+    }
+    recordInquiry(user.id, user.nickname, title.trim(), content.trim());
+    res.json({ ok: true });
   });
 
   app.post("/api/auth/logout", (_req, res) => {

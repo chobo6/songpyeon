@@ -41,10 +41,12 @@ export function AdminDashboard({
   onUnauthorized,
   onOpenUsers,
   onOpenKeyTest,
+  onOpenInquiries,
 }: {
   onUnauthorized: () => void;
   onOpenUsers: () => void;
   onOpenKeyTest: () => void;
+  onOpenInquiries: () => void;
 }) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
@@ -156,6 +158,9 @@ export function AdminDashboard({
         <div className={styles.topRowButtons}>
           <button className={styles.usersButton} onClick={onOpenUsers}>
             유저 정보
+          </button>
+          <button className={styles.usersButton} onClick={onOpenInquiries}>
+            문의 내역
           </button>
           <button className={styles.usersButton} onClick={onOpenKeyTest}>
             입력속도 테스트 (임시)
