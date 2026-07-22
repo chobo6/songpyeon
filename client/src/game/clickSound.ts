@@ -1,4 +1,5 @@
 import type { Color } from "./colors";
+import { isSfxEnabled } from "./audioSettings";
 
 // One press SFX per color, matched by ear to the original game's per-button
 // sound (see client/public/game-assets/README.md) — "mint" has no static
@@ -58,6 +59,7 @@ export function playSrc(src: string) {
 // press observed via state sync) land on the same point in the cycle for
 // the same logical press — see game/useSequencePressSound.ts.
 export function playColorClickSound(color: Color, mintStreakIndex = 0) {
+  if (!isSfxEnabled()) return;
   if (color === "mint") {
     playSrc(MINT_CLICK_SRCS[mintStreakIndex % MINT_CLICK_SRCS.length]);
     return;

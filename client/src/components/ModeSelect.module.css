@@ -26,6 +26,36 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 24px rgba(255, 235, 180, 0.55);
 }
 
+.audioToggles {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.audioToggle {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.15s ease;
+}
+
+.audioToggle:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.audioToggle[aria-pressed="false"] {
+  opacity: 0.6;
+}
+
 .choices {
   display: flex;
   flex-direction: column;
