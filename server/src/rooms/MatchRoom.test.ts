@@ -1331,6 +1331,39 @@ describe("MatchRoom", () => {
       expect((room as unknown as MatchRoom).kickUserId(999999)).toBe(false);
     });
 
+    test("kickUserId disconnects every connection the user holds in this room, not just the first found", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      testUserCounter += 1;
+      const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+      setNickname(user.id, "이중접속유저");
+      const token = signSession(user.id);
+      const port = (colyseus.server as unknown as { port: number }).port;
+
+      // 같은 계정으로 탭 두 개를 열어 같은 방에 두 번 입장하는 상황을 흉내낸다 —
+      // 로비가 아직 열려있는 동안(teamCount: 1은 플레이어 2명 필요)이라 두 연결
+      // 모두 플레이어로 등록된다. sessionId는 연결마다 다르지만 client.auth.userId는
+      // 둘 다 같다.
+      const firstClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${token}` },
+      });
+      const firstJoined = await firstClient.joinById<MatchState>(room.roomId);
+      const secondClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${token}` },
+      });
+      const secondJoined = await secondClient.joinById<MatchState>(room.roomId);
+      await flush();
+
+      expect(room.state.players.has(firstJoined.sessionId)).toBe(true);
+      expect(room.state.players.has(secondJoined.sessionId)).toBe(true);
+
+      const kicked = (room as unknown as MatchRoom).kickUserId(user.id);
+      await flush();
+
+      expect(kicked).toBe(true);
+      expect(room.state.players.has(firstJoined.sessionId)).toBe(false);
+      expect(room.state.players.has(secondJoined.sessionId)).toBe(false);
+    });
+
     test(
       "kickUserId during an active match drops the connection immediately, but roster cleanup follows the same reconnect-grace path as any other mid-match disconnect (not instant, unlike a lobby kick)",
       { timeout: 20000 },

@@ -108,11 +108,15 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
     return <NicknameEntry onSubmit={(nickname) => setMe({ ...me, nickname })} />;
   }
 
-  // A refresh or a dropped connection always lands back on the room list —
-  // no automatic resume into whatever room you were last in. Combined with
-  // RoleSelect now allowing free role changes without leaving the room,
-  // there's no scenario left where losing your place mid-lobby is costly
-  // enough to need a silent resume.
+  // Reached only when there's no stored reconnect token (see App()'s `mode`
+  // and this component's `joinSpec` initializers above, both gated on
+  // hasStoredReconnectToken()) — a mid-match refresh skips this branch
+  // entirely and auto-resumes straight into ConnectedOnlineFlow instead.
+  // So this is just the lobby case: a refresh/drop with no match in flight
+  // always lands back on the room list, no silent resume into it. Combined
+  // with RoleSelect now allowing free role changes without leaving the
+  // room, there's no scenario left where losing your place mid-lobby is
+  // costly enough to need one either.
   if (!joinSpec) {
     return (
       <RoomList

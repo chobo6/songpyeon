@@ -41,7 +41,7 @@ export function InquiryModal({ onClose }: { onClose: () => void }) {
         <h2 className={styles.heading}>관리자에게 문의하기</h2>
         {sent ? (
           <>
-            <p className={styles.sentMessage}>문의가 전달됐어요. 별도 답장은 드리지 않아요.</p>
+            <p className={styles.sentMessage}>문의가 전달됐어요.</p>
             <button className={styles.closeButton} onClick={onClose}>
               닫기
             </button>

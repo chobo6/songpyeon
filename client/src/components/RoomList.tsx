@@ -55,10 +55,11 @@ export function RoomList({
       <div className={styles.list}>
         {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
         {rooms.map((room) => {
-          // `locked` is the only reliable "can't join" signal here — Colyseus
-          // flips it to true the same instant a room's live client count
-          // reaches maxClients (see MatchRoom.ts's onLeave/lock() comments),
-          // so a separate "room.clients >= room.maxClients" check can never
+          // `locked` is the only reliable "can't join" signal here — it's
+          // not Colyseus's own maxClients-triggered auto-lock (that's
+          // deliberately unused now; see createServer.ts's /api/rooms route,
+          // which derives `locked` from room metadata's `phase` instead), so
+          // a separate "room.clients >= room.maxClients" check can never
           // be true when `locked` isn't already true too. This listing can
           // still be stale in the other direction (a role slot held by a
           // reconnection-grace session doesn't count toward `clients`, so a
