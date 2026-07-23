@@ -106,7 +106,7 @@ export function Game({
     <>
       <BgmPlayer />
       {phase === "playing" && <SpectatorCountBadge room={room} />}
-      {phase === "playing" && <TeamComboBadge teams={room.state.teams} />}
+      {phase === "playing" && activeTeam && <TeamComboBadge combo={activeTeam.combo} />}
       {phase === "playing" && me && <MyAverageSpeedBadge averageMs={averageMs} />}
       {screen}
     </>

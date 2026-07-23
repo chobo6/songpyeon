@@ -1,14 +1,6 @@
-import type { TeamState } from "../game/matchTypes";
 import styles from "./TeamComboBadge.module.css";
 
-export function TeamComboBadge({ teams }: { teams: TeamState[] }) {
-  return (
-    <div className={styles.wrap}>
-      {teams.map((t) => (
-        <div key={t.id} className={t.eliminated ? `${styles.row} ${styles.eliminated}` : styles.row}>
-          {t.id}팀 🔥{t.combo}
-        </div>
-      ))}
-    </div>
-  );
+// 현재 턴인 팀의 콤보만 보여줌 — 텍스트 라벨 없이 이모지 + 숫자만.
+export function TeamComboBadge({ combo }: { combo: number }) {
+  return <div className={styles.badge}>🔥{combo}</div>;
 }
