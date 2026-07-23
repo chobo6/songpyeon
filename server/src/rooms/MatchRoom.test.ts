@@ -1230,7 +1230,22 @@ describe("MatchRoom", () => {
         expect(room.state.round).toBe(startingRound);
 
         // 이제 활성인(두 번째) 팀도 자기 턴을 완료 — 두 팀 다 한 번씩 돌았으므로 라운드가 넘어감.
-        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        // completeActiveTurn을 또 쓰지 않는 이유: 그 헬퍼의 끝에 있는
+        // turnDurationMs+200 고정 대기가 반환되는 시점엔 이미 "다음(세 번째) 턴"
+        // (라운드 2, 다시 첫 번째 팀 차례)이 막 시작돼 자기 자신의 turnDurationMs
+        // 타이머가 돌기 시작한 상태 — 그 대기가 새 턴 예산을 거의 다 잡아먹어서,
+        // 이 테스트가 실제로 어서션하기 전에 그 타이머가 실제로 만료돼버리면
+        // (환경에 따른 실행 지연) 첫 번째 팀이 진짜로(정당하게) 시간초과 실패해
+        // combo가 0으로 리셋되는 진짜 레이스가 있었음 — 라운드가 바뀌는 그 순간만
+        // 폴링해서 그 여유 시간을 최소화한다.
+        while (room.state.cursor < room.state.sequence.length - 1) {
+          const { dueColor, actingClient } = actingClientFor(room, clients);
+          actingClient.send("pressButton", { color: dueColor });
+          await wait(70);
+        }
+        const { dueColor: lastDue, actingClient: lastActing } = actingClientFor(room, clients);
+        lastActing.send("pressButton", { color: lastDue });
+        await waitUntil(() => room.state.round === startingRound + 1);
 
         expect(room.state.round).toBe(startingRound + 1);
         const firstTeamAfterRoundChange = room.state.teams.find((t) => t.id === firstTeamId)!;
