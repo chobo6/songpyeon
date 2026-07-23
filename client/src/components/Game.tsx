@@ -37,7 +37,16 @@ export function Game({
 
   // 본인 평균 프레스 간격 — MyTurnScreen이 턴마다 언마운트/리마운트돼도
   // 여기(Game.tsx)에 살아있으므로 누적치가 유지됨. usePersonalPressSpeed.ts 참고.
-  const { averageMs, recordPress, resetAnchor } = usePersonalPressSpeed();
+  const { averageMs, recordPress, resetAnchor, resetAll } = usePersonalPressSpeed();
+
+  // 재대결로 phase가 playing→lobby로 돌아갈 때 누적 평균도 완전히 리셋 —
+  // Game 자체는 재대결 때 언마운트되지 않으므로(계속 playing↔lobby만 오감),
+  // resetAnchor()(턴 경계용, 기준점만 지움)만으로는 이전 매치의 누적 합/
+  // 횟수가 다음 매치로 그대로 넘어가버린다. 콤보는 팀이 서버에서 새로
+  // 생성돼 자연히 0이 되지만, 이건 클라이언트 전용 상태라 직접 끊어줘야 함.
+  useEffect(() => {
+    if (phase === "lobby") resetAll();
+  }, [phase, resetAll]);
 
   // 매치가 끝나 재경기 로비로 돌아가는 순간, 관전자는 그 로비(플레이어들끼리의 재경기
   // 대기실)에 남아있을 이유가 없다 — 자동으로 방을 나가 방 목록으로 돌아간다.

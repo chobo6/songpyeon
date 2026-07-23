@@ -592,6 +592,13 @@ export class MatchRoom extends Room<MatchState> {
       team.eliminated = false;
       team.pigSessionId = "";
       team.rabbitSessionId = "";
+      // 지금은 이미 항상 0 상태로 여기 도달함(isMatchOver가 요구하는 "전원
+      // 탈락"은 매 탈락이 applyMortarLoss를 거치고, 그게 실패한 팀의 combo를
+      // 이미 0으로 만들어놔서) — 하지만 그건 handleRematch가 아니라 판정
+      // 경로의 부수효과일 뿐이라, 나중에 "한 팀이 살아남은 채 매치가 끝나는"
+      // 승리 조건이 추가되면 그 생존 팀의 콤보가 다음 매치로 새어 들어갈 수
+      // 있음. 그 가정에 기대지 않도록 여기서 명시적으로 리셋.
+      team.combo = 0;
     }
     for (const player of this.state.players.values()) {
       player.role = "";
