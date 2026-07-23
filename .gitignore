@@ -7,3 +7,4 @@ server/data/*
 server/public/
 .superpowers/
 songpyeon-deploy.tar
+.claude/settings.local.json
