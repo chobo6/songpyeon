@@ -10,6 +10,7 @@ import {
   setNickname,
   setNicknameColor,
   setUserBanned,
+  touchLastLogin,
 } from "./googleAuth";
 
 describe("getOrCreateUser", () => {
@@ -250,5 +251,21 @@ describe("setUserBanned", () => {
     setUserBanned(user.id, true);
     const row = listUsers().find((u) => u.id === user.id);
     expect(row?.bannedAt).toBeTruthy();
+  });
+});
+
+describe("touchLastLogin", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("sets last_login_at for an existing user", () => {
+    const user = getOrCreateUser("sub-27", {});
+    db.prepare(`UPDATE users SET last_login_at = NULL WHERE id = ?`).run(user.id);
+    expect(listUsers().find((u) => u.id === user.id)?.lastLoginAt).toBeNull();
+
+    touchLastLogin(user.id);
+
+    expect(listUsers().find((u) => u.id === user.id)?.lastLoginAt).toBeTruthy();
   });
 });

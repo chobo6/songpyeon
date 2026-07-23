@@ -22,6 +22,7 @@ import {
   setNickname,
   setNicknameColor,
   setUserBanned,
+  touchLastLogin,
   verifyGoogleIdToken,
 } from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
@@ -338,6 +339,7 @@ export function createGameServer(): Server {
       return;
     }
     const user = getUserById(userId);
+    if (user) touchLastLogin(userId);
     res.json(user ? { id: user.id, nickname: user.nickname } : null);
   });
 

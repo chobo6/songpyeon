@@ -70,6 +70,15 @@ export function getUserById(userId: number): UserProfile | undefined {
     .get(userId) as UserProfile | undefined;
 }
 
+// getOrCreateUser의 last_login_at 갱신은 실제 구글 로그인 팝업을 거칠 때만 호출된다
+// (/api/auth/google). 세션 쿠키가 30일 유효해서, 이미 로그인된 상태로 재방문하면
+// /api/auth/me(세션 검증만 하고 끝)만 타고 그쪽은 아예 안 거치므로 "최근 로그인"이
+// 30일 동안 안 바뀌는 문제가 있었음 — /api/auth/me가 세션을 확인할 때마다 이걸 불러
+// "최근 접속" 의미에 가깝게 만든다.
+export function touchLastLogin(userId: number): void {
+  db.prepare(`UPDATE users SET last_login_at = datetime('now', '+9 hours') WHERE id = ?`).run(userId);
+}
+
 export type AdminUserRow = {
   id: number;
   email: string | null;
