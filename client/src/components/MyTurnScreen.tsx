@@ -31,8 +31,13 @@ export function MyTurnScreen({
   me: PlayerState;
   clockOffsetMs: number;
   // Game.tsx의 usePersonalPressSpeed()가 반환하는 recordPress/resetAnchor —
-  // 이 화면은 활성 팀이 바뀔 때마다 언마운트/리마운트되므로, 누적 평균
-  // 자체는 이 컴포넌트 밖(Game.tsx)에 살아있어야 턴이 넘어가도 안 날아간다.
+  // 이 화면은 보통 활성 팀이 바뀔 때마다 언마운트/리마운트되지만(누적 평균
+  // 자체는 이 컴포넌트 밖(Game.tsx)에 살아있어야 턴이 넘어가도 안 날아감),
+  // 다른 팀이 전부 탈락해 내 팀 혼자 남으면 activeTeamIndex가 매 턴 그대로라
+  // 이 컴포넌트가 리마운트 없이 계속 재사용됨(nextActiveTeamIndex가 남은
+  // 팀이 하나뿐이면 currentIndex를 그대로 반환 — server/src/game/rotation.ts).
+  // 그래서 "마운트 1회" 대신 turnEndsAt(서버가 startTurn()마다 갱신하는 값,
+  // 리마운트 여부와 무관하게 매 턴 바뀜)이 바뀔 때마다 리셋한다.
   onMyPress: () => void;
   onMyTurnStart: () => void;
 }) {
@@ -44,13 +49,12 @@ export function MyTurnScreen({
   // teammate's presses, which I'd otherwise only see, never hear.
   useSequencePressSound(sequence, cursor, me.role as "pig" | "rabbit");
 
-  // 이 화면이 마운트되는 건 정확히 "내 팀의 새 턴이 시작될 때"뿐이므로,
-  // 마운트 1회 = 턴 시작 1회. 턴 사이 공백이 평균속도 계산에 안 섞이도록
-  // 여기서 기준점을 리셋한다(usePersonalPressSpeed.ts 참고).
+  // turnEndsAt이 바뀔 때마다(= 새 턴이 시작될 때마다, 리마운트 여부와 무관하게)
+  // 기준점을 리셋 — 턴 사이 공백이 평균속도 계산에 안 섞이게 함
+  // (usePersonalPressSpeed.ts 참고).
   useEffect(() => {
     onMyTurnStart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [turnEndsAt, onMyTurnStart]);
 
   // room is a stable reference for the lifetime of the connection (set once
   // by useMatchRoom, never reassigned) — memoized so ButtonPanel's own
