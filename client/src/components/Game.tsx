@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
+import { usePersonalPressSpeed } from "../game/usePersonalPressSpeed";
 import { RoleSelect } from "./RoleSelect";
 import { MyTurnScreen } from "./MyTurnScreen";
 import { SpectatorScreen } from "./SpectatorScreen";
 import { SpectatorCountBadge } from "./SpectatorCountBadge";
+import { TeamComboBadge } from "./TeamComboBadge";
+import { MyAverageSpeedBadge } from "./MyAverageSpeedBadge";
 import { BgmPlayer } from "./BgmPlayer";
 
 export function Game({
@@ -32,6 +35,10 @@ export function Game({
     chatDraftRef.current = text;
   }, []);
 
+  // 본인 평균 프레스 간격 — MyTurnScreen이 턴마다 언마운트/리마운트돼도
+  // 여기(Game.tsx)에 살아있으므로 누적치가 유지됨. usePersonalPressSpeed.ts 참고.
+  const { averageMs, recordPress, resetAnchor } = usePersonalPressSpeed();
+
   // 매치가 끝나 재경기 로비로 돌아가는 순간, 관전자는 그 로비(플레이어들끼리의 재경기
   // 대기실)에 남아있을 이유가 없다 — 자동으로 방을 나가 방 목록으로 돌아간다.
   useEffect(() => {
@@ -57,7 +64,15 @@ export function Game({
 
   let screen = null;
   if (me && activeTeam && isMyTeamActive) {
-    screen = <MyTurnScreen room={room} me={me} clockOffsetMs={clockOffsetMs} />;
+    screen = (
+      <MyTurnScreen
+        room={room}
+        me={me}
+        clockOffsetMs={clockOffsetMs}
+        onMyPress={recordPress}
+        onMyTurnStart={resetAnchor}
+      />
+    );
   } else if (activeTeam) {
     const myTeam = room.state.teams.find((t) => t.id === me?.teamId);
     screen = (
@@ -82,6 +97,8 @@ export function Game({
     <>
       <BgmPlayer />
       {phase === "playing" && <SpectatorCountBadge room={room} />}
+      {phase === "playing" && <TeamComboBadge teams={room.state.teams} />}
+      {phase === "playing" && me && <MyAverageSpeedBadge averageMs={averageMs} />}
       {screen}
     </>
   );
