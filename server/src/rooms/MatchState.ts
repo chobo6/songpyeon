@@ -19,6 +19,7 @@ export class TeamState extends Schema {
   @type("string") rabbitSessionId: string = "";
   @type("number") mortars: number = STARTING_MORTARS;
   @type("boolean") eliminated: boolean = false;
+  @type("number") combo: number = 0;
 }
 
 export class ChatMessage extends Schema {

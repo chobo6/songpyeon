@@ -1168,6 +1168,78 @@ describe("MatchRoom", () => {
     15000,
   );
 
+  describe("team combo", () => {
+    test("each correct press increments the active team's combo by 1", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { activeTeam } = actingClientFor(room, clients);
+      expect(activeTeam.combo).toBe(0);
+
+      for (let i = 0; i < 3; i++) {
+        const { dueColor, actingClient } = actingClientFor(room, clients);
+        actingClient.send("pressButton", { color: dueColor });
+        await wait(70);
+      }
+
+      expect(activeTeam.combo).toBe(3);
+    });
+
+    test("a wrong press resets only the failing team's combo, leaving other teams' combos untouched", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      const otherTeam = room.state.teams.find((t) => t.id !== activeTeam.id)!;
+      otherTeam.combo = 7; // 관련 없는 팀의 기존 콤보를 시뮬레이션
+
+      actingClient.send("pressButton", { color: dueColor });
+      await wait(70);
+      expect(activeTeam.combo).toBe(1);
+
+      const { dueColor: nextDue, actingClient: nextActing } = actingClientFor(room, clients);
+      const wrongColor = ALL_COLORS.find((c) => c !== nextDue)!;
+      nextActing.send("pressButton", { color: wrongColor });
+      await flush();
+
+      expect(activeTeam.combo).toBe(0);
+      expect(otherTeam.combo).toBe(7);
+    });
+
+    test("a timeout failure also resets the active team's combo", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: SHORT_TURN_MS });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await wait(70);
+      expect(activeTeam.combo).toBe(1);
+
+      await wait(SHORT_TURN_MS + 200); // 추가 프레스 없이 턴이 시간초과되도록 둠
+
+      expect(activeTeam.combo).toBe(0);
+    });
+
+    test(
+      "combo survives a round change (only resets on failure, not on round rollover)",
+      async () => {
+        const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+        const firstTeamId = room.state.teams[room.state.activeTeamIndex].id;
+        const firstSequenceLen = room.state.sequence.length;
+        const startingRound = room.state.round;
+
+        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        const firstTeamAfterOwnTurn = room.state.teams.find((t) => t.id === firstTeamId)!;
+        expect(firstTeamAfterOwnTurn.combo).toBe(firstSequenceLen);
+        // round-robin: 2팀 중 1팀만 이번 라운드에 턴을 마쳤으므로 아직 라운드 안 넘어감.
+        expect(room.state.round).toBe(startingRound);
+
+        // 이제 활성인(두 번째) 팀도 자기 턴을 완료 — 두 팀 다 한 번씩 돌았으므로 라운드가 넘어감.
+        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+        expect(room.state.round).toBe(startingRound + 1);
+        const firstTeamAfterRoundChange = room.state.teams.find((t) => t.id === firstTeamId)!;
+        expect(firstTeamAfterRoundChange.combo).toBe(firstSequenceLen); // 라운드 롤오버로는 안 건드려짐
+      },
+      10000,
+    );
+  });
+
   describe("nickname color propagation", () => {
     test("a player with a nickname color has it reflected in PlayerState", async () => {
       const room = await colyseus.createRoom<MatchState>("match");

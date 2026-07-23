@@ -679,6 +679,7 @@ export class MatchRoom extends Room<MatchState> {
     }
 
     this.state.cursor = result.nextCursor;
+    activeTeam.combo += 1;
     if (result.complete) {
       this.turnDecided = true;
       this.state.turnOutcome = "success";
@@ -692,7 +693,23 @@ export class MatchRoom extends Room<MatchState> {
   private onTurnTimerExpired() {
     if (!this.turnDecided) {
       this.turnDecided = true;
-      this.applyMortarLoss(this.state.teams[this.state.activeTeamIndex]);
+      // Only reset combo if at least one press was attempted in this turn,
+      // to prevent stale timers from firing immediately and incorrectly
+      // resetting a fresh team's combo.
+      if (this.state.cursor > 0) {
+        this.applyMortarLoss(this.state.teams[this.state.activeTeamIndex]);
+      } else {
+        // Timer fired before any presses made — just mark mortars loss without
+        // resetting combo
+        this.state.teams[this.state.activeTeamIndex].mortars = loseMortar(
+          this.state.teams[this.state.activeTeamIndex].mortars,
+        );
+        const losingTeam = this.state.teams[this.state.activeTeamIndex];
+        if (isEliminated(losingTeam.mortars)) {
+          losingTeam.eliminated = true;
+          this.creditRound(losingTeam, this.state.round);
+        }
+      }
       this.state.turnOutcome = "fail";
     }
     this.advanceToNextTurn();
@@ -700,6 +717,7 @@ export class MatchRoom extends Room<MatchState> {
 
   private applyMortarLoss(team: TeamState) {
     team.mortars = loseMortar(team.mortars);
+    team.combo = 0;
     if (isEliminated(team.mortars)) {
       team.eliminated = true;
       // Credit the round they were eliminated in — advanceToNextTurn's own
