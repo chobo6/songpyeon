@@ -30,6 +30,22 @@
   }
 }
 
+/* Placed after the 750px tier on purpose (source order matters at equal
+   specificity — docs/TROUBLESHOOTING.md #17). Below ~620px the 750px tier's
+   trim alone no longer leaves ChatBox's .fill enough of a budget for its own
+   ~2-line floor (docs/TROUBLESHOOTING.md #32) — this is the same
+   1.5rem/0.4rem the first attempt at #15 tried and reverted for reading too
+   small at the *750px* threshold's much wider audience. Reintroduced here,
+   gated to a narrower/rarer band, the size cost only applies where the
+   alternative is chat being invisible. */
+@media (max-height: 620px) {
+  .viewport {
+    --token-width: 1.5rem;
+    --row-gap: 0.4rem;
+    padding: 0.5rem;
+  }
+}
+
 .stack {
   display: flex;
   flex-direction: column;

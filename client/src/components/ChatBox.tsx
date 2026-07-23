@@ -23,6 +23,24 @@ interface ChatBoxProps {
   lastMessageAt: number;
   onSend: (text: string) => void;
   fill?: boolean;
+  // Read once, as the useState initializer below — restores whatever the
+  // player had typed but not sent the last time this component was mounted.
+  // Needed because SpectatorScreen (this component's only "fill" caller)
+  // unmounts every time the active turn becomes the player's own team's
+  // (Game.tsx swaps it for MyTurnScreen, which has no chat at all) and
+  // remounts when the turn passes again — plain useState alone would reset
+  // the draft to "" on every one of those remounts. The caller is
+  // responsible for actually persisting the value across that unmount (see
+  // Game.tsx's chatDraftRef) — this component only reads it back in.
+  initialDraft?: string;
+  // Fired on every keystroke (and on send, with "") so the caller's copy
+  // stays current for the next remount. NOT a controlled-input callback —
+  // this component still owns `draft` as its own state; onDraftChange is a
+  // side channel, not the source of truth, specifically to avoid turning
+  // the input into a controlled component driven by a parent that also
+  // re-renders for unrelated reasons (see chatPropsEqual's memoization
+  // comment below re: Hangul IME composition, docs/TROUBLESHOOTING.md #23).
+  onDraftChange?: (text: string) => void;
 }
 
 // Memoized so this doesn't re-render on every unrelated colyseus patch (a
@@ -46,13 +64,29 @@ function chatPropsEqual(prev: ChatBoxProps, next: ChatBoxProps) {
     prev.messageCount === next.messageCount &&
     prev.lastMessageAt === next.lastMessageAt &&
     prev.onSend === next.onSend &&
-    prev.fill === next.fill
+    prev.fill === next.fill &&
+    prev.onDraftChange === next.onDraftChange
+    // initialDraft intentionally excluded — it's only ever read once, by
+    // useState's initializer on mount, so a prop change alone (without an
+    // actual unmount/remount) has nothing to apply it to.
   );
 }
 
-export const ChatBox = memo(function ChatBox({ messages, lastMessageAt, onSend, fill = false }: ChatBoxProps) {
-  const [draft, setDraft] = useState("");
+export const ChatBox = memo(function ChatBox({
+  messages,
+  lastMessageAt,
+  onSend,
+  fill = false,
+  initialDraft,
+  onDraftChange,
+}: ChatBoxProps) {
+  const [draft, setDraft] = useState(initialDraft ?? "");
   const listRef = useRef<HTMLDivElement>(null);
+
+  function updateDraft(text: string) {
+    setDraft(text);
+    onDraftChange?.(text);
+  }
 
   // lastMessageAt, not messages.length — the same 50-message-cap staleness
   // chatPropsEqual above already accounts for applies here too: once the
@@ -70,7 +104,7 @@ export const ChatBox = memo(function ChatBox({ messages, lastMessageAt, onSend, 
     const trimmed = draft.trim();
     if (!trimmed) return;
     onSend(trimmed);
-    setDraft("");
+    updateDraft("");
   }
 
   return (
@@ -99,7 +133,7 @@ export const ChatBox = memo(function ChatBox({ messages, lastMessageAt, onSend, 
         <input
           className={styles.input}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => updateDraft(e.target.value)}
           maxLength={100}
           placeholder="메시지 입력"
         />

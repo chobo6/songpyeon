@@ -40,6 +40,16 @@
   }
 }
 
+/* Same narrower tier as SequenceBoard.module.css's — see that file's comment
+   and docs/TROUBLESHOOTING.md #32. Placed after the 750px block on purpose
+   (source order, #17). */
+@media (max-height: 620px) {
+  .content {
+    gap: 0.15rem;
+    padding: 0.4rem;
+  }
+}
+
 /* Pushes the bottom panel (last child) to the bottom of the viewport when
    .content is shorter than the screen — #root establishes the flex column
    this relies on (client/src/index.css). */

@@ -1704,3 +1704,74 @@ if (SPAM_GUARD_ENFORCED && blocked) {
 
 ### 관련 파일
 - `server/src/rooms/MatchRoom.ts`
+
+---
+
+## #32 일부 기기에서 관전/진행 화면 채팅이 입력칸만 보이고 메시지 목록은 아예 안 보임
+
+### 증상
+
+사용자 보고: 게임 플레이 중(관전 화면)에서 채팅 입력칸(`전송` 버튼 포함)은 보이는데 그 위 메시지
+목록은 한 줄도 안 보임 — #15에서 고친 "눌려서 잘 안 보임"보다 더 심한 상태. 매치가 끝난
+뒤(`matchOver` 화면이나 재경기 로비)에는 같은 기기에서도 채팅이 정상적으로 보인다고 함.
+
+### 원인 분석
+
+`ChatBox`의 `fill` variant는 #13에서 페이지 전체가 늘어나는 문제를 고치려고 `.fill`/`.fill .list`
+둘 다 `min-height: 0`으로 만들어 뒀음 — 메시지가 쌓여도 내부 스크롤만 하고 밖으로 안 새어나가게
+하려는 의도. 그런데 같은 `.wrap` 안의 `.inputRow`(입력창+전송 버튼)에는 이 오버라이드가 없어서
+flex 기본값(`min-height: auto`, 내용물 이하로 안 줄어듦)이 그대로 살아있음.
+
+`SpectatorScreen`이 `.content`의 `flex:1` 예산을 나눠 갖는 고정 크기 요소들(라운드/타이머/안내
+문구, 특히 `SequenceBoard`의 고정 4행 박스, `.content` 바깥의 `TeamRosterPanel`)로 채워지고 남는
+공간이 `ChatBox`의 `.fill`에게 배정되는데, 이 남는 공간이 `.inputRow`가 필요로 하는 최소
+크기(~46px)보다 작아지면 `.list`만 그 적자를 전담해서 흡수함 — `min-height: 0`이라 이론상 0까지
+줄어들 수 있고, 실제로 `.list`의 세로 padding(0.4rem×2=0.8rem)만 남기고 완전히 눌려서 메시지 텍스트
+자체가 스크롤 영역(`overflow-y: auto`) 안에 잘려 들어가 화면에는 "빈 줄 하나" 수준의 얇은 색 띠로만
+남음. `.inputRow`는 보호돼서 온전히 렌더링되니, 결과적으로 "입력칸만 있고 그 위엔 아무것도 없는"
+것처럼 보임.
+
+`SequenceBoard`/`ChatBox`/`TeamRosterPanel`을 그대로 조립한 임시 디버그 라우트(`/debug-chat`,
+검증 후 삭제)를 만들어 Playwright로 재현: 700×610 뷰포트에서 `getBoundingClientRect()`로 실측한 값은
+`.content` 359.6px 중 `ChatBox`의 `.wrap.fill`이 59.5px만 배정받고, 그 안에서 `.inputRow`가 46.6px을
+가져가 `.list`는 12.8px(=정확히 세로 padding 합)만 남는 것으로 확인 — 화면에는 메시지 텍스트가 전혀
+안 보이고 스크린샷도 사용자 보고와 정확히 일치(입력칸만 온전, 목록은 실질적으로 없음).
+
+`#15`(`@media (max-height: 750px)`)가 다루는 범위는 세로 640~667px 폰 화면까지만 검증돼 있었고,
+`docs/todo.md`에도 "가로 폭이 매우 좁은 기기 등 극단적 화면비는 아직 점검 안 함"으로 이미 갭이
+남아있었음 — 이번 재현 지점(~600~650px대, 완전한 가로모드보다는 좁은 세로 화면이나 일부 축소된
+뷰포트 쪽에 더 가까움)이 정확히 그 미검증 구간에 들어감.
+
+매치 종료 후 채팅이 정상으로 보이는 이유는 별개 경로 두 곳이 이미 여유 공간을 더 갖도록 되어있기
+때문: `matchOver`면 `SequenceBoard` 자체를 안 그려 그 공간을 채팅에 통째로 돌려주고(#17), 재경기
+로비(`RoleSelect`)의 채팅은 애초에 `fill`이 아니라 고정 `height: 6rem`이라 공간 부족과 무관하게
+항상 그 크기로 보임.
+
+### 해결
+
+1. `ChatBox.module.css`의 `.fill .list`: `min-height: 0` → `min-height: 2.4rem`(약 2줄 분량)으로 변경 —
+   `.inputRow`처럼 최소한의 존재감은 보장하되, 그 이상은 여전히 `flex:1`로 남는 공간만큼만 커지고
+   메시지가 넘치면 내부 스크롤(#13에서 고친 동작)은 그대로 유지.
+2. `.list`에 floor를 줘도 그 floor + `.inputRow`가 들어갈 공간 자체가 없으면 소용없으므로,
+   `SequenceBoard.module.css`/`PlayingScreen.module.css`에 기존 `@media (max-height: 750px)` 블록
+   **뒤에** `@media (max-height: 620px)` 2단계 티어를 추가해 보드 토큰 크기(`--token-width`
+   1.9rem→1.5rem)와 `.content`의 gap/padding을 한 번 더 줄여, 그만큼 공간을 되찾아 옴(소스 순서
+   문제로 #17에서 겪었던 실수를 반복하지 않기 위해 항상 750px 블록 뒤에 배치).
+
+### 검증
+
+`/debug-chat` 임시 라우트 + Playwright로:
+- 700×610(재현 지점): 수정 전 `.list` 12.8px(메시지 안 보임) → 수정 후 메시지 4줄 + 스크롤바 정상
+  표시.
+- 회귀 확인: 480×900(데스크톱급), 375×667, 360×640(#15에서 검증했던 폰 사이즈) 모두 채팅 여러 줄
+  표시 유지, 시각적 회귀 없음.
+- 완전한 가로모드(667×375~460 등, 뷰포트 세로 300~460px대)는 이번 수정 이후에도 여전히 채팅이 거의
+  안 보이거나 `.content` 자체가 넘쳐서 `SequenceBoard`/`TeamRosterPanel`이 겹쳐 보이는 별도 문제가
+  남아있음 — `.content`에는 `.wrap`/`ChatBox`처럼 "이 정도까진 보장한다"는 floor가 전혀 없어서,
+  고정 요소 총합이 `.content` 배정 공간을 넘는 순간 `overflow: hidden` 없이 그대로 흘러넘침. 이번
+  수정 범위 밖 — `docs/todo.md`에 후속 항목으로 남겨둠.
+
+### 관련 파일
+- `client/src/components/ChatBox.module.css`
+- `client/src/components/SequenceBoard.module.css`
+- `client/src/components/PlayingScreen.module.css`

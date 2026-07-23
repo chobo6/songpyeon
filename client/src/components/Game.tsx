@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import { RoleSelect } from "./RoleSelect";
@@ -20,6 +20,17 @@ export function Game({
 }) {
   const { phase } = room.state;
   const isSpectator = room.state.spectators.has(room.sessionId);
+
+  // Survives SpectatorScreen unmounting/remounting every time the active
+  // turn hands off to/from the player's own team (Game itself doesn't
+  // unmount on that switch, only which screen it renders) — see
+  // ChatBox.tsx's initialDraft/onDraftChange doc comment. A ref, not state:
+  // nothing here needs to re-render when the draft changes, only to read
+  // the latest value back whenever SpectatorScreen next mounts.
+  const chatDraftRef = useRef("");
+  const handleChatDraftChange = useCallback((text: string) => {
+    chatDraftRef.current = text;
+  }, []);
 
   // 매치가 끝나 재경기 로비로 돌아가는 순간, 관전자는 그 로비(플레이어들끼리의 재경기
   // 대기실)에 남아있을 이유가 없다 — 자동으로 방을 나가 방 목록으로 돌아간다.
@@ -57,6 +68,8 @@ export function Game({
         isSpectator={isSpectator}
         clockOffsetMs={clockOffsetMs}
         onLeave={onLeave}
+        initialChatDraft={chatDraftRef.current}
+        onChatDraftChange={handleChatDraftChange}
       />
     );
   }

@@ -15,6 +15,8 @@ export function SpectatorScreen({
   isSpectator,
   clockOffsetMs,
   onLeave,
+  initialChatDraft,
+  onChatDraftChange,
 }: {
   room: Room<MatchState>;
   activeTeam: TeamState;
@@ -22,6 +24,12 @@ export function SpectatorScreen({
   isSpectator: boolean;
   clockOffsetMs: number;
   onLeave: () => void;
+  // Passed straight through to ChatBox — see Game.tsx's chatDraftRef and
+  // ChatBox.tsx's initialDraft/onDraftChange for why this needs to survive
+  // this screen unmounting every time the active turn becomes the player's
+  // own.
+  initialChatDraft: string;
+  onChatDraftChange: (text: string) => void;
 }) {
   const { sequence, cursor, turnOutcome, missedRole, round, teams, turnEndsAt, players, matchChat } = room.state;
   // No role to exclude while spectating — every press heard here belongs to
@@ -105,6 +113,8 @@ export function SpectatorScreen({
           lastMessageAt={matchChat.length ? matchChat[matchChat.length - 1].sentAt : 0}
           onSend={sendChat}
           fill
+          initialDraft={initialChatDraft}
+          onDraftChange={onChatDraftChange}
         />
       </div>
       <TeamRosterPanel teams={teams} players={players} signature={teamsSignature} />

@@ -20,15 +20,25 @@
 .fill .list {
   flex: 1;
   height: auto;
-  /* Without this, a flex item defaults to min-height: auto (won't shrink
-     below its content's height) — so once enough chat lines accumulate to
-     exceed the space .fill was allotted, the list grows past it instead of
-     respecting overflow-y: auto, dragging the whole page taller instead of
-     scrolling internally. Needs min-height: 0 at every level of the chain
-     to actually take effect: #root (index.css, height: 100svh — a fixed
-     height, not just a floor, so the chain below has a real budget to
-     shrink into) -> PlayingScreen.module.css's .wrap -> .content -> here. */
-  min-height: 0;
+  /* A flex item defaults to min-height: auto (won't shrink below its
+     content's height) — dropping that default down to *some* floor (not 0)
+     is what lets this scroll internally instead of dragging the whole page
+     taller once messages accumulate past the space .fill was allotted.
+     Needs min-height: 0 at every OTHER level of the chain for this floor to
+     actually be honored rather than fought over: #root (index.css, height:
+     100svh — a fixed height, not just a floor, so the chain below has a
+     real budget to shrink into) -> PlayingScreen.module.css's .wrap ->
+     .content -> ChatBox's own .fill, all min-height: 0.
+     The floor itself used to be 0 too, which let .inputRow (never given a
+     min-height override, so it keeps flexbox's default refusal to shrink
+     below its own content) win 100% of a too-small .fill budget: on short
+     viewports .list got crushed down to its padding alone (~0.8rem, no
+     message text actually visible) while the input row stayed fully
+     rendered — read as "no chat, just an input box" even though the box
+     model never actually hit zero. ~2 lines is the floor below which a
+     chat list stops being worth having at all — see docs/TROUBLESHOOTING.md
+     #32. */
+  min-height: 2.4rem;
 }
 
 .list {
