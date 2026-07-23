@@ -14,6 +14,12 @@ import styles from "./PlayingScreen.module.css";
 // TeamRosterPanel.tsx for the same constant and reasoning.
 const MAX_MORTARS = 5;
 
+// Keyboard button presses (useColorKeyPress) are restricted to this one
+// nickname while the feature's still being tried out online — everyone else
+// keeps playing touch/click-only. Solo mode (SoloPlayScreen) doesn't have
+// this restriction because it dropped keyboard support entirely instead.
+const KEYBOARD_PRESS_ALLOWED_NICKNAME = "홍바들";
+
 export function MyTurnScreen({
   room,
   me,
@@ -41,7 +47,8 @@ export function MyTurnScreen({
     [room],
   );
 
-  useColorKeyPress(me.role as "pig" | "rabbit", disabled, press);
+  const keyboardPressDisabled = disabled || me.nickname !== KEYBOARD_PRESS_ALLOWED_NICKNAME;
+  useColorKeyPress(me.role as "pig" | "rabbit", keyboardPressDisabled, press);
 
   return (
     <div className={styles.wrap}>
