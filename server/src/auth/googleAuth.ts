@@ -32,15 +32,18 @@ export type UserProfile = {
 };
 
 // googleSub 기준 upsert — UNIQUE(google_sub) + ON CONFLICT로 존재 확인/생성/갱신을 원자적으로 처리.
+// 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든) 호출되므로, last_login_at을 매번
+// 갱신하는 자리로도 그대로 쓴다 — 별도의 "로그인 이벤트" 배선이 필요 없다.
 // 닉네임은 이 시점에 건드리지 않는다 — 로그인할 때마다 구글 실명(name)이 사용자가 정한 닉네임을
 // 덮어쓰면 안 되기 때문 (신규 생성 시에만 nickname은 NULL로 남는다).
 export function getOrCreateUser(googleSub: string, info: { email?: string; name?: string }): UserProfile {
   db.prepare(
-    `INSERT INTO users (google_sub, email, name, created_at)
-     VALUES (?, ?, ?, datetime('now', '+9 hours'))
+    `INSERT INTO users (google_sub, email, name, created_at, last_login_at)
+     VALUES (?, ?, ?, datetime('now', '+9 hours'), datetime('now', '+9 hours'))
      ON CONFLICT(google_sub) DO UPDATE SET
        email = COALESCE(excluded.email, users.email),
-       name = COALESCE(excluded.name, users.name)`,
+       name = COALESCE(excluded.name, users.name),
+       last_login_at = datetime('now', '+9 hours')`,
   ).run(googleSub, info.email ?? null, info.name ?? null);
 
   return db
@@ -75,12 +78,14 @@ export type AdminUserRow = {
   bannedAt: string | null;
   nicknameColor: string | null;
   createdAt: string;
+  lastLoginAt: string | null;
 };
 
 export function listUsers(): AdminUserRow[] {
   return db
     .prepare(
-      `SELECT id, email, name, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor, created_at AS createdAt
+      `SELECT id, email, name, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
+              created_at AS createdAt, last_login_at AS lastLoginAt
        FROM users ORDER BY id DESC`,
     )
     .all() as AdminUserRow[];

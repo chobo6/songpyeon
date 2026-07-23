@@ -34,6 +34,20 @@ describe("getOrCreateUser", () => {
     const again = getOrCreateUser("sub-3", { name: "Carol Updated" });
     expect(again.nickname).toBe("캐롤");
   });
+
+  test("sets last_login_at on account creation", () => {
+    const user = getOrCreateUser("sub-25", {});
+    const row = listUsers().find((u) => u.id === user.id);
+    expect(row?.lastLoginAt).toBeTruthy();
+  });
+
+  test("keeps last_login_at populated on a repeat login (same account)", () => {
+    const user = getOrCreateUser("sub-26", {});
+    const again = getOrCreateUser("sub-26", {});
+    expect(again.id).toBe(user.id);
+    const row = listUsers().find((u) => u.id === user.id);
+    expect(row?.lastLoginAt).toBeTruthy();
+  });
 });
 
 describe("setNickname", () => {

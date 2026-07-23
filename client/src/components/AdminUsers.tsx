@@ -12,6 +12,7 @@ type UserRow = {
   bannedAt: string | null;
   nicknameColor: string | null;
   createdAt: string;
+  lastLoginAt: string | null;
 };
 
 async function fetchJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: false; unauthorized: boolean }> {
@@ -206,6 +207,7 @@ export function AdminUsers({
                 <th>닉네임</th>
                 <th>색상</th>
                 <th>가입일</th>
+                <th>최근 로그인</th>
                 <th></th>
               </tr>
             </thead>
@@ -263,6 +265,7 @@ export function AdminUsers({
                     )}
                   </td>
                   <td>{user.createdAt}</td>
+                  <td>{user.lastLoginAt ?? "-"}</td>
                   <td className={styles.actionsCell}>
                     {editingId === user.id ? (
                       <>
