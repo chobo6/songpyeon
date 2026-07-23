@@ -1218,40 +1218,54 @@ describe("MatchRoom", () => {
     test(
       "combo survives a round change (only resets on failure, not on round rollover)",
       async () => {
-        const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+        // PRESS_HEAVY_TURN_MS(3000ms)가 아니라 넉넉한 자체 값을 씀 — 이 테스트는
+        // 실제 턴 타이머와 경쟁하며 18개 안팎 시퀀스를 두 턴 연달아 실제로 눌러야
+        // 하는데, 3000ms는 원래 completeActiveTurn() 한 번 몫으로 잡힌 여유였음.
+        // 느린 환경에서 두 번째 팀의 프레스 루프(최대 18회 * wait(70) + 실제 처리
+        // 지연)가 이 여유를 넘기면, 그 팀이 정말로(정당하게) 시간초과 실패해서
+        // 라운드는 그대로인 채 활성 팀만 바뀌고, 아래 while 루프는 activeTeamId
+        // 가드가 없으면 그 사실을 모른 채 다음 팀(첫 번째 팀의 새 턴)까지 계속
+        // 눌러버려 combo가 엉뚱하게 불어남 — 실제로 재현됨(예: 18+17=35).
+        const GENEROUS_TURN_MS = 6000;
+        const { room, clients } = await fillRolesAndStart({ turnDurationMs: GENEROUS_TURN_MS });
         const firstTeamId = room.state.teams[room.state.activeTeamIndex].id;
         const firstSequenceLen = room.state.sequence.length;
         const startingRound = room.state.round;
 
-        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        await completeActiveTurn(room, clients, GENEROUS_TURN_MS);
         const firstTeamAfterOwnTurn = room.state.teams.find((t) => t.id === firstTeamId)!;
         expect(firstTeamAfterOwnTurn.combo).toBe(firstSequenceLen);
         // round-robin: 2팀 중 1팀만 이번 라운드에 턴을 마쳤으므로 아직 라운드 안 넘어감.
         expect(room.state.round).toBe(startingRound);
 
         // 이제 활성인(두 번째) 팀도 자기 턴을 완료 — 두 팀 다 한 번씩 돌았으므로 라운드가 넘어감.
-        // completeActiveTurn을 또 쓰지 않는 이유: 그 헬퍼의 끝에 있는
-        // turnDurationMs+200 고정 대기가 반환되는 시점엔 이미 "다음(세 번째) 턴"
-        // (라운드 2, 다시 첫 번째 팀 차례)이 막 시작돼 자기 자신의 turnDurationMs
-        // 타이머가 돌기 시작한 상태 — 그 대기가 새 턴 예산을 거의 다 잡아먹어서,
-        // 이 테스트가 실제로 어서션하기 전에 그 타이머가 실제로 만료돼버리면
-        // (환경에 따른 실행 지연) 첫 번째 팀이 진짜로(정당하게) 시간초과 실패해
-        // combo가 0으로 리셋되는 진짜 레이스가 있었음 — 라운드가 바뀌는 그 순간만
-        // 폴링해서 그 여유 시간을 최소화한다.
-        while (room.state.cursor < room.state.sequence.length - 1) {
+        // completeActiveTurn을 또 쓰지 않는 이유: 그 헬퍼의 끝에 있는 고정
+        // turnDurationMs+200 대기가 반환되는 시점엔 이미 "다음(세 번째) 턴"(라운드
+        // 2, 다시 첫 번째 팀 차례)이 막 시작돼 자기 자신의 타이머가 돌기 시작한
+        // 상태라 그 대기가 새 턴 예산을 잡아먹음 — 라운드가 바뀌는 순간만 폴링해서
+        // 그 여유 시간을 최소화한다. 위 GENEROUS_TURN_MS로도 이 팀 자체가 시간초과할
+        // 가능성을 0으로 만들 순 없으므로, 매 프레스 전에 여전히 이 팀 차례인지
+        // 확인해 아니면 즉시 멈춘다(다른 팀/턴으로 조용히 넘어가 combo를 오염시키는
+        // 대신, 아래 assertion에서 명확하게 실패하도록).
+        const secondTeamId = room.state.teams[room.state.activeTeamIndex].id;
+        while (
+          room.state.teams[room.state.activeTeamIndex].id === secondTeamId &&
+          room.state.cursor < room.state.sequence.length - 1
+        ) {
           const { dueColor, actingClient } = actingClientFor(room, clients);
           actingClient.send("pressButton", { color: dueColor });
           await wait(70);
         }
+        expect(room.state.teams[room.state.activeTeamIndex].id).toBe(secondTeamId);
         const { dueColor: lastDue, actingClient: lastActing } = actingClientFor(room, clients);
         lastActing.send("pressButton", { color: lastDue });
-        await waitUntil(() => room.state.round === startingRound + 1);
+        await waitUntil(() => room.state.round === startingRound + 1, GENEROUS_TURN_MS);
 
         expect(room.state.round).toBe(startingRound + 1);
         const firstTeamAfterRoundChange = room.state.teams.find((t) => t.id === firstTeamId)!;
         expect(firstTeamAfterRoundChange.combo).toBe(firstSequenceLen); // 라운드 롤오버로는 안 건드려짐
       },
-      10000,
+      20000,
     );
   });
 
