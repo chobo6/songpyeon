@@ -21,6 +21,7 @@ export interface TeamState {
   rabbitSessionId: string;
   mortars: number;
   eliminated: boolean;
+  combo: number;
 }
 
 export interface ChatMessage {
