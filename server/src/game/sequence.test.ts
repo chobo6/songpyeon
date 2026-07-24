@@ -68,11 +68,11 @@ describe("generateSequence", () => {
     });
 
     test("a late round makes staying pig after a pig fragment more likely — a roll that would have switched at round 1 now stays", () => {
-      // step1: roll 0 (<0.7) -> pig (red, purple). step2: roll 0.75 -> at
+      // step1: roll 0 (<0.7) -> pig (red, purple). step2: roll 0.72 -> at
       // round 1 this is >=0.7 (rabbit, see test above), but at round 30
-      // (max stickiness, +0.1) the pig threshold is 0.8, so 0.75 stays pig
+      // (max stickiness, +0.05) the pig threshold is 0.75, so 0.72 stays pig
       // instead (base color roll 0 -> red again).
-      const rng = queueRng([0, 0, 0.75, 0]);
+      const rng = queueRng([0, 0, 0.72, 0]);
       expect(generateSequence(4, rng, 30)).toEqual(["red", "purple", "red", "purple"]);
     });
 
@@ -81,7 +81,7 @@ describe("generateSequence", () => {
       // length roll 0 -> 2 ("mint","mint"), remaining now 2.
       // step2: roll 0.65 -> at round 1 the pig threshold after a rabbit
       // fragment is still 0.7, so 0.65 would switch to pig; at round 30 it
-      // drops to 0.6 (0.7-0.1), so 0.65 no longer clears it and stays
+      // drops to 0.65 (0.7-0.05), so 0.65 no longer clears it and stays
       // rabbit — choice roll 0 -> pair fragment, color rolls 0,0 -> green,green.
       const rng = queueRng([0.99, 0.99, 0, 0.65, 0, 0, 0]);
       expect(generateSequence(4, rng, 30)).toEqual(["mint", "mint", "green", "green"]);
