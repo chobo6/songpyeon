@@ -5,7 +5,8 @@ import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from 
 import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
-import { loseMortar, isEliminated, STARTING_MORTARS } from "../game/mortar";
+import { loseMortar, isEliminated, STARTING_MORTARS, gainMortar } from "../game/mortar";
+import { rollBonusMortarIndex } from "../game/bonusMortarToken";
 import { isSpammedPress } from "../game/inputSpamGuard";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
@@ -50,6 +51,9 @@ interface MatchRoomOptions {
   // rejected outright. Defaults to true — only an explicit `false` opts a
   // room out (see onCreate).
   allowSpectators?: unknown;
+  // 테스트 전용 — 0.8%라는 낮은 확률을 실제 rng로 재현하지 않고 강제 지정하기
+  // 위함. production에서는 항상 undefined(정상적인 확률 롤 사용).
+  forcedBonusMortarIndex?: number;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -92,12 +96,17 @@ export class MatchRoom extends Room<MatchState> {
   // 진행 중인 턴을 건드리지 않고, 다음 startTurn()이 호출되는 시점에 소비된다.
   // doughAttack(Task 5)도 같은 트래커를 공유한다.
   private pendingItemsForNextTurn = new ItemUseTracker();
+  private forcedBonusMortarIndex?: number;
+  private bonusMortarIndex: number | null = null;
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
     if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
     if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
     this.allowSpectators = options.allowSpectators !== false;
+    if (options.forcedBonusMortarIndex !== undefined) {
+      this.forcedBonusMortarIndex = options.forcedBonusMortarIndex;
+    }
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -619,6 +628,7 @@ export class MatchRoom extends Room<MatchState> {
     this.itemsUsedThisTurn.reset();
     this.superMortarActiveThisTurn = false;
     this.pendingItemsForNextTurn.reset();
+    this.bonusMortarIndex = null;
 
     // maybeStartGame()'s setPrivate(true) from the match that just ended is
     // still in effect — undo it so a freed slot (e.g. someone left
@@ -637,6 +647,11 @@ export class MatchRoom extends Room<MatchState> {
     if (this.pendingItemsForNextTurn.has("doughAttack")) {
       sequence = applyDoughAttack(sequence);
     }
+
+    this.bonusMortarIndex =
+      this.forcedBonusMortarIndex !== undefined
+        ? this.forcedBonusMortarIndex
+        : rollBonusMortarIndex(sequence.length, Math.random);
 
     this.state.sequence.clear();
     sequence.forEach((color) => this.state.sequence.push(color));
@@ -753,6 +768,10 @@ export class MatchRoom extends Room<MatchState> {
       // turn's original 4s mark, so the fail state stays on screen instead of
       // instantly cutting to the next team.
       return;
+    }
+
+    if (this.bonusMortarIndex !== null && this.state.cursor === this.bonusMortarIndex) {
+      activeTeam.mortars = gainMortar(activeTeam.mortars);
     }
 
     this.state.cursor = result.nextCursor;

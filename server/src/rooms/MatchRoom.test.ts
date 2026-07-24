@@ -1849,4 +1849,81 @@ describe("MatchRoom", () => {
       expect(remaining).toBeLessThan(2400);
     });
   });
+
+  describe("bonus mortar token", () => {
+    test("successfully pressing the forced bonus index restores one mortar", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusMortarIndex: 0,
+      });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      activeTeam.mortars = 3;
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(activeTeam.mortars).toBe(4);
+    });
+
+    test("pressing the bonus index while already at full mortars has no effect", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusMortarIndex: 0,
+      });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      // activeTeam.mortars is already STARTING_MORTARS (5) from room setup.
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(activeTeam.mortars).toBe(5);
+    });
+
+    test("a WRONG press at the bonus index does not restore a mortar (normal fail applies instead)", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusMortarIndex: 0,
+      });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      activeTeam.mortars = 3;
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      expect(activeTeam.mortars).toBe(2);
+      expect(room.state.turnOutcome).toBe("fail");
+    });
+
+    test("superMortar-bypassed success at the bonus index still restores a mortar", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusMortarIndex: 0,
+      });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      activeTeam.mortars = 3;
+      actingClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      expect(activeTeam.mortars).toBe(4);
+    });
+
+    test("succeeding at a non-bonus position does not restore a mortar", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusMortarIndex: 5,
+      });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      activeTeam.mortars = 3;
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(activeTeam.mortars).toBe(3);
+    });
+  });
 });
