@@ -1,4 +1,5 @@
 import { Room, Client, type AuthContext } from "colyseus";
+import { ItemUseTracker, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from "./MatchState";
 import { generateSequence } from "../game/sequence";
@@ -84,6 +85,8 @@ export class MatchRoom extends Room<MatchState> {
   // 직전 버튼 입력(색 무관) 시각 — 민트/돼지 연타 속도 제한에만 씀(handlePressButton의
   // isSpammedPress 호출부 참고). 매 턴 시작마다 초기화.
   private lastPressAt: number | null = null;
+  private itemsUsedThisTurn = new ItemUseTracker();
+  private superMortarActiveThisTurn = false;
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -139,6 +142,10 @@ export class MatchRoom extends Room<MatchState> {
 
     this.onMessage("pressButton", (client, message: { color: Color }) => {
       this.handlePressButton(client, message.color);
+    });
+
+    this.onMessage("useItem", (client, message: { itemId: ItemId }) => {
+      this.handleUseItem(client, message.itemId);
     });
 
     this.onMessage("sendChat", (client, message: { text?: unknown }) => {
@@ -604,6 +611,8 @@ export class MatchRoom extends Room<MatchState> {
       player.role = "";
       player.teamId = "";
     }
+    this.itemsUsedThisTurn.reset();
+    this.superMortarActiveThisTurn = false;
 
     // maybeStartGame()'s setPrivate(true) from the match that just ended is
     // still in effect — undo it so a freed slot (e.g. someone left
@@ -614,6 +623,9 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   private startTurn() {
+    this.itemsUsedThisTurn.reset();
+    this.superMortarActiveThisTurn = false;
+
     const length = sequenceLengthForRound(this.state.round);
     const sequence = generateSequence(length, Math.random, this.state.round);
 
@@ -631,6 +643,25 @@ export class MatchRoom extends Room<MatchState> {
     this.clock.setTimeout(() => {
       if (token === this.turnToken) this.onTurnTimerExpired();
     }, this.turnDurationMs);
+  }
+
+  private handleUseItem(client: Client, itemId: ItemId) {
+    if (this.state.phase !== "playing" || this.turnDecided) return;
+
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    const activeTeam = this.state.teams[this.state.activeTeamIndex];
+    if (player.teamId !== activeTeam.id) return;
+
+    switch (itemId) {
+      case "superMortar": {
+        if (!this.itemsUsedThisTurn.tryUse("superMortar")) return;
+        this.superMortarActiveThisTurn = true;
+        break;
+      }
+      // timeAdd: Task 3. timeReduce/doughAttack: Task 4/5.
+    }
   }
 
   private handlePressButton(client: Client, color: Color) {
@@ -662,16 +693,22 @@ export class MatchRoom extends Room<MatchState> {
       return;
     }
 
-    const result = attemptPress(
-      // Type-only cast, not a copy — attemptPress only ever does indexed/
-      // length reads, both of which ArraySchema supports natively. This
-      // used to be `Array.from(...)`, copying the whole (up to ~48-token)
-      // sequence into a fresh array on every single press message.
-      this.state.sequence as unknown as Color[],
-      this.state.cursor,
-      color,
-      player.role as Role,
-    );
+    const result = this.superMortarActiveThisTurn
+      ? {
+          correct: true,
+          nextCursor: this.state.cursor + 1,
+          complete: this.state.cursor + 1 >= this.state.sequence.length,
+        }
+      : attemptPress(
+          // Type-only cast, not a copy — attemptPress only ever does indexed/
+          // length reads, both of which ArraySchema supports natively. This
+          // used to be `Array.from(...)`, copying the whole (up to ~48-token)
+          // sequence into a fresh array on every single press message.
+          this.state.sequence as unknown as Color[],
+          this.state.cursor,
+          color,
+          player.role as Role,
+        );
 
     if (!result.correct) {
       this.turnDecided = true;

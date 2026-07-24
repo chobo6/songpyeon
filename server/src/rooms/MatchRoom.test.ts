@@ -1609,4 +1609,60 @@ describe("MatchRoom", () => {
       expect(events[1].color).toBe("mint");
     });
   });
+
+  describe("items", () => {
+    test("superMortar makes an objectively wrong button press still succeed", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+      const cursorBefore = room.state.cursor;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      expect(room.state.cursor).toBe(cursorBefore + 1);
+      expect(room.state.turnOutcome).not.toBe("fail");
+      expect(activeTeam.mortars).toBe(5);
+    });
+
+    test("using superMortar twice in the same turn is a no-op the second time (no crash, still just +1 per press)", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+      actingClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+
+      const cursorBefore = room.state.cursor;
+      actingClient.send("pressButton", { color: ALL_COLORS[0] });
+      await flush();
+
+      expect(room.state.cursor).toBe(cursorBefore + 1);
+    });
+
+    test("a player on the team NOT currently active cannot use an item", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { activeTeam, dueColor } = actingClientFor(room, clients);
+      const otherTeam = room.state.teams.find((t) => t.id !== activeTeam.id)!;
+      const benchedClient = clients.find(
+        (c) => c.sessionId === otherTeam.pigSessionId || c.sessionId === otherTeam.rabbitSessionId,
+      )!;
+
+      benchedClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+
+      // superMortar never activated for the active team, so a genuinely wrong
+      // press from the acting side should still fail normally.
+      const { actingClient } = actingClientFor(room, clients);
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      expect(room.state.turnOutcome).toBe("fail");
+    });
+  });
 });
