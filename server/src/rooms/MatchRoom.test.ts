@@ -167,6 +167,16 @@ describe("MatchRoom", () => {
     return { activeTeam, dueColor, actingClient: clients.find((c) => c.sessionId === actingSessionId)! };
   }
 
+  // Grants an item directly into a player's private inventory, bypassing the
+  // 0.8% bonus-token roll entirely — for tests that only care about useItem's
+  // permission/consumption behavior, not how the item was acquired.
+  function grantItem(room: ServerRoom<MatchState>, sessionId: string, itemId: string) {
+    const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+    const held = inventory.get(sessionId) ?? [];
+    held.push(itemId);
+    inventory.set(sessionId, held);
+  }
+
   async function completeActiveTurn(
     room: ServerRoom<MatchState>,
     clients: ClientRoom<MatchState>[],
@@ -1641,6 +1651,7 @@ describe("MatchRoom", () => {
     test("superMortar makes an objectively wrong button press still succeed", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "superMortar");
 
       actingClient.send("useItem", { itemId: "superMortar" });
       await flush();
@@ -1655,14 +1666,19 @@ describe("MatchRoom", () => {
       expect(activeTeam.mortars).toBe(5);
     });
 
-    test("using superMortar twice in the same turn is a no-op the second time (no crash, still just +1 per press)", async () => {
+    test("holding and using superMortar twice both consume a copy but the effect is unchanged either time", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "superMortar");
+      grantItem(room, actingClient.sessionId, "superMortar");
 
       actingClient.send("useItem", { itemId: "superMortar" });
       await flush();
       actingClient.send("useItem", { itemId: "superMortar" });
       await flush();
+
+      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+      expect(inventory.get(actingClient.sessionId)).toEqual([]);
 
       const cursorBefore = room.state.cursor;
       actingClient.send("pressButton", { color: ALL_COLORS[0] });
@@ -1678,6 +1694,7 @@ describe("MatchRoom", () => {
       const benchedClient = clients.find(
         (c) => c.sessionId === otherTeam.pigSessionId || c.sessionId === otherTeam.rabbitSessionId,
       )!;
+      grantItem(room, benchedClient.sessionId, "superMortar");
 
       benchedClient.send("useItem", { itemId: "superMortar" });
       await flush();
@@ -1703,6 +1720,7 @@ describe("MatchRoom", () => {
       // regardless of team count, so it pinpoints exactly when the real timer fired.
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeAdd");
       const turnEndsAtBefore = room.state.turnEndsAt;
 
       actingClient.send("useItem", { itemId: "timeAdd" });
@@ -1726,9 +1744,10 @@ describe("MatchRoom", () => {
       expect(Date.now()).toBeGreaterThanOrEqual(turnEndsAtBefore + 1000);
     });
 
-    test("using timeAdd twice in the same turn only extends the deadline once", async () => {
+    test("using timeAdd when none is held left is a no-op — holding only one still only extends once", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeAdd");
       const turnEndsAtBefore = room.state.turnEndsAt;
 
       actingClient.send("useItem", { itemId: "timeAdd" });
@@ -1760,6 +1779,7 @@ describe("MatchRoom", () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeReduce");
       const turnEndsAtBefore = room.state.turnEndsAt;
 
       actingClient.send("useItem", { itemId: "timeReduce" });
@@ -1789,6 +1809,8 @@ describe("MatchRoom", () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeReduce");
+      grantItem(room, actingClient.sessionId, "timeReduce");
 
       actingClient.send("useItem", { itemId: "timeReduce" });
       await flush();
@@ -1829,6 +1851,7 @@ describe("MatchRoom", () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "doughAttack");
 
       actingClient.send("useItem", { itemId: "doughAttack" });
       await flush();
@@ -1855,6 +1878,8 @@ describe("MatchRoom", () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeReduce");
+      grantItem(room, actingClient.sessionId, "doughAttack");
 
       actingClient.send("useItem", { itemId: "timeReduce" });
       await flush();
@@ -1874,6 +1899,97 @@ describe("MatchRoom", () => {
       expect(newSequence.length).toBe(lengthBefore + 6);
       expect(remaining).toBeGreaterThan(1000);
       expect(remaining).toBeLessThan(2400);
+    });
+
+    test("useItem is a no-op if the sending player doesn't hold that item", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+      const cursorBefore = room.state.cursor;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      // superMortar never activated (never held), so a genuinely wrong press
+      // still fails normally.
+      expect(room.state.cursor).toBe(cursorBefore);
+      expect(room.state.turnOutcome).toBe("fail");
+    });
+
+    test("a teammate cannot use an item held by the OTHER teammate on the active team", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      const teammateSessionId =
+        actingClient.sessionId === activeTeam.pigSessionId ? activeTeam.rabbitSessionId : activeTeam.pigSessionId;
+      grantItem(room, teammateSessionId, "superMortar");
+
+      actingClient.send("useItem", { itemId: "superMortar" });
+      await flush();
+
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      // actingClient never held superMortar themselves, so it never activated.
+      expect(room.state.turnOutcome).toBe("fail");
+    });
+
+    test("useItem consumes exactly one held copy of the item, regardless of effect", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeReduce");
+      grantItem(room, actingClient.sessionId, "timeReduce");
+      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+
+      actingClient.send("useItem", { itemId: "timeReduce" });
+      await flush();
+
+      expect(inventory.get(actingClient.sessionId)).toEqual(["timeReduce"]);
+    });
+
+    test("holding two timeAdd and using both stacks the extension to +2 seconds", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeAdd");
+      grantItem(room, actingClient.sessionId, "timeAdd");
+      const turnEndsAtBefore = room.state.turnEndsAt;
+
+      actingClient.send("useItem", { itemId: "timeAdd" });
+      await flush();
+      actingClient.send("useItem", { itemId: "timeAdd" });
+      await flush();
+
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 2000);
+    });
+
+    test("holding two doughAttack and using both consumes both but only one 6-mint row applies next turn", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "doughAttack");
+      grantItem(room, actingClient.sessionId, "doughAttack");
+      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      expect(inventory.get(actingClient.sessionId)).toEqual([]);
+
+      const lengthBefore = room.state.sequence.length;
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+      const newSequence = Array.from(room.state.sequence);
+      expect(newSequence.slice(0, 6)).toEqual(["mint", "mint", "mint", "mint", "mint", "mint"]);
+      // Only ONE 6-mint row, not twelve — the effect doesn't stack even
+      // though both copies were consumed.
+      expect(newSequence.length).toBe(lengthBefore + 6);
     });
   });
 
@@ -1929,6 +2045,7 @@ describe("MatchRoom", () => {
       });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
       activeTeam.mortars = 3;
+      grantItem(room, actingClient.sessionId, "superMortar");
       actingClient.send("useItem", { itemId: "superMortar" });
       await flush();
 
@@ -1982,6 +2099,7 @@ describe("MatchRoom", () => {
       });
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "doughAttack");
 
       actingClient.send("useItem", { itemId: "doughAttack" });
       await flush();

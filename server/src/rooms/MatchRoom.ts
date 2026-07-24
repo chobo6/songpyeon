@@ -96,7 +96,6 @@ export class MatchRoom extends Room<MatchState> {
   // isSpammedPress 호출부 참고). 매 턴 시작마다 초기화.
   private lastPressAt: number | null = null;
   private turnTimer?: Delayed;
-  private itemsUsedThisTurn = new ItemUseTracker();
   private superMortarActiveThisTurn = false;
   // 이번 턴이 아니라 "다음 턴"에 적용될 예약을 담아두는 트래커 — timeReduce는 지금
   // 진행 중인 턴을 건드리지 않고, 다음 startTurn()이 호출되는 시점에 소비된다.
@@ -637,7 +636,6 @@ export class MatchRoom extends Room<MatchState> {
       player.role = "";
       player.teamId = "";
     }
-    this.itemsUsedThisTurn.reset();
     this.superMortarActiveThisTurn = false;
     this.pendingItemsForNextTurn.reset();
     this.bonusItem = null;
@@ -652,7 +650,6 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   private startTurn() {
-    this.itemsUsedThisTurn.reset();
     this.superMortarActiveThisTurn = false;
 
     const length = sequenceLengthForRound(this.state.round);
@@ -697,14 +694,18 @@ export class MatchRoom extends Room<MatchState> {
     const activeTeam = this.state.teams[this.state.activeTeamIndex];
     if (player.teamId !== activeTeam.id) return;
 
+    const held = this.playerInventory.get(client.sessionId);
+    const idx = held?.indexOf(itemId) ?? -1;
+    if (idx === -1) return; // 보유하지 않은 아이템 — 조용히 무시
+
+    held!.splice(idx, 1); // 효과 적용 여부와 무관하게 무조건 1개 소모
+
     switch (itemId) {
       case "superMortar": {
-        if (!this.itemsUsedThisTurn.tryUse("superMortar")) return;
         this.superMortarActiveThisTurn = true;
         break;
       }
       case "timeAdd": {
-        if (!this.itemsUsedThisTurn.tryUse("timeAdd")) return;
         this.turnTimer?.clear();
         this.state.turnEndsAt += 1000;
         const remaining = this.state.turnEndsAt - Date.now();
@@ -720,6 +721,11 @@ export class MatchRoom extends Room<MatchState> {
       }
       case "doughAttack": {
         this.pendingItemsForNextTurn.tryUse("doughAttack");
+        break;
+      }
+      case "mortarRestore": {
+        // useItem으로는 절대 오지 않아야 함 — 절구회복은 획득 즉시 발동하며
+        // 인벤토리에 들어가지 않는다(handlePressButton 참고). 방어적으로 no-op.
         break;
       }
     }
