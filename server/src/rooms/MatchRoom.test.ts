@@ -1991,6 +1991,19 @@ describe("MatchRoom", () => {
       // though both copies were consumed.
       expect(newSequence.length).toBe(lengthBefore + 6);
     });
+
+    test("a permanent (consented) leave clears that player's inventory", async () => {
+      const { room, clients } = await fillRolesAndStart({ reconnectGraceSeconds: 5 });
+      const [firstClient] = clients;
+      const sessionId = firstClient.sessionId;
+      grantItem(room, sessionId, "superMortar");
+
+      await firstClient.leave(); // consented=true (the default) — not a drop, so no reconnection grace
+      await flush();
+
+      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+      expect(inventory.get(sessionId)).toBeUndefined();
+    });
   });
 
   describe("bonus item token (mortarRestore)", () => {
