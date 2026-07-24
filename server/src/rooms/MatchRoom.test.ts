@@ -1779,5 +1779,74 @@ describe("MatchRoom", () => {
       expect(remaining).toBeGreaterThan(1500);
       expect(remaining).toBeLessThan(2500);
     });
+
+    // NOTE: the brief's original version of these two tests used
+    // completeActiveTurn() (press through the sequence, then sleep
+    // turnDurationMs+200) before measuring `remaining`. Empirically this
+    // is broken in a different way than Task 4's own finding: doughAttack
+    // only touches the NEXT turn's sequence, so completeActiveTurn presses
+    // through the CURRENT (untouched) turn — but pressing through a full
+    // ~18+ color sequence at 70ms/press already burns most of the current
+    // turn's real timer, and the trailing turnDurationMs+200 sleep then
+    // overshoots deep into the NEXT turn before `remaining` is read. That
+    // measures `remaining` long after the next turn started, so it lands
+    // BELOW the expected band even with a fully correct implementation
+    // (verified: with Steps 3-5 applied, `remaining` measured ~1270ms
+    // against an expected >2400ms band, and ~295ms against an expected
+    // >1000ms band — both fail GREEN, not just RED). Switched to the same
+    // waitUntil-based hand-off detection Tasks 3 and 4 use above: poll
+    // activeTeamIndex and read state the instant the hand-off is observed,
+    // leaving the current turn to fail via its own unmodified timeout
+    // (no press-loop) exactly like the timeReduce tests just above.
+    test("doughAttack prepends a 6-mint row to the NEXT turn's sequence, without changing its duration", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      const lengthBefore = room.state.sequence.length;
+
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+      const remaining = room.state.turnEndsAt - Date.now();
+
+      const newSequence = Array.from(room.state.sequence);
+      expect(newSequence.slice(0, 6)).toEqual(["mint", "mint", "mint", "mint", "mint", "mint"]);
+      expect(newSequence.length).toBe(lengthBefore + 6);
+      // Duration unaffected: should still be ~3000ms (PRESS_HEAVY_TURN_MS),
+      // clearly above the ~2000ms band the timeReduce tests above check
+      // for (see their comments for why the boundary sits at 2400ms).
+      expect(remaining).toBeGreaterThan(2400);
+      expect(remaining).toBeLessThan(3400);
+    });
+
+    test("timeReduce and doughAttack used in the same turn both apply to the next turn together", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "timeReduce" });
+      await flush();
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      const lengthBefore = room.state.sequence.length;
+
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+      const remaining = room.state.turnEndsAt - Date.now();
+
+      const newSequence = Array.from(room.state.sequence);
+      expect(newSequence.slice(0, 6)).toEqual(["mint", "mint", "mint", "mint", "mint", "mint"]);
+      expect(newSequence.length).toBe(lengthBefore + 6);
+      expect(remaining).toBeGreaterThan(1000);
+      expect(remaining).toBeLessThan(2400);
+    });
   });
 });

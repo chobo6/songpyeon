@@ -1,5 +1,5 @@
 import { Room, Client, type AuthContext, type Delayed } from "colyseus";
-import { ItemUseTracker, applyTimeReduce, type ItemId } from "../game/items";
+import { ItemUseTracker, applyDoughAttack, applyTimeReduce, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from "./MatchState";
 import { generateSequence } from "../game/sequence";
@@ -633,7 +633,10 @@ export class MatchRoom extends Room<MatchState> {
     this.superMortarActiveThisTurn = false;
 
     const length = sequenceLengthForRound(this.state.round);
-    const sequence = generateSequence(length, Math.random, this.state.round);
+    let sequence = generateSequence(length, Math.random, this.state.round);
+    if (this.pendingItemsForNextTurn.has("doughAttack")) {
+      sequence = applyDoughAttack(sequence);
+    }
 
     this.state.sequence.clear();
     sequence.forEach((color) => this.state.sequence.push(color));
@@ -687,7 +690,10 @@ export class MatchRoom extends Room<MatchState> {
         this.pendingItemsForNextTurn.tryUse("timeReduce");
         break;
       }
-      // doughAttack: Task 5.
+      case "doughAttack": {
+        this.pendingItemsForNextTurn.tryUse("doughAttack");
+        break;
+      }
     }
   }
 
