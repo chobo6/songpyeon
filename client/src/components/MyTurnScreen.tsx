@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import type { Room } from "colyseus.js";
-import type { MatchState, PlayerState } from "../game/matchTypes";
+import type { MatchState, PlayerState, ItemId } from "../game/matchTypes";
 import type { Color } from "../game/colors";
 import { useSequencePressSound } from "../game/useSequencePressSound";
 import { useColorKeyPress } from "../game/useColorKeyPress";
@@ -41,7 +41,8 @@ export function MyTurnScreen({
   onMyPress: () => void;
   onMyTurnStart: () => void;
 }) {
-  const { sequence, cursor, turnOutcome, missedRole, round, turnEndsAt, teams } = room.state;
+  const { sequence, cursor, turnOutcome, missedRole, round, turnEndsAt, teams, bonusItemIndex, bonusItemId } =
+    room.state;
   const myTeam = teams.find((team) => team.id === me.teamId);
   const disabled = turnOutcome !== "pending";
   // My own presses already get instant local feedback (ButtonPanel plays on
@@ -65,6 +66,13 @@ export function MyTurnScreen({
       onMyPress();
     },
     [room, onMyPress],
+  );
+
+  const useItem = useCallback(
+    (itemId: ItemId) => {
+      room.send("useItem", { itemId });
+    },
+    [room],
   );
 
   const keyboardPressDisabled = disabled || me.nickname !== KEYBOARD_PRESS_ALLOWED_NICKNAME;
@@ -93,11 +101,24 @@ export function MyTurnScreen({
         <TimerBar turnEndsAt={turnEndsAt} clockOffsetMs={clockOffsetMs} />
         <p className={styles.myTurn}>내 차례! ({me.role === "pig" ? "돼지" : "토끼"})</p>
         <div className={styles.boardArea}>
-          <SequenceBoard sequence={sequence} cursor={cursor} turnOutcome={turnOutcome} missedRole={missedRole} />
+          <SequenceBoard
+            sequence={sequence}
+            cursor={cursor}
+            turnOutcome={turnOutcome}
+            missedRole={missedRole}
+            bonusItemIndex={bonusItemIndex}
+            bonusItemId={bonusItemId}
+          />
           <TurnOutcomeBanner outcome={turnOutcome} />
         </div>
       </div>
-      <ButtonPanel role={me.role as "pig" | "rabbit"} disabled={disabled} onPress={press} />
+      <ButtonPanel
+        role={me.role as "pig" | "rabbit"}
+        disabled={disabled}
+        onPress={press}
+        inventory={me.inventory}
+        onUseItem={useItem}
+      />
     </div>
   );
 }

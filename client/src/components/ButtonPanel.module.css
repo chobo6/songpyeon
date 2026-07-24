@@ -92,6 +92,33 @@
   touch-action: none;
 }
 
+.itemButton {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18%;
+  aspect-ratio: 65 / 67;
+  transform: translate(-50%, -50%);
+  border: none;
+  border-radius: 999px;
+  touch-action: none;
+  background-color: rgba(0, 0, 0, 0.25);
+  background-size: 70%;
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+.itemButton:active:not(:disabled) {
+  transform: translate(-50%, -50%) scale(0.93);
+}
+
+.itemButton:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.85) brightness(0.55);
+}
+
 /* top row — red (pig) / empty (rabbit), and the two always-empty "item" slots.
    topMid/topRight (green/blue for rabbit) and bottomLeft/bottomMid
    (yellow/orange for pig) are each widened to a 27% gap (game.xml's raw bias

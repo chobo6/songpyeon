@@ -3,6 +3,8 @@ import type { Color, Role } from "../game/colors";
 import { COLOR_TOKEN } from "../game/colors";
 import { SLOT_ORDER, buttonPanelSlots } from "../game/buttonPanel";
 import { playColorClickSound } from "../game/clickSound";
+import type { ItemId } from "../game/matchTypes";
+import { ITEM_ICON } from "../game/itemIcons";
 import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./ButtonPanel.module.css";
 
@@ -21,10 +23,16 @@ export const ButtonPanel = memo(function ButtonPanel({
   role,
   disabled,
   onPress,
+  inventory = [],
+  onUseItem,
 }: {
   role: Role;
   disabled: boolean;
   onPress: (color: Color) => void;
+  // Optional: online-only, no item system in solo practice mode (see
+  // SoloPlayScreen.tsx, which omits both these props entirely).
+  inventory?: ItemId[];
+  onUseItem?: (itemId: ItemId) => void;
 }) {
   const slots = buttonPanelSlots(role);
 
@@ -148,25 +156,43 @@ export const ButtonPanel = memo(function ButtonPanel({
   return (
     <div className={panelBg.panelBg}>
       <div className={styles.panel}>
-        {SLOT_ORDER.map((position) => {
-          const color = slots[position];
-          const positionClass = styles[position];
-          if (!color) {
-            return <div key={position} className={`${styles.empty} ${positionClass}`} />;
-          }
-          return (
-            <button
-              key={position}
-              type="button"
-              aria-label={color}
-              disabled={disabled}
-              onTouchStart={() => handleTouchStart(color)}
-              onClick={() => handleClick(color)}
-              className={`${styles.button} ${positionClass}`}
-              style={{ backgroundImage: `url(${COLOR_TOKEN[color]})` }}
-            />
-          );
-        })}
+        {(() => {
+          let emptySlotIndex = 0;
+          return SLOT_ORDER.map((position) => {
+            const color = slots[position];
+            const positionClass = styles[position];
+            if (!color) {
+              const item = inventory[emptySlotIndex];
+              emptySlotIndex += 1;
+              if (!item) {
+                return <div key={position} className={`${styles.empty} ${positionClass}`} />;
+              }
+              return (
+                <button
+                  key={position}
+                  type="button"
+                  aria-label={item}
+                  disabled={disabled}
+                  onClick={() => onUseItem?.(item)}
+                  className={`${styles.itemButton} ${positionClass}`}
+                  style={{ backgroundImage: `url(${ITEM_ICON[item]})` }}
+                />
+              );
+            }
+            return (
+              <button
+                key={position}
+                type="button"
+                aria-label={color}
+                disabled={disabled}
+                onTouchStart={() => handleTouchStart(color)}
+                onClick={() => handleClick(color)}
+                className={`${styles.button} ${positionClass}`}
+                style={{ backgroundImage: `url(${COLOR_TOKEN[color]})` }}
+              />
+            );
+          });
+        })()}
       </div>
     </div>
   );
