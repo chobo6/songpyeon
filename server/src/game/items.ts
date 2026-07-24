@@ -1,7 +1,7 @@
 import type { Color } from "./colors";
 import { mintRun } from "./fragments";
 
-export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar";
+export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore";
 
 const MIN_TURN_DURATION_MS = 1000;
 
