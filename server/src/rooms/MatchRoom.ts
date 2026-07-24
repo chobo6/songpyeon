@@ -615,7 +615,7 @@ export class MatchRoom extends Room<MatchState> {
 
   private startTurn() {
     const length = sequenceLengthForRound(this.state.round);
-    const sequence = generateSequence(length, Math.random);
+    const sequence = generateSequence(length, Math.random, this.state.round);
 
     this.state.sequence.clear();
     sequence.forEach((color) => this.state.sequence.push(color));
