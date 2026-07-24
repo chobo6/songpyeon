@@ -25,7 +25,7 @@ const PIG_FRAGMENT_WEIGHT = 0.7;
 // end up both more frequent and longer than rabbit streaks — the overall
 // pig:rabbit mix drifts pig-ward in later rounds. Accepted trade-off, not a
 // bug — see docs/superpowers/specs or the PR discussion this was decided in.
-const MAX_STICKINESS = 0.15;
+const MAX_STICKINESS = 0.1;
 const STICKINESS_ROUNDS = 30;
 
 function stickinessForRound(round: number): number {
