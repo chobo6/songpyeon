@@ -11,6 +11,7 @@ export class PlayerState extends Schema {
   @type("string") nicknameColor: string = "";
   @type("string") role: RoleChoice = "";
   @type("string") teamId: string = "";
+  @type(["string"]) inventory = new ArraySchema<string>();
 }
 
 export class TeamState extends Schema {
@@ -54,6 +55,10 @@ export class MatchState extends Schema {
   // 그 역할의 miss 애니메이션을 보여주는 데 씀. 시간초과로 실패한 경우는 대상이
   // 없으므로 빈 문자열로 남는다(onTurnTimerExpired는 이 필드를 건드리지 않음).
   @type("string") missedRole: RoleChoice = "";
+  // 이번 턴 보너스 토큰 위치 — 없으면 -1. startTurn()이 굴린 직후 채움.
+  @type("number") bonusItemIndex: number = -1;
+  // 그 위치에 어떤 아이템이 붙었는지 — 없으면 "". ItemId 값 중 하나 또는 "".
+  @type("string") bonusItemId: string = "";
   // Independent histories (spec decision — lobby banter and in-match
   // commentary don't mix), each capped at MAX_CHAT_MESSAGES in MatchRoom.ts.
   @type([ChatMessage]) lobbyChat = new ArraySchema<ChatMessage>();

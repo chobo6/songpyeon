@@ -171,10 +171,7 @@ describe("MatchRoom", () => {
   // 0.8% bonus-token roll entirely — for tests that only care about useItem's
   // permission/consumption behavior, not how the item was acquired.
   function grantItem(room: ServerRoom<MatchState>, sessionId: string, itemId: string) {
-    const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
-    const held = inventory.get(sessionId) ?? [];
-    held.push(itemId);
-    inventory.set(sessionId, held);
+    room.state.players.get(sessionId)!.inventory.push(itemId);
   }
 
   async function completeActiveTurn(
@@ -1677,8 +1674,7 @@ describe("MatchRoom", () => {
       actingClient.send("useItem", { itemId: "superMortar" });
       await flush();
 
-      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
-      expect(inventory.get(actingClient.sessionId)).toEqual([]);
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual([]);
 
       const cursorBefore = room.state.cursor;
       actingClient.send("pressButton", { color: ALL_COLORS[0] });
@@ -1942,12 +1938,11 @@ describe("MatchRoom", () => {
       const { actingClient } = actingClientFor(room, clients);
       grantItem(room, actingClient.sessionId, "timeReduce");
       grantItem(room, actingClient.sessionId, "timeReduce");
-      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
 
       actingClient.send("useItem", { itemId: "timeReduce" });
       await flush();
 
-      expect(inventory.get(actingClient.sessionId)).toEqual(["timeReduce"]);
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual(["timeReduce"]);
     });
 
     test("holding two timeAdd and using both stacks the extension to +2 seconds", async () => {
@@ -1971,14 +1966,13 @@ describe("MatchRoom", () => {
       const { actingClient } = actingClientFor(room, clients);
       grantItem(room, actingClient.sessionId, "doughAttack");
       grantItem(room, actingClient.sessionId, "doughAttack");
-      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
 
       actingClient.send("useItem", { itemId: "doughAttack" });
       await flush();
       actingClient.send("useItem", { itemId: "doughAttack" });
       await flush();
 
-      expect(inventory.get(actingClient.sessionId)).toEqual([]);
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual([]);
 
       const lengthBefore = room.state.sequence.length;
       await waitUntil(
@@ -2001,9 +1995,56 @@ describe("MatchRoom", () => {
       await firstClient.leave(); // consented=true (the default) — not a drop, so no reconnection grace
       await flush();
 
-      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
-      expect(inventory.get(sessionId)).toBeUndefined();
+      expect(room.state.players.has(sessionId)).toBe(false);
     });
+
+    test("a non-mortarRestore bonus item is visible on the pressing player's synced PlayerState.inventory", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusItem: { index: 0, itemId: "timeAdd" },
+      });
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      const player = room.state.players.get(actingClient.sessionId)!;
+      expect(Array.from(player.inventory)).toEqual(["timeAdd"]);
+    });
+
+    test("handleRematch clears every player's synced inventory", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        teamCount: 1,
+        turnDurationMs: SHORT_TURN_MS,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        forcedBonusItem: { index: 0, itemId: "timeAdd" },
+      });
+      const clients: ClientRoom<MatchState>[] = [];
+      for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+        const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+        client.send("chooseRole", { role });
+        clients.push(client);
+      }
+      await flush();
+      await waitForCountdown();
+
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual(["timeAdd"]);
+
+      // fail every turn (no presses) until the single team is eliminated.
+      while (room.state.teams.some((t) => !t.eliminated)) {
+        await wait(SHORT_TURN_MS + 200);
+      }
+
+      clients[0].send("rematch");
+      await flush();
+
+      for (const player of room.state.players.values()) {
+        expect(Array.from(player.inventory)).toEqual([]);
+      }
+    }, 15000);
   });
 
   describe("bonus item token (mortarRestore)", () => {
@@ -2208,8 +2249,7 @@ describe("MatchRoom", () => {
       actingClient.send("pressButton", { color: dueColor });
       await flush();
 
-      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
-      expect(inventory.get(actingClient.sessionId)).toEqual(["timeAdd"]);
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual(["timeAdd"]);
     });
 
     test("acquiring a 3rd item while already holding 2 discards the new one", async () => {
@@ -2218,13 +2258,30 @@ describe("MatchRoom", () => {
         forcedBonusItem: { index: 0, itemId: "timeAdd" },
       });
       const { dueColor, actingClient } = actingClientFor(room, clients);
-      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
-      inventory.set(actingClient.sessionId, ["doughAttack", "superMortar"]);
+      const player = room.state.players.get(actingClient.sessionId)!;
+      player.inventory.push("doughAttack", "superMortar");
 
       actingClient.send("pressButton", { color: dueColor });
       await flush();
 
-      expect(inventory.get(actingClient.sessionId)).toEqual(["doughAttack", "superMortar"]);
+      expect(Array.from(player.inventory)).toEqual(["doughAttack", "superMortar"]);
+    });
+
+    test("state.bonusItemIndex/bonusItemId are synced to the forced values when a bonus is present", async () => {
+      const { room } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusItem: { index: 3, itemId: "timeAdd" },
+      });
+
+      expect(room.state.bonusItemIndex).toBe(3);
+      expect(room.state.bonusItemId).toBe("timeAdd");
+    });
+
+    test("state.bonusItemIndex/bonusItemId are -1/\"\" when no bonus is rolled this turn", async () => {
+      const { room } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+
+      expect(room.state.bonusItemIndex).toBe(-1);
+      expect(room.state.bonusItemId).toBe("");
     });
   });
 });

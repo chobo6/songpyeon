@@ -104,9 +104,6 @@ export class MatchRoom extends Room<MatchState> {
   private forcedBonusItem?: BonusItemRoll;
   private bonusItem: BonusItemRoll | null = null;
   private bonusItemRng: Rng = Math.random;
-  // 역할당 최대 2개(아이템 종류 무관) — 절구회복을 제외한 보너스 토큰 획득분이
-  // 여기 담긴다. sessionId로 키(팀이 아니라 개인별 소유).
-  private playerInventory = new Map<string, ItemId[]>();
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -408,7 +405,6 @@ export class MatchRoom extends Room<MatchState> {
 
     this.state.players.delete(sessionId);
     this.playerUserIds.delete(sessionId);
-    this.playerInventory.delete(sessionId);
 
     // Same announcement in both phases, routed to whichever chat list is
     // currently visible — mirrors handleSendChat's phase-based list choice.
@@ -635,11 +631,11 @@ export class MatchRoom extends Room<MatchState> {
     for (const player of this.state.players.values()) {
       player.role = "";
       player.teamId = "";
+      player.inventory.clear();
     }
     this.superMortarActiveThisTurn = false;
     this.pendingItemsForNextTurn.reset();
     this.bonusItem = null;
-    this.playerInventory.clear();
 
     // maybeStartGame()'s setPrivate(true) from the match that just ended is
     // still in effect — undo it so a freed slot (e.g. someone left
@@ -662,6 +658,8 @@ export class MatchRoom extends Room<MatchState> {
       this.forcedBonusItem !== undefined
         ? this.forcedBonusItem
         : rollBonusItemIndex(sequence.length, this.bonusItemRng);
+    this.state.bonusItemIndex = this.bonusItem?.index ?? -1;
+    this.state.bonusItemId = this.bonusItem?.itemId ?? "";
 
     this.state.sequence.clear();
     sequence.forEach((color) => this.state.sequence.push(color));
@@ -694,11 +692,10 @@ export class MatchRoom extends Room<MatchState> {
     const activeTeam = this.state.teams[this.state.activeTeamIndex];
     if (player.teamId !== activeTeam.id) return;
 
-    const held = this.playerInventory.get(client.sessionId);
-    const idx = held?.indexOf(itemId) ?? -1;
+    const idx = player.inventory.indexOf(itemId);
     if (idx === -1) return; // 보유하지 않은 아이템 — 조용히 무시
 
-    held!.splice(idx, 1); // 효과 적용 여부와 무관하게 무조건 1개 소모
+    player.inventory.splice(idx, 1); // 효과 적용 여부와 무관하게 무조건 1개 소모
 
     switch (itemId) {
       case "superMortar": {
@@ -792,12 +789,8 @@ export class MatchRoom extends Room<MatchState> {
     if (this.bonusItem !== null && this.state.cursor === this.bonusItem.index) {
       if (this.bonusItem.itemId === "mortarRestore") {
         activeTeam.mortars = gainMortar(activeTeam.mortars);
-      } else {
-        const held = this.playerInventory.get(client.sessionId) ?? [];
-        if (held.length < 2) {
-          held.push(this.bonusItem.itemId);
-          this.playerInventory.set(client.sessionId, held);
-        }
+      } else if (player.inventory.length < 2) {
+        player.inventory.push(this.bonusItem.itemId);
         // 이미 2개 차 있으면 새로 획득한 아이템은 소멸 — 아무 것도 하지 않는다.
       }
     }
