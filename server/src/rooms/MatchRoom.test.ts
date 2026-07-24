@@ -12,6 +12,7 @@ import { _resetForTest as resetPressMonitor, subscribe as subscribeToPressMonito
 import { getOrCreateUser, setNickname, setNicknameColor, setUserBanned } from "../auth/googleAuth";
 import { signSession } from "../auth/session";
 import { db } from "../db/connection";
+import type { Rng } from "../game/rng";
 
 const ALL_COLORS: Color[] = [...PIG_COLORS, ...RABBIT_COLORS];
 const SHORT_TURN_MS = 500;
@@ -29,6 +30,14 @@ const PRESS_HEAVY_TURN_MS = 3000;
 // "check the count right after filling roles" assertion isn't racing the
 // first tick's timer.
 const COUNTDOWN_TICK_MS = 60;
+
+// Always fails MatchRoom's BONUS_MORTAR_CHANCE (0.8%) check, i.e. "the bonus
+// roll never fires" — the default rng for every room in this suite that
+// reaches "playing", so the real 0.8% roll (server/src/game/bonusMortarToken.ts)
+// can never accidentally land mid-test. Tests that specifically want to force
+// a bonus index use forcedBonusMortarIndex instead, which bypasses this rng
+// entirely (see MatchRoom.ts's startTurn()).
+const NEVER_BONUS_RNG: Rng = () => 1;
 
 // `room` in these tests is the live server-side Room instance (see
 // ColyseusTestServer.createRoom), not a client-synced copy — so we only
@@ -128,7 +137,11 @@ describe("MatchRoom", () => {
   });
 
   async function fillRolesAndStart(options: Record<string, unknown> = {}) {
-    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS, ...options });
+    const room = await colyseus.createRoom<MatchState>("match", {
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusMortarRng: NEVER_BONUS_RNG,
+      ...options,
+    });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       // Nicknames must be unique per account now — suffix with the loop
@@ -188,7 +201,10 @@ describe("MatchRoom", () => {
   });
 
   test("filling the last role slot starts a 3-2-1 countdown before the match actually begins", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const room = await colyseus.createRoom<MatchState>("match", {
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusMortarRng: NEVER_BONUS_RNG,
+    });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
@@ -296,7 +312,10 @@ describe("MatchRoom", () => {
   });
 
   test("a player leaving mid-countdown cancels it instead of starting the match one player short", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { countdownTickMs: COUNTDOWN_TICK_MS });
+    const room = await colyseus.createRoom<MatchState>("match", {
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusMortarRng: NEVER_BONUS_RNG,
+    });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
@@ -578,7 +597,11 @@ describe("MatchRoom", () => {
   });
 
   test("a 3-team room starts once all 3 teams have a pig and a rabbit", async () => {
-    const room = await colyseus.createRoom<MatchState>("match", { teamCount: 3, countdownTickMs: COUNTDOWN_TICK_MS });
+    const room = await colyseus.createRoom<MatchState>("match", {
+      teamCount: 3,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusMortarRng: NEVER_BONUS_RNG,
+    });
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
       client.send("chooseRole", { role });
@@ -598,6 +621,7 @@ describe("MatchRoom", () => {
       teamCount: 1,
       turnDurationMs: PRESS_HEAVY_TURN_MS,
       countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusMortarRng: NEVER_BONUS_RNG,
     });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -889,6 +913,7 @@ describe("MatchRoom", () => {
         teamCount: 3,
         turnDurationMs: PRESS_HEAVY_TURN_MS,
         countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusMortarRng: NEVER_BONUS_RNG,
       });
       const clients: ClientRoom<MatchState>[] = [];
       for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
@@ -1081,6 +1106,7 @@ describe("MatchRoom", () => {
       teamCount: 1,
       turnDurationMs: SHORT_TURN_MS,
       countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusMortarRng: NEVER_BONUS_RNG,
     });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -1142,6 +1168,7 @@ describe("MatchRoom", () => {
         teamCount: 1,
         turnDurationMs: SHORT_TURN_MS,
         countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusMortarRng: NEVER_BONUS_RNG,
       });
       const clients: ClientRoom<MatchState>[] = [];
       for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -1912,18 +1939,132 @@ describe("MatchRoom", () => {
       expect(activeTeam.mortars).toBe(4);
     });
 
-    test("succeeding at a non-bonus position does not restore a mortar", async () => {
+    test("succeeding at positions before the forced bonus index does not restore a mortar, but the forced index itself does", async () => {
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
         forcedBonusMortarIndex: 5,
       });
-      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      const { activeTeam } = actingClientFor(room, clients);
       activeTeam.mortars = 3;
 
+      // Press through cursor 0-4 first — none of these are the bonus index,
+      // so mortars must stay untouched. Spaced past the mint-spam-guard's
+      // threshold (see completeActiveTurn's own note above) since the real
+      // sequence generator can place a mint run anywhere, including here.
+      for (let i = 0; i < 5; i++) {
+        const { dueColor, actingClient } = actingClientFor(room, clients);
+        actingClient.send("pressButton", { color: dueColor });
+        await wait(30);
+      }
+      expect(room.state.cursor).toBe(5);
+      expect(activeTeam.mortars).toBe(3);
+
+      // Cursor 5 IS the forced bonus index — pressing it must restore a
+      // mortar. Without this second half, a forcedBonusMortarIndex that
+      // silently did nothing would still pass (it would just look like
+      // "index 0 isn't the bonus"), so this is what actually proves the
+      // forcing mechanism works.
+      const { dueColor, actingClient } = actingClientFor(room, clients);
       actingClient.send("pressButton", { color: dueColor });
       await flush();
 
-      expect(activeTeam.mortars).toBe(3);
+      expect(activeTeam.mortars).toBe(4);
     });
+
+    test("a bonus index landing inside doughAttack's 6-mint prefix still restores a mortar", async () => {
+      // forcedBonusMortarIndex applies to every startTurn() call, including
+      // the CURRENT turn below — harmless here since that turn is never
+      // pressed at all (its own timer is left to expire naturally), so the
+      // bonus never gets a chance to fire against it.
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusMortarIndex: 3,
+      });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      // Let the current turn's own timer expire untouched, handing off to
+      // the next turn — the one doughAttack's 6-mint prefix applies to (see
+      // this file's other doughAttack tests above for the same pattern).
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+
+      const newSequence = Array.from(room.state.sequence);
+      expect(newSequence.slice(0, 6)).toEqual(["mint", "mint", "mint", "mint", "mint", "mint"]);
+
+      // The bonus roll must run against the FINAL, post-doughAttack sequence
+      // (spec requirement) — forcedBonusMortarIndex: 3 falls inside the
+      // 6-mint prefix itself, not just the "normal" part of the sequence
+      // after it.
+      const { activeTeam } = actingClientFor(room, clients);
+      activeTeam.mortars = 3;
+
+      // Press through mint cursor 0-2 — not the bonus index yet. Spaced past
+      // the mint-spam-guard's threshold, same as completeActiveTurn().
+      for (let i = 0; i < 3; i++) {
+        const { dueColor, actingClient: presser } = actingClientFor(room, clients);
+        presser.send("pressButton", { color: dueColor });
+        await wait(30);
+      }
+      expect(room.state.cursor).toBe(3);
+      expect(activeTeam.mortars).toBe(3);
+
+      // Cursor 3 (still inside the mint prefix) is the forced bonus index —
+      // pressing it restores a mortar.
+      const { dueColor, actingClient: presser } = actingClientFor(room, clients);
+      presser.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(activeTeam.mortars).toBe(4);
+    });
+
+    test(
+      "a rematch after the match ends resets the private bonusMortarIndex tracker back to null",
+      async () => {
+        const room = await colyseus.createRoom<MatchState>("match", {
+          teamCount: 1,
+          turnDurationMs: SHORT_TURN_MS,
+          countdownTickMs: COUNTDOWN_TICK_MS,
+          forcedBonusMortarIndex: 0,
+        });
+        const clients: ClientRoom<MatchState>[] = [];
+        for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+          const client = await connectAsUser(colyseus, room, `플레이어${i}`);
+          client.send("chooseRole", { role });
+          clients.push(client);
+        }
+        await flush();
+        await waitForCountdown();
+
+        // bonusMortarIndex is private/non-synced — reach it directly off the
+        // live server-side room instance (this file's own established
+        // convention for internal-state assertions, e.g. the direct
+        // `room.state.teams[1].mortars = 1` writes elsewhere in this file).
+        const internalRoom = room as unknown as { bonusMortarIndex: number | null };
+        // The forced index took effect the moment the first turn started —
+        // confirms there's something non-null here for the rematch reset to
+        // actually be resetting.
+        expect(internalRoom.bonusMortarIndex).toBe(0);
+
+        // fail every turn (no presses at all — an untouched turn times out
+        // as a loss, see onTurnTimerExpired) until the single team is
+        // eliminated (isMatchOver).
+        while (room.state.teams.some((t) => !t.eliminated)) {
+          await wait(SHORT_TURN_MS + 200);
+        }
+
+        clients[0].send("rematch");
+        await flush();
+
+        expect(room.state.phase).toBe("lobby");
+        expect(internalRoom.bonusMortarIndex).toBeNull();
+      },
+      15000,
+    );
   });
 });

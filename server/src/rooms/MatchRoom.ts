@@ -7,6 +7,7 @@ import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated, STARTING_MORTARS, gainMortar } from "../game/mortar";
 import { rollBonusMortarIndex } from "../game/bonusMortarToken";
+import type { Rng } from "../game/rng";
 import { isSpammedPress } from "../game/inputSpamGuard";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import type { Color, Role } from "../game/colors";
@@ -54,6 +55,11 @@ interface MatchRoomOptions {
   // 테스트 전용 — 0.8%라는 낮은 확률을 실제 rng로 재현하지 않고 강제 지정하기
   // 위함. production에서는 항상 undefined(정상적인 확률 롤 사용).
   forcedBonusMortarIndex?: number;
+  // 테스트 전용 — startTurn()이 보너스 박격포 인덱스를 굴릴 때 쓰는 rng를 교체
+  // 하기 위함(turnDurationMs 등 기존 옵션들과 같은 주입 패턴). forcedBonusMortarIndex가
+  // 지정돼 있으면 이 rng는 아예 호출되지 않는다. production에서는 항상 undefined
+  // (Math.random 사용).
+  bonusMortarRng?: Rng;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -98,6 +104,7 @@ export class MatchRoom extends Room<MatchState> {
   private pendingItemsForNextTurn = new ItemUseTracker();
   private forcedBonusMortarIndex?: number;
   private bonusMortarIndex: number | null = null;
+  private bonusMortarRng: Rng = Math.random;
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -107,6 +114,7 @@ export class MatchRoom extends Room<MatchState> {
     if (options.forcedBonusMortarIndex !== undefined) {
       this.forcedBonusMortarIndex = options.forcedBonusMortarIndex;
     }
+    if (options.bonusMortarRng) this.bonusMortarRng = options.bonusMortarRng;
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -651,7 +659,7 @@ export class MatchRoom extends Room<MatchState> {
     this.bonusMortarIndex =
       this.forcedBonusMortarIndex !== undefined
         ? this.forcedBonusMortarIndex
-        : rollBonusMortarIndex(sequence.length, Math.random);
+        : rollBonusMortarIndex(sequence.length, this.bonusMortarRng);
 
     this.state.sequence.clear();
     sequence.forEach((color) => this.state.sequence.push(color));
