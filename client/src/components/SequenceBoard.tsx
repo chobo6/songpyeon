@@ -1,7 +1,8 @@
 import { memo, useEffect, useState } from "react";
 import type { Color, Role } from "../game/colors";
 import { COLOR_TOKEN, COLOR_TOKEN_OFF } from "../game/colors";
-import type { RoleChoice, TurnOutcome } from "../game/matchTypes";
+import type { ItemId, RoleChoice, TurnOutcome } from "../game/matchTypes";
+import { ITEM_ICON } from "../game/itemIcons";
 import styles from "./SequenceBoard.module.css";
 
 const TOKENS_PER_ROW = 6;
@@ -65,6 +66,7 @@ const Token = memo(function Token({
   missedRole,
   showCursor,
   isLastInRow,
+  bonusIcon,
 }: {
   color: Color;
   isDone: boolean;
@@ -74,6 +76,9 @@ const Token = memo(function Token({
   missedRole: RoleChoice;
   showCursor: boolean;
   isLastInRow: boolean;
+  // Set only for the one token (if any) carrying this turn's bonus item —
+  // undefined for every other token.
+  bonusIcon?: string;
 }) {
   return (
     <div className={styles.tokenWrap}>
@@ -85,7 +90,9 @@ const Token = memo(function Token({
           className={isDone ? `${styles.token} ${styles.done}` : styles.token}
           data-color={color}
           style={{ backgroundImage: `url(${isDone ? COLOR_TOKEN_OFF[color] : COLOR_TOKEN[color]})` }}
-        />
+        >
+          {bonusIcon && <div className={styles.bonusIcon} style={{ backgroundImage: `url(${bonusIcon})` }} />}
+        </div>
       )}
       {!isLastInRow && <div className={styles.link} />}
     </div>
@@ -97,6 +104,8 @@ export function SequenceBoard({
   cursor,
   turnOutcome,
   missedRole,
+  bonusItemIndex,
+  bonusItemId,
 }: {
   sequence: Color[];
   cursor: number;
@@ -110,6 +119,10 @@ export function SequenceBoard({
   // and doesn't pass this, so the missed token there just renders plainly
   // (same as a timeout) — no separate code path needed for that.
   missedRole?: RoleChoice;
+  // Optional: online-only, same reasoning as missedRole above. -1/"" (or
+  // omitted entirely) means no bonus token this turn.
+  bonusItemIndex?: number;
+  bonusItemId?: ItemId | "";
 }) {
   const rows = chunk(sequence, TOKENS_PER_ROW);
   const currentRow = Math.floor(cursor / TOKENS_PER_ROW);
@@ -138,6 +151,9 @@ export function SequenceBoard({
                   missedRole={missedRole ?? ""}
                   showCursor={globalIndex === cursor}
                   isLastInRow={i === row.length - 1}
+                  bonusIcon={
+                    bonusItemId && globalIndex === bonusItemIndex ? ITEM_ICON[bonusItemId] : undefined
+                  }
                 />
               );
             })}

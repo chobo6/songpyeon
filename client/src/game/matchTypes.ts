@@ -6,6 +6,7 @@ import type { Color, Role } from "./colors";
 export type Phase = "lobby" | "playing";
 export type RoleChoice = Role | "";
 export type TurnOutcome = "pending" | "success" | "fail";
+export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore";
 
 export interface PlayerState {
   sessionId: string;
@@ -13,6 +14,7 @@ export interface PlayerState {
   nicknameColor: string;
   role: RoleChoice;
   teamId: string;
+  inventory: ItemId[];
 }
 
 export interface TeamState {
@@ -49,6 +51,8 @@ export interface MatchState {
   turnEndsAt: number;
   turnOutcome: TurnOutcome;
   missedRole: RoleChoice;
+  bonusItemIndex: number;
+  bonusItemId: ItemId | "";
   lobbyChat: ChatMessage[];
   matchChat: ChatMessage[];
   spectators: Map<string, SpectatorState>;
