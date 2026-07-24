@@ -31,9 +31,9 @@ const PRESS_HEAVY_TURN_MS = 3000;
 // first tick's timer.
 const COUNTDOWN_TICK_MS = 60;
 
-// Always fails MatchRoom's BONUS_ITEM_CHANCE (0.8%) check, i.e. "the bonus
+// Always fails MatchRoom's BONUS_ITEM_CHANCE (10%) check, i.e. "the bonus
 // roll never fires" — the default rng for every room in this suite that
-// reaches "playing", so the real 0.8% roll (server/src/game/bonusItemToken.ts)
+// reaches "playing", so the real 10% roll (server/src/game/bonusItemToken.ts)
 // can never accidentally land mid-test. Tests that specifically want to force
 // a bonus index use forcedBonusItem instead, which bypasses this rng
 // entirely (see MatchRoom.ts's startTurn()).
