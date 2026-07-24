@@ -1711,5 +1711,73 @@ describe("MatchRoom", () => {
 
       expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 1000);
     });
+
+    // NOTE: the brief's original version of these two tests used
+    // completeActiveTurn() (press through the sequence, then sleep
+    // turnDurationMs+200) to reach the NEXT turn before measuring
+    // `remaining`. That press-loop + trailing sleep overshoots by well
+    // over a second past the hand-off, which put `remaining` inside the
+    // expected band even with timeReduce entirely unimplemented (verified:
+    // both tests passed against the pre-Step-3 code). Switched to the
+    // waitUntil-based hand-off detection the timeAdd tests above already
+    // use instead — polling activeTeamIndex and reading turnEndsAt the
+    // instant it flips keeps the measurement noise down to ~waitUntil's
+    // 10ms poll granularity, so the three cases (unmodified ~3000ms,
+    // reduced ~2000ms, double-used-but-not-stacked ~2000ms vs a
+    // hypothetical stacked ~1000ms) are cleanly separated by the bands
+    // below. Deliberately don't press through the sequence at all here —
+    // the current turn is left to fail via its own (unmodified) timeout,
+    // which is simpler and removes the sequence-length-dependent press-loop
+    // timing from the measurement entirely.
+    test("timeReduce shortens only the NEXT turn's duration, not the current one", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+      const turnEndsAtBefore = room.state.turnEndsAt;
+
+      actingClient.send("useItem", { itemId: "timeReduce" });
+      await flush();
+
+      // Current turn is untouched.
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore);
+
+      // Let the current turn's own (unmodified) timer expire naturally and
+      // wait for the hand-off to the next team.
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+      // Measured the instant the hand-off is observed, so "remaining"
+      // approximates the NEXT turn's total duration minus only waitUntil's
+      // own small poll lag.
+      const remaining = room.state.turnEndsAt - Date.now();
+
+      // Next turn's duration should be ~2000ms (PRESS_HEAVY_TURN_MS - 1000),
+      // clearly separated from the ~3000ms an unmodified turn would show.
+      expect(remaining).toBeGreaterThan(1500);
+      expect(remaining).toBeLessThan(2500);
+    });
+
+    test("timeReduce used twice in the same turn only reduces the next turn by 1 second, not 2", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("useItem", { itemId: "timeReduce" });
+      await flush();
+      actingClient.send("useItem", { itemId: "timeReduce" });
+      await flush();
+
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+      const remaining = room.state.turnEndsAt - Date.now();
+
+      // If the second use had stacked, remaining would be ~1000ms
+      // (3000 - 2000) instead of ~2000ms (3000 - 1000).
+      expect(remaining).toBeGreaterThan(1500);
+      expect(remaining).toBeLessThan(2500);
+    });
   });
 });

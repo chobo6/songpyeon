@@ -1,5 +1,5 @@
 import { Room, Client, type AuthContext, type Delayed } from "colyseus";
-import { ItemUseTracker, type ItemId } from "../game/items";
+import { ItemUseTracker, applyTimeReduce, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from "./MatchState";
 import { generateSequence } from "../game/sequence";
@@ -88,6 +88,10 @@ export class MatchRoom extends Room<MatchState> {
   private turnTimer?: Delayed;
   private itemsUsedThisTurn = new ItemUseTracker();
   private superMortarActiveThisTurn = false;
+  // 이번 턴이 아니라 "다음 턴"에 적용될 예약을 담아두는 트래커 — timeReduce는 지금
+  // 진행 중인 턴을 건드리지 않고, 다음 startTurn()이 호출되는 시점에 소비된다.
+  // doughAttack(Task 5)도 같은 트래커를 공유한다.
+  private pendingItemsForNextTurn = new ItemUseTracker();
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -614,6 +618,7 @@ export class MatchRoom extends Room<MatchState> {
     }
     this.itemsUsedThisTurn.reset();
     this.superMortarActiveThisTurn = false;
+    this.pendingItemsForNextTurn.reset();
 
     // maybeStartGame()'s setPrivate(true) from the match that just ended is
     // still in effect — undo it so a freed slot (e.g. someone left
@@ -635,7 +640,13 @@ export class MatchRoom extends Room<MatchState> {
     this.state.cursor = 0;
     this.state.turnOutcome = "pending";
     this.state.missedRole = "";
-    this.state.turnEndsAt = Date.now() + this.turnDurationMs;
+    let duration = this.turnDurationMs;
+    if (this.pendingItemsForNextTurn.has("timeReduce")) {
+      duration = applyTimeReduce(duration);
+    }
+    this.pendingItemsForNextTurn.reset();
+
+    this.state.turnEndsAt = Date.now() + duration;
     this.turnDecided = false;
     this.lastPressAt = null;
 
@@ -643,7 +654,7 @@ export class MatchRoom extends Room<MatchState> {
     const token = this.turnToken;
     this.turnTimer = this.clock.setTimeout(() => {
       if (token === this.turnToken) this.onTurnTimerExpired();
-    }, this.turnDurationMs);
+    }, duration);
   }
 
   private handleUseItem(client: Client, itemId: ItemId) {
@@ -672,7 +683,11 @@ export class MatchRoom extends Room<MatchState> {
         }, remaining);
         break;
       }
-      // timeReduce/doughAttack: Task 4/5.
+      case "timeReduce": {
+        this.pendingItemsForNextTurn.tryUse("timeReduce");
+        break;
+      }
+      // doughAttack: Task 5.
     }
   }
 
