@@ -6,7 +6,7 @@ import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated, STARTING_MORTARS, gainMortar } from "../game/mortar";
-import { rollBonusMortarIndex } from "../game/bonusMortarToken";
+import { rollBonusItemIndex, type BonusItemRoll } from "../game/bonusItemToken";
 import type { Rng } from "../game/rng";
 import { isSpammedPress } from "../game/inputSpamGuard";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
@@ -54,12 +54,12 @@ interface MatchRoomOptions {
   allowSpectators?: unknown;
   // 테스트 전용 — 0.8%라는 낮은 확률을 실제 rng로 재현하지 않고 강제 지정하기
   // 위함. production에서는 항상 undefined(정상적인 확률 롤 사용).
-  forcedBonusMortarIndex?: number;
-  // 테스트 전용 — startTurn()이 보너스 박격포 인덱스를 굴릴 때 쓰는 rng를 교체
-  // 하기 위함(turnDurationMs 등 기존 옵션들과 같은 주입 패턴). forcedBonusMortarIndex가
-  // 지정돼 있으면 이 rng는 아예 호출되지 않는다. production에서는 항상 undefined
+  forcedBonusItem?: BonusItemRoll;
+  // 테스트 전용 — startTurn()이 보너스 토큰을 굴릴 때 쓰는 rng를 교체하기 위함
+  // (turnDurationMs 등 기존 옵션들과 같은 주입 패턴). forcedBonusItem이 지정돼
+  // 있으면 이 rng는 아예 호출되지 않는다. production에서는 항상 undefined
   // (Math.random 사용).
-  bonusMortarRng?: Rng;
+  bonusItemRng?: Rng;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -102,19 +102,22 @@ export class MatchRoom extends Room<MatchState> {
   // 진행 중인 턴을 건드리지 않고, 다음 startTurn()이 호출되는 시점에 소비된다.
   // doughAttack(Task 5)도 같은 트래커를 공유한다.
   private pendingItemsForNextTurn = new ItemUseTracker();
-  private forcedBonusMortarIndex?: number;
-  private bonusMortarIndex: number | null = null;
-  private bonusMortarRng: Rng = Math.random;
+  private forcedBonusItem?: BonusItemRoll;
+  private bonusItem: BonusItemRoll | null = null;
+  private bonusItemRng: Rng = Math.random;
+  // 역할당 최대 2개(아이템 종류 무관) — 절구회복을 제외한 보너스 토큰 획득분이
+  // 여기 담긴다. sessionId로 키(팀이 아니라 개인별 소유).
+  private playerInventory = new Map<string, ItemId[]>();
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
     if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
     if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
     this.allowSpectators = options.allowSpectators !== false;
-    if (options.forcedBonusMortarIndex !== undefined) {
-      this.forcedBonusMortarIndex = options.forcedBonusMortarIndex;
+    if (options.forcedBonusItem !== undefined) {
+      this.forcedBonusItem = options.forcedBonusItem;
     }
-    if (options.bonusMortarRng) this.bonusMortarRng = options.bonusMortarRng;
+    if (options.bonusItemRng) this.bonusItemRng = options.bonusItemRng;
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -406,6 +409,7 @@ export class MatchRoom extends Room<MatchState> {
 
     this.state.players.delete(sessionId);
     this.playerUserIds.delete(sessionId);
+    this.playerInventory.delete(sessionId);
 
     // Same announcement in both phases, routed to whichever chat list is
     // currently visible — mirrors handleSendChat's phase-based list choice.
@@ -636,7 +640,8 @@ export class MatchRoom extends Room<MatchState> {
     this.itemsUsedThisTurn.reset();
     this.superMortarActiveThisTurn = false;
     this.pendingItemsForNextTurn.reset();
-    this.bonusMortarIndex = null;
+    this.bonusItem = null;
+    this.playerInventory.clear();
 
     // maybeStartGame()'s setPrivate(true) from the match that just ended is
     // still in effect — undo it so a freed slot (e.g. someone left
@@ -656,10 +661,10 @@ export class MatchRoom extends Room<MatchState> {
       sequence = applyDoughAttack(sequence);
     }
 
-    this.bonusMortarIndex =
-      this.forcedBonusMortarIndex !== undefined
-        ? this.forcedBonusMortarIndex
-        : rollBonusMortarIndex(sequence.length, this.bonusMortarRng);
+    this.bonusItem =
+      this.forcedBonusItem !== undefined
+        ? this.forcedBonusItem
+        : rollBonusItemIndex(sequence.length, this.bonusItemRng);
 
     this.state.sequence.clear();
     sequence.forEach((color) => this.state.sequence.push(color));
@@ -778,8 +783,17 @@ export class MatchRoom extends Room<MatchState> {
       return;
     }
 
-    if (this.bonusMortarIndex !== null && this.state.cursor === this.bonusMortarIndex) {
-      activeTeam.mortars = gainMortar(activeTeam.mortars);
+    if (this.bonusItem !== null && this.state.cursor === this.bonusItem.index) {
+      if (this.bonusItem.itemId === "mortarRestore") {
+        activeTeam.mortars = gainMortar(activeTeam.mortars);
+      } else {
+        const held = this.playerInventory.get(client.sessionId) ?? [];
+        if (held.length < 2) {
+          held.push(this.bonusItem.itemId);
+          this.playerInventory.set(client.sessionId, held);
+        }
+        // 이미 2개 차 있으면 새로 획득한 아이템은 소멸 — 아무 것도 하지 않는다.
+      }
     }
 
     this.state.cursor = result.nextCursor;

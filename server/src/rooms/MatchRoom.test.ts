@@ -31,11 +31,11 @@ const PRESS_HEAVY_TURN_MS = 3000;
 // first tick's timer.
 const COUNTDOWN_TICK_MS = 60;
 
-// Always fails MatchRoom's BONUS_MORTAR_CHANCE (0.8%) check, i.e. "the bonus
+// Always fails MatchRoom's BONUS_ITEM_CHANCE (0.8%) check, i.e. "the bonus
 // roll never fires" — the default rng for every room in this suite that
-// reaches "playing", so the real 0.8% roll (server/src/game/bonusMortarToken.ts)
+// reaches "playing", so the real 0.8% roll (server/src/game/bonusItemToken.ts)
 // can never accidentally land mid-test. Tests that specifically want to force
-// a bonus index use forcedBonusMortarIndex instead, which bypasses this rng
+// a bonus index use forcedBonusItem instead, which bypasses this rng
 // entirely (see MatchRoom.ts's startTurn()).
 const NEVER_BONUS_RNG: Rng = () => 1;
 
@@ -139,7 +139,7 @@ describe("MatchRoom", () => {
   async function fillRolesAndStart(options: Record<string, unknown> = {}) {
     const room = await colyseus.createRoom<MatchState>("match", {
       countdownTickMs: COUNTDOWN_TICK_MS,
-      bonusMortarRng: NEVER_BONUS_RNG,
+      bonusItemRng: NEVER_BONUS_RNG,
       ...options,
     });
     const clients: ClientRoom<MatchState>[] = [];
@@ -203,7 +203,7 @@ describe("MatchRoom", () => {
   test("filling the last role slot starts a 3-2-1 countdown before the match actually begins", async () => {
     const room = await colyseus.createRoom<MatchState>("match", {
       countdownTickMs: COUNTDOWN_TICK_MS,
-      bonusMortarRng: NEVER_BONUS_RNG,
+      bonusItemRng: NEVER_BONUS_RNG,
     });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
@@ -314,7 +314,7 @@ describe("MatchRoom", () => {
   test("a player leaving mid-countdown cancels it instead of starting the match one player short", async () => {
     const room = await colyseus.createRoom<MatchState>("match", {
       countdownTickMs: COUNTDOWN_TICK_MS,
-      bonusMortarRng: NEVER_BONUS_RNG,
+      bonusItemRng: NEVER_BONUS_RNG,
     });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
@@ -600,7 +600,7 @@ describe("MatchRoom", () => {
     const room = await colyseus.createRoom<MatchState>("match", {
       teamCount: 3,
       countdownTickMs: COUNTDOWN_TICK_MS,
-      bonusMortarRng: NEVER_BONUS_RNG,
+      bonusItemRng: NEVER_BONUS_RNG,
     });
     for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
       const client = await connectAsUser(colyseus, room, `플레이어${i}`);
@@ -621,7 +621,7 @@ describe("MatchRoom", () => {
       teamCount: 1,
       turnDurationMs: PRESS_HEAVY_TURN_MS,
       countdownTickMs: COUNTDOWN_TICK_MS,
-      bonusMortarRng: NEVER_BONUS_RNG,
+      bonusItemRng: NEVER_BONUS_RNG,
     });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -913,7 +913,7 @@ describe("MatchRoom", () => {
         teamCount: 3,
         turnDurationMs: PRESS_HEAVY_TURN_MS,
         countdownTickMs: COUNTDOWN_TICK_MS,
-        bonusMortarRng: NEVER_BONUS_RNG,
+        bonusItemRng: NEVER_BONUS_RNG,
       });
       const clients: ClientRoom<MatchState>[] = [];
       for (const [i, role] of (["pig", "rabbit", "pig", "rabbit", "pig", "rabbit"] as const).entries()) {
@@ -1106,7 +1106,7 @@ describe("MatchRoom", () => {
       teamCount: 1,
       turnDurationMs: SHORT_TURN_MS,
       countdownTickMs: COUNTDOWN_TICK_MS,
-      bonusMortarRng: NEVER_BONUS_RNG,
+      bonusItemRng: NEVER_BONUS_RNG,
     });
     const clients: ClientRoom<MatchState>[] = [];
     for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -1168,7 +1168,7 @@ describe("MatchRoom", () => {
         teamCount: 1,
         turnDurationMs: SHORT_TURN_MS,
         countdownTickMs: COUNTDOWN_TICK_MS,
-        bonusMortarRng: NEVER_BONUS_RNG,
+        bonusItemRng: NEVER_BONUS_RNG,
       });
       const clients: ClientRoom<MatchState>[] = [];
       for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -1877,11 +1877,11 @@ describe("MatchRoom", () => {
     });
   });
 
-  describe("bonus mortar token", () => {
+  describe("bonus item token (mortarRestore)", () => {
     test("successfully pressing the forced bonus index restores one mortar", async () => {
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
-        forcedBonusMortarIndex: 0,
+        forcedBonusItem: { index: 0, itemId: "mortarRestore" },
       });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
       activeTeam.mortars = 3;
@@ -1895,7 +1895,7 @@ describe("MatchRoom", () => {
     test("pressing the bonus index while already at full mortars has no effect", async () => {
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
-        forcedBonusMortarIndex: 0,
+        forcedBonusItem: { index: 0, itemId: "mortarRestore" },
       });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
       // activeTeam.mortars is already STARTING_MORTARS (5) from room setup.
@@ -1909,7 +1909,7 @@ describe("MatchRoom", () => {
     test("a WRONG press at the bonus index does not restore a mortar (normal fail applies instead)", async () => {
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
-        forcedBonusMortarIndex: 0,
+        forcedBonusItem: { index: 0, itemId: "mortarRestore" },
       });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
       activeTeam.mortars = 3;
@@ -1925,7 +1925,7 @@ describe("MatchRoom", () => {
     test("superMortar-bypassed success at the bonus index still restores a mortar", async () => {
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
-        forcedBonusMortarIndex: 0,
+        forcedBonusItem: { index: 0, itemId: "mortarRestore" },
       });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
       activeTeam.mortars = 3;
@@ -1942,7 +1942,7 @@ describe("MatchRoom", () => {
     test("succeeding at positions before the forced bonus index does not restore a mortar, but the forced index itself does", async () => {
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
-        forcedBonusMortarIndex: 5,
+        forcedBonusItem: { index: 5, itemId: "mortarRestore" },
       });
       const { activeTeam } = actingClientFor(room, clients);
       activeTeam.mortars = 3;
@@ -1960,7 +1960,7 @@ describe("MatchRoom", () => {
       expect(activeTeam.mortars).toBe(3);
 
       // Cursor 5 IS the forced bonus index — pressing it must restore a
-      // mortar. Without this second half, a forcedBonusMortarIndex that
+      // mortar. Without this second half, a forcedBonusItem that
       // silently did nothing would still pass (it would just look like
       // "index 0 isn't the bonus"), so this is what actually proves the
       // forcing mechanism works.
@@ -1972,13 +1972,13 @@ describe("MatchRoom", () => {
     });
 
     test("a bonus index landing inside doughAttack's 6-mint prefix still restores a mortar", async () => {
-      // forcedBonusMortarIndex applies to every startTurn() call, including
+      // forcedBonusItem applies to every startTurn() call, including
       // the CURRENT turn below — harmless here since that turn is never
       // pressed at all (its own timer is left to expire naturally), so the
       // bonus never gets a chance to fire against it.
       const { room, clients } = await fillRolesAndStart({
         turnDurationMs: PRESS_HEAVY_TURN_MS,
-        forcedBonusMortarIndex: 3,
+        forcedBonusItem: { index: 3, itemId: "mortarRestore" },
       });
       const activeTeamIndexBefore = room.state.activeTeamIndex;
       const { actingClient } = actingClientFor(room, clients);
@@ -1998,7 +1998,7 @@ describe("MatchRoom", () => {
       expect(newSequence.slice(0, 6)).toEqual(["mint", "mint", "mint", "mint", "mint", "mint"]);
 
       // The bonus roll must run against the FINAL, post-doughAttack sequence
-      // (spec requirement) — forcedBonusMortarIndex: 3 falls inside the
+      // (spec requirement) — forcedBonusItem: { index: 3 } falls inside the
       // 6-mint prefix itself, not just the "normal" part of the sequence
       // after it.
       const { activeTeam } = actingClientFor(room, clients);
@@ -2024,13 +2024,13 @@ describe("MatchRoom", () => {
     });
 
     test(
-      "a rematch after the match ends resets the private bonusMortarIndex tracker back to null",
+      "a rematch after the match ends resets the private bonusItem tracker back to null",
       async () => {
         const room = await colyseus.createRoom<MatchState>("match", {
           teamCount: 1,
           turnDurationMs: SHORT_TURN_MS,
           countdownTickMs: COUNTDOWN_TICK_MS,
-          forcedBonusMortarIndex: 0,
+          forcedBonusItem: { index: 0, itemId: "mortarRestore" },
         });
         const clients: ClientRoom<MatchState>[] = [];
         for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
@@ -2041,15 +2041,15 @@ describe("MatchRoom", () => {
         await flush();
         await waitForCountdown();
 
-        // bonusMortarIndex is private/non-synced — reach it directly off the
+        // bonusItem is private/non-synced — reach it directly off the
         // live server-side room instance (this file's own established
         // convention for internal-state assertions, e.g. the direct
         // `room.state.teams[1].mortars = 1` writes elsewhere in this file).
-        const internalRoom = room as unknown as { bonusMortarIndex: number | null };
-        // The forced index took effect the moment the first turn started —
+        const internalRoom = room as unknown as { bonusItem: { index: number; itemId: string } | null };
+        // The forced item took effect the moment the first turn started —
         // confirms there's something non-null here for the rematch reset to
         // actually be resetting.
-        expect(internalRoom.bonusMortarIndex).toBe(0);
+        expect(internalRoom.bonusItem).toEqual({ index: 0, itemId: "mortarRestore" });
 
         // fail every turn (no presses at all — an untouched turn times out
         // as a loss, see onTurnTimerExpired) until the single team is
@@ -2062,9 +2062,38 @@ describe("MatchRoom", () => {
         await flush();
 
         expect(room.state.phase).toBe("lobby");
-        expect(internalRoom.bonusMortarIndex).toBeNull();
+        expect(internalRoom.bonusItem).toBeNull();
       },
       15000,
     );
+
+    test("a non-mortarRestore bonus item is granted to the pressing player's own inventory", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusItem: { index: 0, itemId: "timeAdd" },
+      });
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+      expect(inventory.get(actingClient.sessionId)).toEqual(["timeAdd"]);
+    });
+
+    test("acquiring a 3rd item while already holding 2 discards the new one", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        forcedBonusItem: { index: 0, itemId: "timeAdd" },
+      });
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      const inventory = (room as unknown as { playerInventory: Map<string, string[]> }).playerInventory;
+      inventory.set(actingClient.sessionId, ["doughAttack", "superMortar"]);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(inventory.get(actingClient.sessionId)).toEqual(["doughAttack", "superMortar"]);
+    });
   });
 });
