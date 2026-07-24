@@ -1818,8 +1818,8 @@ describe("MatchRoom", () => {
       expect(newSequence.slice(0, 6)).toEqual(["mint", "mint", "mint", "mint", "mint", "mint"]);
       expect(newSequence.length).toBe(lengthBefore + 6);
       // Duration unaffected: should still be ~3000ms (PRESS_HEAVY_TURN_MS),
-      // clearly above the ~2000ms band the timeReduce tests above check
-      // for (see their comments for why the boundary sits at 2400ms).
+      // clearly above the (1500, 2500) band the timeReduce tests above
+      // check for — the two bands are disjoint by design.
       expect(remaining).toBeGreaterThan(2400);
       expect(remaining).toBeLessThan(3400);
     });
