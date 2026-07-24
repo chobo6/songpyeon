@@ -8,6 +8,12 @@ import { TeamRosterPanel } from "./TeamRosterPanel";
 import { TimerBar } from "./TimerBar";
 import styles from "./PlayingScreen.module.css";
 
+// team.id는 서버에서 "team-1"/"team-2"처럼 내부 식별자로 붙는데(MatchRoom.ts의
+// team.id = `team-${i + 1}`), 화면엔 그 앞부분 없이 번호만 보여준다.
+function teamNumber(teamId: string): string {
+  return teamId.replace("team-", "");
+}
+
 export function SpectatorScreen({
   room,
   activeTeam,
@@ -90,10 +96,10 @@ export function SpectatorScreen({
           <p className={styles.spectating}>
             {matchOver
               ? "모든 팀이 탈락했습니다."
-              : `당신의 팀은 탈락했습니다. ${activeTeam.id} 팀이 계속 플레이 중입니다.`}
+              : `당신의 팀은 탈락했습니다. ${teamNumber(activeTeam.id)}팀이 계속 플레이 중입니다.`}
           </p>
         ) : (
-          <p className={styles.spectating}>{activeTeam.id} 팀의 차례입니다</p>
+          <p className={styles.spectating}>{teamNumber(activeTeam.id)}팀의 차례입니다</p>
         )}
         {/* 진짜 관전자는 대기/탈락 여부와 무관하게 언제든 나갈 수 있어야 한다 — 그 외엔
             기존 그대로 탈락한 실제 참가자에게만 나가기 버튼이 뜬다. */}
