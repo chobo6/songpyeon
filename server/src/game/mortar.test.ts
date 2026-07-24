@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { STARTING_MORTARS, isEliminated, loseMortar } from "./mortar";
+import { STARTING_MORTARS, gainMortar, isEliminated, loseMortar } from "./mortar";
 
 describe("mortar (team-shared lives)", () => {
   test("a team starts with 5 mortars", () => {
@@ -20,5 +20,13 @@ describe("mortar (team-shared lives)", () => {
 
   test("a team with zero mortars is eliminated", () => {
     expect(isEliminated(0)).toBe(true);
+  });
+
+  test("gaining a mortar increments the count", () => {
+    expect(gainMortar(3)).toBe(4);
+  });
+
+  test("mortars never exceed STARTING_MORTARS (already full has no effect)", () => {
+    expect(gainMortar(STARTING_MORTARS)).toBe(STARTING_MORTARS);
   });
 });

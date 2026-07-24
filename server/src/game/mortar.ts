@@ -4,6 +4,10 @@ export function loseMortar(mortars: number): number {
   return Math.max(0, mortars - 1);
 }
 
+export function gainMortar(mortars: number): number {
+  return Math.min(STARTING_MORTARS, mortars + 1);
+}
+
 export function isEliminated(mortars: number): boolean {
   return mortars <= 0;
 }
