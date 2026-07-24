@@ -1,4 +1,4 @@
-import { Room, Client, type AuthContext } from "colyseus";
+import { Room, Client, type AuthContext, type Delayed } from "colyseus";
 import { ItemUseTracker, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from "./MatchState";
@@ -85,6 +85,7 @@ export class MatchRoom extends Room<MatchState> {
   // 직전 버튼 입력(색 무관) 시각 — 민트/돼지 연타 속도 제한에만 씀(handlePressButton의
   // isSpammedPress 호출부 참고). 매 턴 시작마다 초기화.
   private lastPressAt: number | null = null;
+  private turnTimer?: Delayed;
   private itemsUsedThisTurn = new ItemUseTracker();
   private superMortarActiveThisTurn = false;
 
@@ -640,7 +641,7 @@ export class MatchRoom extends Room<MatchState> {
 
     this.invalidateInFlightTurn();
     const token = this.turnToken;
-    this.clock.setTimeout(() => {
+    this.turnTimer = this.clock.setTimeout(() => {
       if (token === this.turnToken) this.onTurnTimerExpired();
     }, this.turnDurationMs);
   }
@@ -660,7 +661,18 @@ export class MatchRoom extends Room<MatchState> {
         this.superMortarActiveThisTurn = true;
         break;
       }
-      // timeAdd: Task 3. timeReduce/doughAttack: Task 4/5.
+      case "timeAdd": {
+        if (!this.itemsUsedThisTurn.tryUse("timeAdd")) return;
+        this.turnTimer?.clear();
+        this.state.turnEndsAt += 1000;
+        const remaining = this.state.turnEndsAt - Date.now();
+        const token = this.turnToken;
+        this.turnTimer = this.clock.setTimeout(() => {
+          if (token === this.turnToken) this.onTurnTimerExpired();
+        }, remaining);
+        break;
+      }
+      // timeReduce/doughAttack: Task 4/5.
     }
   }
 

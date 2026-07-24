@@ -1664,5 +1664,52 @@ describe("MatchRoom", () => {
 
       expect(room.state.turnOutcome).toBe("fail");
     });
+
+    test("timeAdd extends the actual turn deadline, not just its displayed value", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      // activeTeamIndex (not round) is the signal here: fillRolesAndStart's
+      // default 2-team setup only bumps `round` after BOTH teams have taken a
+      // turn (see advanceToNextTurn's turnsThisRound >= teamsAliveAtRoundStart
+      // check), so it wouldn't flip until a full extra turn later — too slow
+      // and indirect a signal for "did THIS turn's expiry fire on time".
+      // activeTeamIndex hands off the instant the acting team's turn expires,
+      // regardless of team count, so it pinpoints exactly when the real timer fired.
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+      const turnEndsAtBefore = room.state.turnEndsAt;
+
+      actingClient.send("useItem", { itemId: "timeAdd" });
+      await flush();
+
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 1000);
+
+      // Poll (rather than a fixed sleep — see waitUntil's own comment on why
+      // this file prefers polling for real-timer races) to a point just past
+      // the ORIGINAL deadline. If timeAdd had only updated turnEndsAt
+      // cosmetically without rescheduling the real server timer, the turn
+      // would already have expired and handed off to the next team by now.
+      // Explicit timeout: this wait itself needs to span most of
+      // turnDurationMs, which exceeds waitUntil's 2000ms default.
+      await waitUntil(() => Date.now() > turnEndsAtBefore + 100, PRESS_HEAVY_TURN_MS + 1000);
+      expect(room.state.activeTeamIndex).toBe(activeTeamIndexBefore);
+
+      // Now wait for the turn to actually expire and hand off, and confirm it
+      // happened at/after the NEW (extended) deadline, not the original one.
+      await waitUntil(() => room.state.activeTeamIndex !== activeTeamIndexBefore, PRESS_HEAVY_TURN_MS);
+      expect(Date.now()).toBeGreaterThanOrEqual(turnEndsAtBefore + 1000);
+    });
+
+    test("using timeAdd twice in the same turn only extends the deadline once", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { actingClient } = actingClientFor(room, clients);
+      const turnEndsAtBefore = room.state.turnEndsAt;
+
+      actingClient.send("useItem", { itemId: "timeAdd" });
+      await flush();
+      actingClient.send("useItem", { itemId: "timeAdd" });
+      await flush();
+
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 1000);
+    });
   });
 });
