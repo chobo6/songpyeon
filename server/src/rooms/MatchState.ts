@@ -59,6 +59,11 @@ export class MatchState extends Schema {
   @type("number") bonusItemIndex: number = -1;
   // 그 위치에 어떤 아이템이 붙었는지 — 없으면 "". ItemId 값 중 하나 또는 "".
   @type("string") bonusItemId: string = "";
+  // 방금 누군가 사용한 아이템 — 클라이언트가 화면 토스트 애니메이션을 트리거하는 데 씀.
+  // itemId 자체는 값이 안 바뀌면(같은 아이템 연속 사용) 변화가 감지 안 되므로, 매 사용마다
+  // 반드시 증가하는 lastUsedItemSeq를 트리거 신호로 함께 둔다(0 = 아직 아무도 안 씀).
+  @type("string") lastUsedItemId: string = "";
+  @type("number") lastUsedItemSeq: number = 0;
   // Independent histories (spec decision — lobby banter and in-match
   // commentary don't mix), each capped at MAX_CHAT_MESSAGES in MatchRoom.ts.
   @type([ChatMessage]) lobbyChat = new ArraySchema<ChatMessage>();

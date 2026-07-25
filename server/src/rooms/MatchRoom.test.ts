@@ -1913,6 +1913,31 @@ describe("MatchRoom", () => {
       // still fails normally.
       expect(room.state.cursor).toBe(cursorBefore);
       expect(room.state.turnOutcome).toBe("fail");
+      // Never actually consumed, so no toast trigger either.
+      expect(room.state.lastUsedItemId).toBe("");
+      expect(room.state.lastUsedItemSeq).toBe(0);
+    });
+
+    test("a successful useItem syncs lastUsedItemId/lastUsedItemSeq for the whole room (toast trigger)", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeAdd");
+      grantItem(room, actingClient.sessionId, "doughAttack");
+
+      actingClient.send("useItem", { itemId: "timeAdd" });
+      await flush();
+
+      expect(room.state.lastUsedItemId).toBe("timeAdd");
+      expect(room.state.lastUsedItemSeq).toBe(1);
+
+      // A second, different use bumps the sequence again and overwrites the
+      // id — seq is what a client keys its animation replay on, since the
+      // id alone can't distinguish "used again" from "unchanged".
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      expect(room.state.lastUsedItemId).toBe("doughAttack");
+      expect(room.state.lastUsedItemSeq).toBe(2);
     });
 
     test("a teammate cannot use an item held by the OTHER teammate on the active team", async () => {

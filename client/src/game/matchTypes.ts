@@ -53,6 +53,8 @@ export interface MatchState {
   missedRole: RoleChoice;
   bonusItemIndex: number;
   bonusItemId: ItemId | "";
+  lastUsedItemId: ItemId | "";
+  lastUsedItemSeq: number;
   lobbyChat: ChatMessage[];
   matchChat: ChatMessage[];
   spectators: Map<string, SpectatorState>;

@@ -8,6 +8,7 @@ import { SpectatorScreen } from "./SpectatorScreen";
 import { SpectatorCountBadge } from "./SpectatorCountBadge";
 import { TeamComboBadge } from "./TeamComboBadge";
 import { MyAverageSpeedBadge } from "./MyAverageSpeedBadge";
+import { ItemUseToast } from "./ItemUseToast";
 import { BgmPlayer } from "./BgmPlayer";
 
 export function Game({
@@ -108,6 +109,9 @@ export function Game({
       {phase === "playing" && <SpectatorCountBadge room={room} />}
       {phase === "playing" && activeTeam && <TeamComboBadge combo={activeTeam.combo} />}
       {phase === "playing" && me && <MyAverageSpeedBadge averageMs={averageMs} />}
+      {phase === "playing" && (
+        <ItemUseToast itemId={room.state.lastUsedItemId} seq={room.state.lastUsedItemSeq} />
+      )}
       {screen}
     </>
   );

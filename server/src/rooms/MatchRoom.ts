@@ -696,6 +696,8 @@ export class MatchRoom extends Room<MatchState> {
     if (idx === -1) return; // 보유하지 않은 아이템 — 조용히 무시
 
     player.inventory.splice(idx, 1); // 효과 적용 여부와 무관하게 무조건 1개 소모
+    this.state.lastUsedItemId = itemId;
+    this.state.lastUsedItemSeq += 1;
 
     switch (itemId) {
       case "superMortar": {
