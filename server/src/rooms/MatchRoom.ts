@@ -52,6 +52,9 @@ interface MatchRoomOptions {
   // rejected outright. Defaults to true — only an explicit `false` opts a
   // room out (see onCreate).
   allowSpectators?: unknown;
+  // 이 방에서 아이템(보너스 토큰 포함)이 아예 등장할지 여부 — false를 명시해야만
+  // 꺼짐, 그 외(undefined 등)는 기본 켜짐. allowSpectators와 같은 패턴.
+  itemsEnabled?: unknown;
   // 테스트 전용 — 0.8%라는 낮은 확률을 실제 rng로 재현하지 않고 강제 지정하기
   // 위함. production에서는 항상 undefined(정상적인 확률 롤 사용).
   forcedBonusItem?: BonusItemRoll;
@@ -69,6 +72,7 @@ export class MatchRoom extends Room<MatchState> {
   private countdownTickMs = DEFAULT_COUNTDOWN_TICK_MS;
   private reconnectGraceSeconds = DEFAULT_RECONNECT_GRACE_SECONDS;
   private allowSpectators = true;
+  private itemsEnabled = true;
   // Real player-seat cap (teamCount * 2) — replaces maxClients for that
   // purpose now that maxClients itself is inflated to admit spectators
   // (see MAX_CLIENTS_WITH_SPECTATORS). Set once in onCreate.
@@ -110,6 +114,7 @@ export class MatchRoom extends Room<MatchState> {
     if (options.countdownTickMs) this.countdownTickMs = options.countdownTickMs;
     if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
     this.allowSpectators = options.allowSpectators !== false;
+    this.itemsEnabled = options.itemsEnabled !== false;
     if (options.forcedBonusItem !== undefined) {
       this.forcedBonusItem = options.forcedBonusItem;
     }
@@ -654,8 +659,9 @@ export class MatchRoom extends Room<MatchState> {
       sequence = applyDoughAttack(sequence);
     }
 
-    this.bonusItem =
-      this.forcedBonusItem !== undefined
+    this.bonusItem = !this.itemsEnabled
+      ? null
+      : this.forcedBonusItem !== undefined
         ? this.forcedBonusItem
         : rollBonusItemIndex(sequence.length, this.bonusItemRng);
     this.state.bonusItemIndex = this.bonusItem?.index ?? -1;

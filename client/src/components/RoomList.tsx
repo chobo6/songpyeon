@@ -12,7 +12,7 @@ export function RoomList({
   onJoinRoom,
   onExit,
 }: {
-  onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean) => void;
+  onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
 }) {
@@ -91,9 +91,9 @@ export function RoomList({
       {showCreateModal && (
         <CreateRoomModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(title, teamCount, allowSpectators) => {
+          onCreate={(title, teamCount, allowSpectators, itemsEnabled) => {
             setShowCreateModal(false);
-            onCreateRoom(title, teamCount, allowSpectators);
+            onCreateRoom(title, teamCount, allowSpectators, itemsEnabled);
           }}
         />
       )}

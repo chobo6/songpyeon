@@ -2308,5 +2308,38 @@ describe("MatchRoom", () => {
       expect(room.state.bonusItemIndex).toBe(-1);
       expect(room.state.bonusItemId).toBe("");
     });
+
+    test("itemsEnabled: false suppresses the bonus roll even with a forcedBonusItem set", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        itemsEnabled: false,
+        forcedBonusItem: { index: 0, itemId: "mortarRestore" },
+      });
+      const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);
+      activeTeam.mortars = 3;
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(room.state.bonusItemIndex).toBe(-1);
+      expect(room.state.bonusItemId).toBe("");
+      // The forced mortarRestore index would otherwise have healed this —
+      // confirms itemsEnabled actually suppressed it, not just the display fields.
+      expect(activeTeam.mortars).toBe(3);
+    });
+
+    test("itemsEnabled: false means a player never receives a non-mortarRestore item into their inventory either", async () => {
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        itemsEnabled: false,
+        forcedBonusItem: { index: 0, itemId: "timeAdd" },
+      });
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+
+      actingClient.send("pressButton", { color: dueColor });
+      await flush();
+
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual([]);
+    });
   });
 });

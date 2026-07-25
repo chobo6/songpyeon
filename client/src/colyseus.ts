@@ -45,7 +45,7 @@ export async function getRanking(): Promise<RankingEntry[]> {
 }
 
 export type JoinSpec =
-  | { type: "create"; teamCount: number; roomTitle: string; allowSpectators: boolean }
+  | { type: "create"; teamCount: number; roomTitle: string; allowSpectators: boolean; itemsEnabled: boolean }
   | { type: "joinById"; roomId: string }
   | { type: "reconnect" };
 
@@ -85,6 +85,7 @@ async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
       teamCount: spec.teamCount,
       roomTitle: spec.roomTitle,
       allowSpectators: spec.allowSpectators,
+      itemsEnabled: spec.itemsEnabled,
     });
     storeReconnectToken(room);
     return room;

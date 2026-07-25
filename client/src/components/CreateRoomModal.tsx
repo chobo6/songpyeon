@@ -9,12 +9,13 @@ export function CreateRoomModal({
   onCreate,
   onClose,
 }: {
-  onCreate: (title: string, teamCount: number, allowSpectators: boolean) => void;
+  onCreate: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [teamCount, setTeamCount] = useState(2);
   const [allowSpectators, setAllowSpectators] = useState(true);
+  const [itemsEnabled, setItemsEnabled] = useState(true);
 
   // Digits only, then clamp to the valid range — 5+ becomes 4, 0 (or an
   // emptied field) becomes 1. The field always displays an existing digit
@@ -37,7 +38,7 @@ export function CreateRoomModal({
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    onCreate(trimmed, teamCount, allowSpectators);
+    onCreate(trimmed, teamCount, allowSpectators, itemsEnabled);
   }
 
   return (
@@ -74,6 +75,10 @@ export function CreateRoomModal({
             onChange={(e) => setAllowSpectators(e.target.checked)}
           />
           <span>관전 허용</span>
+        </label>
+        <label className={styles.checkboxField}>
+          <input type="checkbox" checked={itemsEnabled} onChange={(e) => setItemsEnabled(e.target.checked)} />
+          <span>아이템전</span>
         </label>
         <div className={styles.actions}>
           <button type="button" className={styles.cancelButton} onClick={onClose}>
