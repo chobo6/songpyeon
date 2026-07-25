@@ -116,7 +116,12 @@ export function MyTurnScreen({
         role={me.role as "pig" | "rabbit"}
         disabled={disabled}
         onPress={press}
-        inventory={me.inventory}
+        // Colyseus mutates this ArraySchema in place on push/splice — the
+        // reference itself never changes, so ButtonPanel's React.memo would
+        // otherwise miss real content changes (item picked up, then not
+        // shown until some unrelated prop like `disabled` happens to flip).
+        // A fresh array each render makes the memo comparison see it.
+        inventory={Array.from(me.inventory)}
         onUseItem={useItem}
       />
     </div>
