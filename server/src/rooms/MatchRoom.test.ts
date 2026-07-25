@@ -1940,6 +1940,50 @@ describe("MatchRoom", () => {
       expect(room.state.lastUsedItemSeq).toBe(2);
     });
 
+    test("an item can still be used after this turn's outcome is already decided (success) — during the deferred hand-off window", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "timeReduce");
+
+      while (room.state.cursor < room.state.sequence.length - 1) {
+        const { dueColor, actingClient: presser } = actingClientFor(room, clients);
+        presser.send("pressButton", { color: dueColor });
+        await wait(70);
+      }
+      const { dueColor, actingClient: lastPresser } = actingClientFor(room, clients);
+      lastPresser.send("pressButton", { color: dueColor });
+      await wait(70);
+
+      // Turn is decided, but hasn't handed off yet (still well inside
+      // PRESS_HEAVY_TURN_MS's original window) — this is the "leftover
+      // time" the item should still be usable in.
+      expect(room.state.turnOutcome).toBe("success");
+
+      actingClient.send("useItem", { itemId: "timeReduce" });
+      await flush();
+
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual([]);
+      expect(room.state.lastUsedItemId).toBe("timeReduce");
+    });
+
+    test("an item can still be used right after this turn FAILS, during the deferred hand-off window", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const { dueColor, actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "doughAttack");
+      const wrongColor: Color = ALL_COLORS.find((c) => c !== dueColor)!;
+
+      actingClient.send("pressButton", { color: wrongColor });
+      await flush();
+
+      expect(room.state.turnOutcome).toBe("fail");
+
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual([]);
+      expect(room.state.lastUsedItemId).toBe("doughAttack");
+    });
+
     test("a teammate cannot use an item held by the OTHER teammate on the active team", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const { activeTeam, dueColor, actingClient } = actingClientFor(room, clients);

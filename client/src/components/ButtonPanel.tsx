@@ -168,11 +168,15 @@ export const ButtonPanel = memo(function ButtonPanel({
                 return <div key={position} className={`${styles.empty} ${positionClass}`} />;
               }
               return (
+                // Deliberately NOT `disabled={disabled}` — unlike color
+                // buttons, items stay usable through the deferred hand-off
+                // window after this turn's outcome is already decided (see
+                // MatchRoom.ts's handleUseItem, which isn't gated on
+                // turnDecided either).
                 <button
                   key={position}
                   type="button"
                   aria-label={item}
-                  disabled={disabled}
                   onClick={() => onUseItem?.(item)}
                   className={`${styles.itemButton} ${positionClass}`}
                   style={{ backgroundImage: `url(${ITEM_ICON[item]})` }}

@@ -690,7 +690,15 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   private handleUseItem(client: Client, itemId: ItemId) {
-    if (this.state.phase !== "playing" || this.turnDecided) return;
+    // Deliberately NOT gated on turnDecided — items are usable during the
+    // deferred hand-off window too (after this turn's outcome is already
+    // decided, while the result banner is still showing), so a team can
+    // spend leftover time queuing an item instead of losing the chance to
+    // use it. pressButton stays gated on turnDecided (colors have nothing
+    // left to do once the turn is decided); items don't have that
+    // restriction since timeReduce/doughAttack only ever affect the NEXT
+    // turn regardless of when in this window they're used.
+    if (this.state.phase !== "playing") return;
 
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
