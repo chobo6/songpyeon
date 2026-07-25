@@ -976,6 +976,16 @@ describe("MatchRoom", () => {
     await expect(connectAsUser(colyseus, room, "플레이어")).rejects.toThrow();
   });
 
+  test("the admin nickname (홍바들) can still spectate a room with spectators disabled", async () => {
+    const { room } = await fillRolesAndStart({ allowSpectators: false });
+
+    const adminClient = await connectAsUser(colyseus, room, "홍바들");
+    await flush();
+
+    expect(room.state.spectators.has(adminClient.sessionId)).toBe(true);
+    expect(room.state.players.has(adminClient.sessionId)).toBe(false);
+  });
+
   test("a room with spectators disabled still rejects new connections after a player leaves (maxClients lock can be auto-unlocked by Colyseus)", async () => {
     const { room, clients } = await fillRolesAndStart({ allowSpectators: false });
 

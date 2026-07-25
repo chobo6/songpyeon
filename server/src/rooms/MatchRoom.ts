@@ -24,6 +24,11 @@ const DEFAULT_COUNTDOWN_TICK_MS = 1000;
 const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
 const DEFAULT_RECONNECT_GRACE_SECONDS = 20;
+// 진짜 권한 시스템은 없음 — 닉네임 하나로 식별하는 임시 관리자 표시.
+// client/src/components/MyTurnScreen.tsx의 KEYBOARD_PRESS_ALLOWED_NICKNAME과
+// client/src/components/RoomList.tsx의 ADMIN_NICKNAME과 같은 패턴 — 이 닉네임은
+// allowSpectators: false인 방에도 관전자로 들어갈 수 있다(onJoin 참고).
+const ADMIN_NICKNAME = "홍바들";
 // Colyseus rejects ANY join (joinOrCreate AND joinById) once
 // clients.length + reservedSeats reaches maxClients — that check happens
 // before onJoin ever runs, so maxClients can't be used to cap "player"
@@ -230,7 +235,7 @@ export class MatchRoom extends Room<MatchState> {
     // after the countdown-window room-list fix above.
     const rosterOpenForPlayers = this.state.phase === "lobby" && this.state.countdownSecondsLeft === 0;
     if (!rosterOpenForPlayers) {
-      if (!this.allowSpectators) {
+      if (!this.allowSpectators && client.auth?.nickname !== ADMIN_NICKNAME) {
         throw new Error("이 방은 관전을 허용하지 않습니다.");
       }
       const spectator = new SpectatorState();

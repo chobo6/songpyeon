@@ -7,15 +7,22 @@ import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
 
+// 진짜 권한 시스템은 없음 — 닉네임 하나로 식별하는 임시 관리자 표시.
+// client/src/components/MyTurnScreen.tsx의 KEYBOARD_PRESS_ALLOWED_NICKNAME과 같은 패턴.
+const ADMIN_NICKNAME = "홍바들";
+
 export function RoomList({
+  nickname,
   onCreateRoom,
   onJoinRoom,
   onExit,
 }: {
+  nickname: string;
   onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
 }) {
+  const isAdmin = nickname === ADMIN_NICKNAME;
   const [rooms, setRooms] = useState<RoomListEntry[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
@@ -73,10 +80,10 @@ export function RoomList({
               </span>
               <button
                 className={styles.joinButton}
-                disabled={room.locked && !room.allowSpectators}
+                disabled={room.locked && !room.allowSpectators && !isAdmin}
                 onClick={() => onJoinRoom(room.roomId)}
               >
-                {room.locked ? (room.allowSpectators ? "관전하기" : "게임 중") : "입장"}
+                {room.locked ? (room.allowSpectators || isAdmin ? "관전하기" : "게임 중") : "입장"}
               </button>
             </div>
           );
