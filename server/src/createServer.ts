@@ -38,6 +38,8 @@ import {
   sendFriendRequest,
 } from "./friends/friendships";
 import { dismissInvite, getPendingInvite, sendInvite } from "./friends/invites";
+import { getMessages, getUnreadCount, markRead, sendMessage } from "./chat/directMessages";
+import { sanitizeChatText } from "./game/chat";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
@@ -538,6 +540,7 @@ export function createGameServer(): Server {
       ...f,
       online: isUserOnline(f.userId) || roomByNickname.has(f.nickname),
       roomId: roomByNickname.get(f.nickname) ?? null,
+      unreadCount: getUnreadCount(userId, f.userId),
     }));
     res.json(friends);
   });
@@ -601,6 +604,66 @@ export function createGameServer(): Server {
       return;
     }
     dismissInvite(userId);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/chat/send", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { toUserId, text } = req.body ?? {};
+    if (!Number.isInteger(toUserId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!areFriends(userId, toUserId)) {
+      res.status(403).json({ error: "친구가 아니에요." });
+      return;
+    }
+    const clean = sanitizeChatText(text);
+    if (!clean) {
+      res.status(400).json({ error: "메시지를 입력해주세요." });
+      return;
+    }
+    sendMessage(userId, toUserId, clean);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/chat/:friendUserId/messages", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const friendUserId = Number(req.params.friendUserId);
+    if (!Number.isInteger(friendUserId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!areFriends(userId, friendUserId)) {
+      res.status(403).json({ error: "친구가 아니에요." });
+      return;
+    }
+    res.json(getMessages(userId, friendUserId));
+  });
+
+  app.post("/api/chat/:friendUserId/read", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const friendUserId = Number(req.params.friendUserId);
+    if (!Number.isInteger(friendUserId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    markRead(userId, friendUserId);
     res.json({ ok: true });
   });
 
