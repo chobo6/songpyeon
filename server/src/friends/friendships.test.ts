@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db } from "../db/connection";
 import { getOrCreateUser } from "../auth/googleAuth";
-import { sendFriendRequest, respondToRequest, cancelRequest, removeFriend, listFriends, listReceivedRequests, listSentRequests } from "./friendships";
+import { sendFriendRequest, respondToRequest, cancelRequest, removeFriend, listFriends, listReceivedRequests, listSentRequests, areFriends } from "./friendships";
 
 function makeUser(sub: string, nickname: string): number {
   const user = getOrCreateUser(sub, {});
@@ -225,5 +225,39 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
 
     expect(listReceivedRequests(b)).toEqual([]);
     expect(listSentRequests(a)).toEqual([]);
+  });
+});
+
+describe("areFriends", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM friendships");
+    db.exec("DELETE FROM users");
+  });
+
+  test("returns true when an accepted friendship row exists (requester direction)", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    db.prepare(`INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, 'accepted')`).run(a, b);
+    expect(areFriends(a, b)).toBe(true);
+  });
+
+  test("returns true regardless of which side is requester vs addressee", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    db.prepare(`INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, 'accepted')`).run(b, a);
+    expect(areFriends(a, b)).toBe(true);
+  });
+
+  test("returns false when the friendship is still pending", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    db.prepare(`INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, 'pending')`).run(a, b);
+    expect(areFriends(a, b)).toBe(false);
+  });
+
+  test("returns false when there's no friendship row at all", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    expect(areFriends(a, b)).toBe(false);
   });
 });

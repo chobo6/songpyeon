@@ -1,53 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { db } from "../db/connection";
-import { _resetForTest, areFriends, dismissInvite, getPendingInvite, sendInvite } from "./invites";
-
-function makeUser(googleSub: string, nickname: string): number {
-  const result = db.prepare(`INSERT INTO users (google_sub, nickname) VALUES (?, ?)`).run(googleSub, nickname);
-  return result.lastInsertRowid as number;
-}
-
-function makeFriendship(requesterId: number, addresseeId: number, status: "pending" | "accepted"): void {
-  db.prepare(`INSERT INTO friendships (requester_id, addressee_id, status) VALUES (?, ?, ?)`).run(
-    requesterId,
-    addresseeId,
-    status,
-  );
-}
-
-describe("areFriends", () => {
-  beforeEach(() => {
-    db.exec("DELETE FROM friendships");
-    db.exec("DELETE FROM users");
-  });
-
-  test("returns true when an accepted friendship row exists (requester direction)", () => {
-    const a = makeUser("sub-a", "A");
-    const b = makeUser("sub-b", "B");
-    makeFriendship(a, b, "accepted");
-    expect(areFriends(a, b)).toBe(true);
-  });
-
-  test("returns true regardless of which side is requester vs addressee", () => {
-    const a = makeUser("sub-a", "A");
-    const b = makeUser("sub-b", "B");
-    makeFriendship(b, a, "accepted");
-    expect(areFriends(a, b)).toBe(true);
-  });
-
-  test("returns false when the friendship is still pending", () => {
-    const a = makeUser("sub-a", "A");
-    const b = makeUser("sub-b", "B");
-    makeFriendship(a, b, "pending");
-    expect(areFriends(a, b)).toBe(false);
-  });
-
-  test("returns false when there's no friendship row at all", () => {
-    const a = makeUser("sub-a", "A");
-    const b = makeUser("sub-b", "B");
-    expect(areFriends(a, b)).toBe(false);
-  });
-});
+import { _resetForTest, dismissInvite, getPendingInvite, sendInvite } from "./invites";
 
 describe("sendInvite / getPendingInvite / dismissInvite", () => {
   beforeEach(() => {

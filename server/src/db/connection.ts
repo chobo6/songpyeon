@@ -99,6 +99,27 @@ export function createDb(filename: string): Database.Database {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id, status)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id, status)`);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS direct_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      recipient_id INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_direct_messages_pair ON direct_messages(sender_id, recipient_id, id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_direct_messages_pair2 ON direct_messages(recipient_id, sender_id, id)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_read_state (
+      user_id INTEGER NOT NULL,
+      other_user_id INTEGER NOT NULL,
+      last_read_message_id INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, other_user_id)
+    )
+  `);
+
   return db;
 }
 

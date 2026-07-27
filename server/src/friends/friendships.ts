@@ -16,6 +16,18 @@ function findFriendshipRow(userA: number, userB: number): FriendshipRow | undefi
     .get(userA, userB, userB, userA) as FriendshipRow | undefined;
 }
 
+// requesterId/addresseeId 방향 무관, status='accepted' row가 있는지만 확인한다.
+export function areFriends(userIdA: number, userIdB: number): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1 FROM friendships
+       WHERE status = 'accepted'
+         AND ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?))`,
+    )
+    .get(userIdA, userIdB, userIdB, userIdA);
+  return !!row;
+}
+
 export type SendFriendRequestResult = "sent" | "auto_accepted" | "already_friends" | "already_pending" | "self";
 
 export function sendFriendRequest(requesterId: number, addresseeId: number): SendFriendRequestResult {

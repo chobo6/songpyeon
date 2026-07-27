@@ -27,6 +27,7 @@ import {
 } from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
 import {
+  areFriends,
   cancelRequest,
   findUserByNickname,
   listFriends,
@@ -36,7 +37,7 @@ import {
   respondToRequest,
   sendFriendRequest,
 } from "./friends/friendships";
-import { areFriends, dismissInvite, getPendingInvite, sendInvite } from "./friends/invites";
+import { dismissInvite, getPendingInvite, sendInvite } from "./friends/invites";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
