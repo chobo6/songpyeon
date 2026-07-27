@@ -4,6 +4,7 @@ export type FriendEntry = {
   nickname: string;
   online: boolean;
   roomId: string | null;
+  unreadCount: number;
   lastLoginAt: string | null;
 };
 
