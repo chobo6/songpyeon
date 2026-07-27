@@ -3,6 +3,7 @@ export type FriendEntry = {
   userId: number;
   nickname: string;
   online: boolean;
+  roomId: string | null;
   lastLoginAt: string | null;
 };
 
