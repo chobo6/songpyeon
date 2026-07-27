@@ -188,6 +188,35 @@
   background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
+.chatButton {
+  position: relative;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #495057;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #e03131;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.1rem;
+  text-align: center;
+}
+
 .closeButton {
   padding: 0.6rem 1rem;
   font-size: 0.95rem;

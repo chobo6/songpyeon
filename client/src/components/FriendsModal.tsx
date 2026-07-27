@@ -13,6 +13,7 @@ import {
   type SentRequestEntry,
 } from "../game/friends";
 import { formatLastSeen } from "../game/formatLastSeen";
+import { DirectChatModal } from "./DirectChatModal";
 import styles from "./FriendsModal.module.css";
 
 export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJoinRoom: (roomId: string) => void }) {
@@ -22,6 +23,7 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
   const [nickname, setNickname] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [view, setView] = useState<"friends" | "requests">("friends");
+  const [chatWith, setChatWith] = useState<{ userId: number; nickname: string } | null>(null);
 
   function refreshAll() {
     getFriends()
@@ -168,6 +170,13 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               <div key={f.friendshipId} className={styles.row}>
                 <span className={styles.rowNickname}>{f.nickname}</span>
                 <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
+                <button
+                  className={styles.chatButton}
+                  onClick={() => setChatWith({ userId: f.userId, nickname: f.nickname })}
+                >
+                  채팅
+                  {f.unreadCount > 0 && <span className={styles.unreadBadge}>{f.unreadCount}</span>}
+                </button>
                 {f.online && f.roomId && (
                   <button className={styles.followButton} onClick={() => onJoinRoom(f.roomId!)}>
                     따라가기
@@ -179,6 +188,17 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               </div>
             ))}
           </section>
+        )}
+
+        {chatWith && (
+          <DirectChatModal
+            friendUserId={chatWith.userId}
+            friendNickname={chatWith.nickname}
+            onClose={() => {
+              setChatWith(null);
+              refreshAll();
+            }}
+          />
         )}
 
         <button className={styles.closeButton} onClick={onClose}>
