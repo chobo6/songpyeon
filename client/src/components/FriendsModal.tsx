@@ -53,23 +53,43 @@ export function FriendsModal({ onClose }: { onClose: () => void }) {
   }
 
   async function handleAccept(requestId: number) {
-    await acceptFriendRequest(requestId);
-    refreshAll();
+    try {
+      await acceptFriendRequest(requestId);
+      refreshAll();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "수락에 실패했어요.");
+      refreshAll();
+    }
   }
 
   async function handleDecline(requestId: number) {
-    await declineFriendRequest(requestId);
-    refreshAll();
+    try {
+      await declineFriendRequest(requestId);
+      refreshAll();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "거절에 실패했어요.");
+      refreshAll();
+    }
   }
 
   async function handleCancel(requestId: number) {
-    await cancelFriendRequest(requestId);
-    refreshAll();
+    try {
+      await cancelFriendRequest(requestId);
+      refreshAll();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "취소에 실패했어요.");
+      refreshAll();
+    }
   }
 
   async function handleRemove(friendshipId: number) {
-    await removeFriend(friendshipId);
-    refreshAll();
+    try {
+      await removeFriend(friendshipId);
+      refreshAll();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "삭제에 실패했어요.");
+      refreshAll();
+    }
   }
 
   return (
