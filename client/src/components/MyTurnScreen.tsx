@@ -4,6 +4,7 @@ import type { MatchState, PlayerState, ItemId } from "../game/matchTypes";
 import type { Color } from "../game/colors";
 import { useSequencePressSound } from "../game/useSequencePressSound";
 import { useColorKeyPress } from "../game/useColorKeyPress";
+import { useItemKeyPress } from "../game/useItemKeyPress";
 import { SequenceBoard } from "./SequenceBoard";
 import { ButtonPanel } from "./ButtonPanel";
 import { TurnOutcomeBanner } from "./TurnOutcomeBanner";
@@ -78,6 +79,19 @@ export function MyTurnScreen({
   const keyboardPressDisabled = disabled || me.nickname !== KEYBOARD_PRESS_ALLOWED_NICKNAME;
   useColorKeyPress(me.role as "pig" | "rabbit", keyboardPressDisabled, press);
 
+  // Colyseus mutates this ArraySchema in place on push/splice — the
+  // reference itself never changes, so ButtonPanel's React.memo would
+  // otherwise miss real content changes (item picked up, then not shown
+  // until some unrelated prop like `disabled` happens to flip). A fresh
+  // array each render makes the memo comparison see it, and also keeps
+  // useItemKeyPress's ref current.
+  const inventory = Array.from(me.inventory);
+  // Unlike keyboardPressDisabled, this is NOT gated on `disabled`
+  // (turnOutcome !== "pending") — items stay usable through the deferred
+  // hand-off window, same as ButtonPanel's item buttons.
+  const itemKeyDisabled = me.nickname !== KEYBOARD_PRESS_ALLOWED_NICKNAME;
+  useItemKeyPress(me.role as "pig" | "rabbit", itemKeyDisabled, inventory, useItem);
+
   return (
     <div className={styles.wrap}>
       <div className={styles.content}>
@@ -116,12 +130,7 @@ export function MyTurnScreen({
         role={me.role as "pig" | "rabbit"}
         disabled={disabled}
         onPress={press}
-        // Colyseus mutates this ArraySchema in place on push/splice — the
-        // reference itself never changes, so ButtonPanel's React.memo would
-        // otherwise miss real content changes (item picked up, then not
-        // shown until some unrelated prop like `disabled` happens to flip).
-        // A fresh array each render makes the memo comparison see it.
-        inventory={Array.from(me.inventory)}
+        inventory={inventory}
         onUseItem={useItem}
       />
     </div>
