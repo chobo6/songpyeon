@@ -32,6 +32,13 @@
   text-align: center;
 }
 
+.error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #ff8a80;
+  text-align: center;
+}
+
 .closeButton {
   padding: 0.6rem 1rem;
   font-size: 0.95rem;

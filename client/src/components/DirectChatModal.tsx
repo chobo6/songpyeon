@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatBox } from "./ChatBox";
 import { getDirectMessages, markDirectMessagesRead, sendDirectMessage, type DirectMessageEntry } from "../game/chat";
 import { directMessageToChatMessage } from "../game/directMessageToChatMessage";
@@ -16,9 +16,10 @@ export function DirectChatModal({
   onClose: () => void;
 }) {
   const [messages, setMessages] = useState<DirectMessageEntry[]>([]);
+  const [sendError, setSendError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       const list = await getDirectMessages(friendUserId);
       if (!cancelledRef.current) setMessages(list);
@@ -26,7 +27,7 @@ export function DirectChatModal({
     } catch (err) {
       console.error("failed to load direct messages", err);
     }
-  }
+  }, [friendUserId]);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -36,13 +37,20 @@ export function DirectChatModal({
       cancelledRef.current = true;
       clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [friendUserId]);
+  }, [refresh]);
 
-  async function handleSend(text: string) {
-    await sendDirectMessage(friendUserId, text);
-    refresh();
-  }
+  const handleSend = useCallback(
+    async (text: string) => {
+      setSendError(null);
+      try {
+        await sendDirectMessage(friendUserId, text);
+        refresh();
+      } catch (err) {
+        setSendError(err instanceof Error ? err.message : "메시지 전송에 실패했어요.");
+      }
+    },
+    [friendUserId, refresh],
+  );
 
   const chatMessages = messages.map(directMessageToChatMessage);
 
@@ -50,6 +58,7 @@ export function DirectChatModal({
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h2 className={styles.heading}>{friendNickname}님과의 채팅</h2>
+        {sendError && <p className={styles.error}>{sendError}</p>}
         <ChatBox
           messages={chatMessages}
           messageCount={chatMessages.length}
