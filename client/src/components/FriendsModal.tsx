@@ -15,7 +15,7 @@ import {
 import { formatLastSeen } from "../game/formatLastSeen";
 import styles from "./FriendsModal.module.css";
 
-export function FriendsModal({ onClose }: { onClose: () => void }) {
+export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJoinRoom: (roomId: string) => void }) {
   const [friends, setFriends] = useState<FriendEntry[] | null>(null);
   const [received, setReceived] = useState<ReceivedRequestEntry[] | null>(null);
   const [sent, setSent] = useState<SentRequestEntry[] | null>(null);
@@ -168,6 +168,11 @@ export function FriendsModal({ onClose }: { onClose: () => void }) {
               <div key={f.friendshipId} className={styles.row}>
                 <span className={styles.rowNickname}>{f.nickname}</span>
                 <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
+                {f.online && f.roomId && (
+                  <button className={styles.followButton} onClick={() => onJoinRoom(f.roomId!)}>
+                    따라가기
+                  </button>
+                )}
                 <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
                   삭제
                 </button>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { getReceivedRequests } from "../game/friends";
+import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/invites";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
@@ -31,14 +32,18 @@ export function RoomList({
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function refresh() {
       try {
-        const list = await listRooms();
-        if (!cancelled) setRooms(list);
+        const [list, invite] = await Promise.all([listRooms(), getPendingInvite()]);
+        if (!cancelled) {
+          setRooms(list);
+          setPendingInvite(invite);
+        }
       } catch (err) {
         console.error("failed to list rooms", err);
       }
@@ -58,9 +63,35 @@ export function RoomList({
       .catch(() => {});
   }, []);
 
+  async function handleAcceptInvite() {
+    if (!pendingInvite) return;
+    const roomId = pendingInvite.roomId;
+    await dismissInvite();
+    setPendingInvite(null);
+    onJoinRoom(roomId);
+  }
+
+  async function handleDismissInvite() {
+    await dismissInvite();
+    setPendingInvite(null);
+  }
+
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>송편 만들기</h1>
+      {pendingInvite && (
+        <div className={styles.inviteBanner}>
+          <span>{pendingInvite.fromNickname}님이 초대했어요!</span>
+          <div className={styles.inviteBannerActions}>
+            <button className={styles.inviteAcceptButton} onClick={handleAcceptInvite}>
+              참가하기
+            </button>
+            <button className={styles.inviteDismissButton} onClick={handleDismissInvite}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
       <div className={styles.topButtons}>
         <button className={styles.createButton} onClick={() => setShowCreateModal(true)}>
           방 만들기
@@ -122,6 +153,7 @@ export function RoomList({
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
       {showFriendsModal && (
         <FriendsModal
+          onJoinRoom={onJoinRoom}
           onClose={() => {
             setShowFriendsModal(false);
             getReceivedRequests()

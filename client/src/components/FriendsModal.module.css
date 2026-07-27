@@ -176,6 +176,18 @@
   background: #495057;
 }
 
+.followButton {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
 .closeButton {
   padding: 0.6rem 1rem;
   font-size: 0.95rem;

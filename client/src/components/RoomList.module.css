@@ -18,6 +18,49 @@
   letter-spacing: 0.02em;
 }
 
+.inviteBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.6rem;
+  background: rgba(106, 90, 205, 0.25);
+  border: 1px solid rgba(106, 90, 205, 0.6);
+  font-size: 0.9rem;
+}
+
+.inviteBannerActions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.inviteAcceptButton {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.inviteDismissButton {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #495057;
+}
+
 .topButtons {
   display: flex;
   gap: 0.6rem;
