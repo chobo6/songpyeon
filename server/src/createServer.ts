@@ -512,14 +512,33 @@ export function createGameServer(): Server {
     res.json({ ok: true });
   });
 
-  app.get("/api/friends", (req, res) => {
+  // presence.ts의 온라인 Map은 로비 화면(/api/rooms 폴링)에서만 갱신되는데, 방에
+  // 들어가면 그 폴링이 멈춘다 — 즉 매치 중인 친구는 TTL(8초) 후 오프라인으로
+  // 잘못 표시된다. /api/admin/online과 동일하게, 실행 중인 매치 룸의
+  // players/spectators 닉네임도 온라인으로 함께 인정한다.
+  app.get("/api/friends", async (req, res) => {
     const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
     const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
     if (!userId) {
       res.status(401).json({ error: "로그인이 필요합니다." });
       return;
     }
-    const friends = listFriends(userId).map((f) => ({ ...f, online: isUserOnline(f.userId) }));
+    const rooms = await matchMaker.query({ name: "match" });
+    const inRoomNicknames = new Set(
+      rooms.flatMap((r) => {
+        const metadata = r.metadata as
+          | { players?: { nickname: string }[]; spectators?: { nickname: string }[] }
+          | undefined;
+        return [
+          ...(metadata?.players?.map((p) => p.nickname) ?? []),
+          ...(metadata?.spectators?.map((s) => s.nickname) ?? []),
+        ];
+      }),
+    );
+    const friends = listFriends(userId).map((f) => ({
+      ...f,
+      online: isUserOnline(f.userId) || inRoomNicknames.has(f.nickname),
+    }));
     res.json(friends);
   });
 
