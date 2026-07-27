@@ -1732,7 +1732,7 @@ describe("MatchRoom", () => {
       actingClient.send("useItem", { itemId: "timeAdd" });
       await flush();
 
-      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 1000);
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 3000);
 
       // Poll (rather than a fixed sleep — see waitUntil's own comment on why
       // this file prefers polling for real-timer races) to a point just past
@@ -1746,9 +1746,15 @@ describe("MatchRoom", () => {
 
       // Now wait for the turn to actually expire and hand off, and confirm it
       // happened at/after the NEW (extended) deadline, not the original one.
-      await waitUntil(() => room.state.activeTeamIndex !== activeTeamIndexBefore, PRESS_HEAVY_TURN_MS);
-      expect(Date.now()).toBeGreaterThanOrEqual(turnEndsAtBefore + 1000);
-    });
+      // Timeout generous enough to cover the full +3000ms extension on top of
+      // the original PRESS_HEAVY_TURN_MS turn — the previous +1000ms
+      // extension left this at just PRESS_HEAVY_TURN_MS, which is too tight now.
+      await waitUntil(() => room.state.activeTeamIndex !== activeTeamIndexBefore, PRESS_HEAVY_TURN_MS + 3000);
+      expect(Date.now()).toBeGreaterThanOrEqual(turnEndsAtBefore + 3000);
+      // Explicit timeout: real wall-clock time here now spans ~6s (the
+      // +3000ms extension on top of the PRESS_HEAVY_TURN_MS turn), past
+      // vitest's 5000ms default.
+    }, 10000);
 
     test("using timeAdd when none is held left is a no-op — holding only one still only extends once", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
@@ -1761,7 +1767,7 @@ describe("MatchRoom", () => {
       actingClient.send("useItem", { itemId: "timeAdd" });
       await flush();
 
-      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 1000);
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 3000);
     });
 
     // NOTE: the brief's original version of these two tests used
@@ -2024,7 +2030,7 @@ describe("MatchRoom", () => {
       expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual(["timeReduce"]);
     });
 
-    test("holding two timeAdd and using both stacks the extension to +2 seconds", async () => {
+    test("holding two timeAdd and using both stacks the extension to +6 seconds", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const { actingClient } = actingClientFor(room, clients);
       grantItem(room, actingClient.sessionId, "timeAdd");
@@ -2036,7 +2042,7 @@ describe("MatchRoom", () => {
       actingClient.send("useItem", { itemId: "timeAdd" });
       await flush();
 
-      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 2000);
+      expect(room.state.turnEndsAt).toBe(turnEndsAtBefore + 6000);
     });
 
     test("holding two doughAttack and using both consumes both but only one 6-mint row applies next turn", async () => {

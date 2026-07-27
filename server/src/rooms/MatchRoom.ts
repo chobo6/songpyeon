@@ -725,7 +725,7 @@ export class MatchRoom extends Room<MatchState> {
       }
       case "timeAdd": {
         this.turnTimer?.clear();
-        this.state.turnEndsAt += 1000;
+        this.state.turnEndsAt += 3000;
         const remaining = this.state.turnEndsAt - Date.now();
         const token = this.turnToken;
         this.turnTimer = this.clock.setTimeout(() => {
