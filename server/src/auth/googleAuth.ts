@@ -31,20 +31,33 @@ export type UserProfile = {
   nicknameColor: string | null;
 };
 
-// googleSub 기준 upsert — UNIQUE(google_sub) + ON CONFLICT로 존재 확인/생성/갱신을 원자적으로 처리.
-// 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든) 호출되므로, last_login_at을 매번
-// 갱신하는 자리로도 그대로 쓴다 — 별도의 "로그인 이벤트" 배선이 필요 없다.
-// 닉네임은 이 시점에 건드리지 않는다 — 로그인할 때마다 구글 실명(name)이 사용자가 정한 닉네임을
-// 덮어쓰면 안 되기 때문 (신규 생성 시에만 nickname은 NULL로 남는다).
+// googleSub 기준 조회 후 생성/갱신 — 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든)
+// 호출되므로, last_login_at을 매번 갱신하는 자리로도 그대로 쓴다 — 별도의 "로그인 이벤트"
+// 배선이 필요 없다. 닉네임은 이 시점에 건드리지 않는다 — 로그인할 때마다 구글 실명(name)이
+// 사용자가 정한 닉네임을 덮어쓰면 안 되기 때문 (신규 생성 시에만 nickname은 NULL로 남는다).
+//
+// 예전엔 INSERT ... ON CONFLICT DO UPDATE 한 문장으로 처리했는데, SQLite가 재로그인(=매번
+// UPDATE로 끝나는 경우)에도 AUTOINCREMENT 카운터를 하나씩 태워버려 id가 실제 유저 수보다
+// 훨씬 빨리 늘어나는 부작용이 있었다. better-sqlite3는 완전히 동기적이고(이 사이의 await
+// 없음) 이 프로세스는 단일 커넥션만 쓰므로, SELECT와 INSERT/UPDATE 사이에 다른 요청이
+// 끼어들 수 없다 — 원자적 upsert 대신 조회 후 분기해도 안전하다.
 export function getOrCreateUser(googleSub: string, info: { email?: string; name?: string }): UserProfile {
-  db.prepare(
-    `INSERT INTO users (google_sub, email, name, created_at, last_login_at)
-     VALUES (?, ?, ?, datetime('now', '+9 hours'), datetime('now', '+9 hours'))
-     ON CONFLICT(google_sub) DO UPDATE SET
-       email = COALESCE(excluded.email, users.email),
-       name = COALESCE(excluded.name, users.name),
-       last_login_at = datetime('now', '+9 hours')`,
-  ).run(googleSub, info.email ?? null, info.name ?? null);
+  const existing = db.prepare(`SELECT id FROM users WHERE google_sub = ?`).get(googleSub) as { id: number } | undefined;
+
+  if (existing) {
+    db.prepare(
+      `UPDATE users SET
+         email = COALESCE(?, email),
+         name = COALESCE(?, name),
+         last_login_at = datetime('now', '+9 hours')
+       WHERE id = ?`,
+    ).run(info.email ?? null, info.name ?? null, existing.id);
+  } else {
+    db.prepare(
+      `INSERT INTO users (google_sub, email, name, created_at, last_login_at)
+       VALUES (?, ?, ?, datetime('now', '+9 hours'), datetime('now', '+9 hours'))`,
+    ).run(googleSub, info.email ?? null, info.name ?? null);
+  }
 
   return db
     .prepare(`SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor FROM users WHERE google_sub = ?`)
