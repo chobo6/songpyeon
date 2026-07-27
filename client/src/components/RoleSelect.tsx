@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
 import { ChatBox } from "./ChatBox";
+import { InviteFriendsModal } from "./InviteFriendsModal";
 import styles from "./RoleSelect.module.css";
 
 export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: () => void }) {
@@ -11,6 +12,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
   const teams = room.state.teams;
   const lobbyChat = room.state.lobbyChat;
   const unassignedPlayers = Array.from(room.state.players.values()).filter((p) => p.role === "");
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   function choose(role: Role) {
     room.send("chooseRole", { role });
@@ -95,9 +97,15 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
           </div>
         ))}
       </div>
-      <button className={styles.leaveButton} onClick={onExit}>
-        나가기
-      </button>
+      <div className={styles.exitRow}>
+        <button className={styles.inviteButton} onClick={() => setShowInviteModal(true)}>
+          초대하기
+        </button>
+        <button className={styles.leaveButton} onClick={onExit}>
+          나가기
+        </button>
+      </div>
+      {showInviteModal && <InviteFriendsModal roomId={room.roomId} onClose={() => setShowInviteModal(false)} />}
     </div>
   );
 }

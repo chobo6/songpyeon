@@ -153,6 +153,22 @@
   min-width: 3.5rem;
 }
 
+.exitRow {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.inviteButton {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.95rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6a5acd, #4b6cb7);
+}
+
 .leaveButton {
   padding: 0.6rem 1.5rem;
   font-size: 0.95rem;

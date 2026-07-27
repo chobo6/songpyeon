@@ -1,0 +1,95 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 22rem;
+  max-height: 80svh;
+  padding: 1.5rem;
+  border-radius: 0.8rem;
+  background: #1f2937;
+  color: #fff;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.message {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+  opacity: 0.9;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  opacity: 0.8;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rowNickname {
+  flex: 1;
+  font-weight: 600;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inviteButton {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.inviteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: #4b5563;
+}
+
+.closeButton {
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: #363861;
+}
