@@ -64,3 +64,55 @@ export function cancelRequest(requestId: number, requesterId: number): boolean {
   db.prepare(`DELETE FROM friendships WHERE id = ?`).run(requestId);
   return true;
 }
+
+export function removeFriend(userId: number, friendshipId: number): boolean {
+  const row = db.prepare(`SELECT * FROM friendships WHERE id = ? AND status = 'accepted'`).get(friendshipId) as
+    | FriendshipRow
+    | undefined;
+  if (!row || (row.requester_id !== userId && row.addressee_id !== userId)) return false;
+
+  db.prepare(`DELETE FROM friendships WHERE id = ?`).run(friendshipId);
+  return true;
+}
+
+export type FriendListEntry = { friendshipId: number; userId: number; nickname: string; lastLoginAt: string | null };
+
+export function listFriends(userId: number): FriendListEntry[] {
+  return db
+    .prepare(
+      `SELECT f.id AS friendshipId,
+              u.id AS userId,
+              u.nickname AS nickname,
+              u.last_login_at AS lastLoginAt
+       FROM friendships f
+       JOIN users u ON u.id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END
+       WHERE f.status = 'accepted' AND (f.requester_id = ? OR f.addressee_id = ?)`,
+    )
+    .all(userId, userId, userId) as FriendListEntry[];
+}
+
+export type ReceivedRequestEntry = { requestId: number; fromUserId: number; fromNickname: string; createdAt: string };
+
+export function listReceivedRequests(userId: number): ReceivedRequestEntry[] {
+  return db
+    .prepare(
+      `SELECT f.id AS requestId, u.id AS fromUserId, u.nickname AS fromNickname, f.created_at AS createdAt
+       FROM friendships f
+       JOIN users u ON u.id = f.requester_id
+       WHERE f.addressee_id = ? AND f.status = 'pending'`,
+    )
+    .all(userId) as ReceivedRequestEntry[];
+}
+
+export type SentRequestEntry = { requestId: number; toUserId: number; toNickname: string; createdAt: string };
+
+export function listSentRequests(userId: number): SentRequestEntry[] {
+  return db
+    .prepare(
+      `SELECT f.id AS requestId, u.id AS toUserId, u.nickname AS toNickname, f.created_at AS createdAt
+       FROM friendships f
+       JOIN users u ON u.id = f.addressee_id
+       WHERE f.requester_id = ? AND f.status = 'pending'`,
+    )
+    .all(userId) as SentRequestEntry[];
+}

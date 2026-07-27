@@ -22,3 +22,7 @@ export function getOnlineUsers(): PresenceEntry[] {
 export function _resetForTest(): void {
   presence.clear();
 }
+
+export function isUserOnline(userId: number): boolean {
+  return getOnlineUsers().some((entry) => entry.userId === userId);
+}

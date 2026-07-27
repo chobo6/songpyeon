@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db } from "../db/connection";
 import { getOrCreateUser } from "../auth/googleAuth";
-import { sendFriendRequest, respondToRequest, cancelRequest } from "./friendships";
+import { sendFriendRequest, respondToRequest, cancelRequest, removeFriend, listFriends, listReceivedRequests, listSentRequests } from "./friendships";
 
 function makeUser(sub: string, nickname: string): number {
   const user = getOrCreateUser(sub, {});
@@ -135,5 +135,95 @@ describe("cancelRequest", () => {
 
     expect(cancelRequest(id, c)).toBe(false);
     expect(db.prepare(`SELECT * FROM friendships WHERE id = ?`).get(id)).toBeDefined();
+  });
+});
+
+describe("removeFriend", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM friendships");
+    db.exec("DELETE FROM users");
+  });
+
+  test("either side can remove an accepted friendship", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    sendFriendRequest(a, b);
+    const id = getFriendshipId(a, b);
+    respondToRequest(id, b, true);
+
+    expect(removeFriend(b, id)).toBe(true);
+    expect(db.prepare(`SELECT * FROM friendships WHERE id = ?`).get(id)).toBeUndefined();
+  });
+
+  test("refuses to remove a friendship you're not part of", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    const c = makeUser("sub-c", "씨");
+    sendFriendRequest(a, b);
+    const id = getFriendshipId(a, b);
+    respondToRequest(id, b, true);
+
+    expect(removeFriend(c, id)).toBe(false);
+    expect(db.prepare(`SELECT * FROM friendships WHERE id = ?`).get(id)).toBeDefined();
+  });
+
+  test("refuses to remove a still-pending (not yet accepted) request", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    sendFriendRequest(a, b);
+    const id = getFriendshipId(a, b);
+
+    expect(removeFriend(a, id)).toBe(false);
+  });
+});
+
+describe("listFriends / listReceivedRequests / listSentRequests", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM friendships");
+    db.exec("DELETE FROM users");
+  });
+
+  test("listFriends returns the OTHER person's info for each accepted friendship", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    sendFriendRequest(a, b);
+    const id = getFriendshipId(a, b);
+    respondToRequest(id, b, true);
+
+    expect(listFriends(a)).toEqual([{ friendshipId: id, userId: b, nickname: "비", lastLoginAt: expect.any(String) }]);
+    expect(listFriends(b)).toEqual([{ friendshipId: id, userId: a, nickname: "에이", lastLoginAt: expect.any(String) }]);
+  });
+
+  test("listReceivedRequests only shows pending requests addressed to me", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    sendFriendRequest(a, b);
+
+    expect(listReceivedRequests(b)).toEqual([
+      { requestId: getFriendshipId(a, b), fromUserId: a, fromNickname: "에이", createdAt: expect.any(String) },
+    ]);
+    expect(listReceivedRequests(a)).toEqual([]);
+  });
+
+  test("listSentRequests only shows my own pending outgoing requests", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    sendFriendRequest(a, b);
+
+    expect(listSentRequests(a)).toEqual([
+      { requestId: getFriendshipId(a, b), toUserId: b, toNickname: "비", createdAt: expect.any(String) },
+    ]);
+    expect(listSentRequests(b)).toEqual([]);
+  });
+
+  test("accepted friendships don't show up in either request list", () => {
+    const a = makeUser("sub-a", "에이");
+    const b = makeUser("sub-b", "비");
+    sendFriendRequest(a, b);
+    const id = getFriendshipId(a, b);
+    respondToRequest(id, b, true);
+
+    expect(listReceivedRequests(b)).toEqual([]);
+    expect(listSentRequests(a)).toEqual([]);
   });
 });

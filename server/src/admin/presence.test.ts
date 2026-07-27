@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { _resetForTest, getOnlineUsers, touchPresence } from "./presence";
+import { _resetForTest, getOnlineUsers, isUserOnline, touchPresence } from "./presence";
 
 describe("presence", () => {
   beforeEach(() => {
@@ -37,5 +37,11 @@ describe("presence", () => {
 
     vi.setSystemTime(8000);
     expect(getOnlineUsers().map((u) => u.userId)).toEqual([1]);
+  });
+
+  test("isUserOnline reflects whether a user was touched within the TTL window", () => {
+    touchPresence(1, "닉네임1");
+    expect(isUserOnline(1)).toBe(true);
+    expect(isUserOnline(2)).toBe(false);
   });
 });
