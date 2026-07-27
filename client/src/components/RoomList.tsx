@@ -66,14 +66,16 @@ export function RoomList({
   async function handleAcceptInvite() {
     if (!pendingInvite) return;
     const roomId = pendingInvite.roomId;
-    await dismissInvite();
     setPendingInvite(null);
+    // 초대 지우기는 실패해도 무시 — 실제 입장(onJoinRoom)이 이 요청 하나 때문에
+    // 막히면 안 된다. 못 지워도 TTL이 지나면 어차피 자연히 사라진다.
+    await dismissInvite().catch(() => {});
     onJoinRoom(roomId);
   }
 
   async function handleDismissInvite() {
-    await dismissInvite();
     setPendingInvite(null);
+    await dismissInvite().catch(() => {});
   }
 
   return (
