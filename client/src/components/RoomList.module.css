@@ -45,6 +45,34 @@
   background: linear-gradient(135deg, #e8a3b0, #f4d58d);
 }
 
+.friendsButton {
+  position: relative;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #6a5acd, #4b6cb7);
+}
+
+.badge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #e03131;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.2rem;
+  text-align: center;
+}
+
 .list {
   display: flex;
   flex-direction: column;

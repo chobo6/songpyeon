@@ -1,0 +1,147 @@
+import { useEffect, useState } from "react";
+import {
+  acceptFriendRequest,
+  cancelFriendRequest,
+  declineFriendRequest,
+  getFriends,
+  getReceivedRequests,
+  getSentRequests,
+  removeFriend,
+  sendFriendRequest,
+  type FriendEntry,
+  type ReceivedRequestEntry,
+  type SentRequestEntry,
+} from "../game/friends";
+import { formatLastSeen } from "../game/formatLastSeen";
+import styles from "./FriendsModal.module.css";
+
+export function FriendsModal({ onClose }: { onClose: () => void }) {
+  const [friends, setFriends] = useState<FriendEntry[] | null>(null);
+  const [received, setReceived] = useState<ReceivedRequestEntry[] | null>(null);
+  const [sent, setSent] = useState<SentRequestEntry[] | null>(null);
+  const [nickname, setNickname] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+
+  function refreshAll() {
+    getFriends()
+      .then(setFriends)
+      .catch(() => setFriends([]));
+    getReceivedRequests()
+      .then(setReceived)
+      .catch(() => setReceived([]));
+    getSentRequests()
+      .then(setSent)
+      .catch(() => setSent([]));
+  }
+
+  useEffect(() => {
+    refreshAll();
+  }, []);
+
+  async function handleSendRequest() {
+    const trimmed = nickname.trim();
+    if (!trimmed) return;
+    setMessage(null);
+    try {
+      const { result } = await sendFriendRequest(trimmed);
+      setMessage(result === "auto_accepted" ? "서로 요청이 있어서 바로 친구가 됐어요!" : "요청을 보냈어요.");
+      setNickname("");
+      refreshAll();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "요청에 실패했어요.");
+    }
+  }
+
+  async function handleAccept(requestId: number) {
+    await acceptFriendRequest(requestId);
+    refreshAll();
+  }
+
+  async function handleDecline(requestId: number) {
+    await declineFriendRequest(requestId);
+    refreshAll();
+  }
+
+  async function handleCancel(requestId: number) {
+    await cancelFriendRequest(requestId);
+    refreshAll();
+  }
+
+  async function handleRemove(friendshipId: number) {
+    await removeFriend(friendshipId);
+    refreshAll();
+  }
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <h2 className={styles.heading}>친구</h2>
+
+        <div className={styles.requestForm}>
+          <input
+            className={styles.nicknameInput}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="닉네임으로 친구 요청"
+          />
+          <button className={styles.sendButton} onClick={handleSendRequest} disabled={!nickname.trim()}>
+            요청 보내기
+          </button>
+        </div>
+        {message && <p className={styles.message}>{message}</p>}
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>받은 요청</h3>
+          {received === null && <p className={styles.loading}>불러오는 중...</p>}
+          {received?.length === 0 && <p className={styles.empty}>받은 요청이 없어요</p>}
+          {received?.map((r) => (
+            <div key={r.requestId} className={styles.row}>
+              <span className={styles.rowNickname}>{r.fromNickname}</span>
+              <div className={styles.rowActions}>
+                <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
+                  수락
+                </button>
+                <button className={styles.declineButton} onClick={() => handleDecline(r.requestId)}>
+                  거절
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>보낸 요청</h3>
+          {sent === null && <p className={styles.loading}>불러오는 중...</p>}
+          {sent?.length === 0 && <p className={styles.empty}>보낸 요청이 없어요</p>}
+          {sent?.map((r) => (
+            <div key={r.requestId} className={styles.row}>
+              <span className={styles.rowNickname}>{r.toNickname}</span>
+              <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
+                취소
+              </button>
+            </div>
+          ))}
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>친구 목록</h3>
+          {friends === null && <p className={styles.loading}>불러오는 중...</p>}
+          {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
+          {friends?.map((f) => (
+            <div key={f.friendshipId} className={styles.row}>
+              <span className={styles.rowNickname}>{f.nickname}</span>
+              <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
+              <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
+                삭제
+              </button>
+            </div>
+          ))}
+        </section>
+
+        <button className={styles.closeButton} onClick={onClose}>
+          닫기
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
+import { getReceivedRequests } from "../game/friends";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
+import { FriendsModal } from "./FriendsModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -27,6 +29,8 @@ export function RoomList({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +52,12 @@ export function RoomList({
     };
   }, []);
 
+  useEffect(() => {
+    getReceivedRequests()
+      .then((requests) => setPendingRequestCount(requests.length))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className={styles.wrap}>
       <h1 className={styles.title}>송편 만들기</h1>
@@ -57,6 +67,10 @@ export function RoomList({
         </button>
         <button className={styles.rankingButton} onClick={() => setShowRankingModal(true)}>
           랭킹
+        </button>
+        <button className={styles.friendsButton} onClick={() => setShowFriendsModal(true)}>
+          친구
+          {pendingRequestCount > 0 && <span className={styles.badge}>{pendingRequestCount}</span>}
         </button>
       </div>
       <div className={styles.list}>
@@ -106,6 +120,16 @@ export function RoomList({
       )}
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
+      {showFriendsModal && (
+        <FriendsModal
+          onClose={() => {
+            setShowFriendsModal(false);
+            getReceivedRequests()
+              .then((requests) => setPendingRequestCount(requests.length))
+              .catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }
