@@ -84,6 +84,21 @@ export function createDb(filename: string): Database.Database {
     db.pragma("user_version = 1");
   }
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS friendships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      requester_id INTEGER NOT NULL,
+      addressee_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'accepted'
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours')),
+      responded_at TEXT
+    )
+  `);
+  // 한 쌍(A,B) 사이에는 요청 방향과 무관하게 유효한 row가 항상 하나만 있어야 함 —
+  // 애플리케이션 레벨에서 보장(friends/friendships.ts의 sendFriendRequest 참고).
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id, status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id, status)`);
+
   return db;
 }
 
