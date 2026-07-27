@@ -21,6 +21,7 @@ export function FriendsModal({ onClose }: { onClose: () => void }) {
   const [sent, setSent] = useState<SentRequestEntry[] | null>(null);
   const [nickname, setNickname] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [view, setView] = useState<"friends" | "requests">("friends");
 
   function refreshAll() {
     getFriends()
@@ -110,53 +111,70 @@ export function FriendsModal({ onClose }: { onClose: () => void }) {
         </div>
         {message && <p className={styles.message}>{message}</p>}
 
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>받은 요청</h3>
-          {received === null && <p className={styles.loading}>불러오는 중...</p>}
-          {received?.length === 0 && <p className={styles.empty}>받은 요청이 없어요</p>}
-          {received?.map((r) => (
-            <div key={r.requestId} className={styles.row}>
-              <span className={styles.rowNickname}>{r.fromNickname}</span>
-              <div className={styles.rowActions}>
-                <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
-                  수락
-                </button>
-                <button className={styles.declineButton} onClick={() => handleDecline(r.requestId)}>
-                  거절
+        <button className={styles.viewToggle} onClick={() => setView(view === "friends" ? "requests" : "friends")}>
+          {view === "friends" ? (
+            <>
+              요청 목록
+              {received !== null && received.length > 0 && <span className={styles.toggleBadge}>{received.length}</span>}
+            </>
+          ) : (
+            "친구 목록"
+          )}
+        </button>
+
+        {view === "requests" && (
+          <>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>받은 요청</h3>
+              {received === null && <p className={styles.loading}>불러오는 중...</p>}
+              {received?.length === 0 && <p className={styles.empty}>받은 요청이 없어요</p>}
+              {received?.map((r) => (
+                <div key={r.requestId} className={styles.row}>
+                  <span className={styles.rowNickname}>{r.fromNickname}</span>
+                  <div className={styles.rowActions}>
+                    <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
+                      수락
+                    </button>
+                    <button className={styles.declineButton} onClick={() => handleDecline(r.requestId)}>
+                      거절
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </section>
+
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>보낸 요청</h3>
+              {sent === null && <p className={styles.loading}>불러오는 중...</p>}
+              {sent?.length === 0 && <p className={styles.empty}>보낸 요청이 없어요</p>}
+              {sent?.map((r) => (
+                <div key={r.requestId} className={styles.row}>
+                  <span className={styles.rowNickname}>{r.toNickname}</span>
+                  <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
+                    취소
+                  </button>
+                </div>
+              ))}
+            </section>
+          </>
+        )}
+
+        {view === "friends" && (
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>친구 목록</h3>
+            {friends === null && <p className={styles.loading}>불러오는 중...</p>}
+            {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
+            {friends?.map((f) => (
+              <div key={f.friendshipId} className={styles.row}>
+                <span className={styles.rowNickname}>{f.nickname}</span>
+                <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
+                <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
+                  삭제
                 </button>
               </div>
-            </div>
-          ))}
-        </section>
-
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>보낸 요청</h3>
-          {sent === null && <p className={styles.loading}>불러오는 중...</p>}
-          {sent?.length === 0 && <p className={styles.empty}>보낸 요청이 없어요</p>}
-          {sent?.map((r) => (
-            <div key={r.requestId} className={styles.row}>
-              <span className={styles.rowNickname}>{r.toNickname}</span>
-              <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
-                취소
-              </button>
-            </div>
-          ))}
-        </section>
-
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>친구 목록</h3>
-          {friends === null && <p className={styles.loading}>불러오는 중...</p>}
-          {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
-          {friends?.map((f) => (
-            <div key={f.friendshipId} className={styles.row}>
-              <span className={styles.rowNickname}>{f.nickname}</span>
-              <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
-              <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
-                삭제
-              </button>
-            </div>
-          ))}
-        </section>
+            ))}
+          </section>
+        )}
 
         <button className={styles.closeButton} onClick={onClose}>
           닫기

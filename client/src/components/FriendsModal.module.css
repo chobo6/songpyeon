@@ -71,6 +71,34 @@
   opacity: 0.9;
 }
 
+.viewToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  color: #fff;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toggleBadge {
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #e03131;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.2rem;
+  text-align: center;
+}
+
 .section {
   display: flex;
   flex-direction: column;
