@@ -36,6 +36,7 @@ import {
   respondToRequest,
   sendFriendRequest,
 } from "./friends/friendships";
+import { areFriends, dismissInvite, getPendingInvite, sendInvite } from "./friends/invites";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
@@ -524,20 +525,18 @@ export function createGameServer(): Server {
       return;
     }
     const rooms = await matchMaker.query({ name: "match" });
-    const inRoomNicknames = new Set(
-      rooms.flatMap((r) => {
-        const metadata = r.metadata as
-          | { players?: { nickname: string }[]; spectators?: { nickname: string }[] }
-          | undefined;
-        return [
-          ...(metadata?.players?.map((p) => p.nickname) ?? []),
-          ...(metadata?.spectators?.map((s) => s.nickname) ?? []),
-        ];
-      }),
-    );
+    const roomByNickname = new Map<string, string>();
+    for (const r of rooms) {
+      const metadata = r.metadata as
+        | { players?: { nickname: string }[]; spectators?: { nickname: string }[] }
+        | undefined;
+      for (const p of metadata?.players ?? []) roomByNickname.set(p.nickname, r.roomId);
+      for (const s of metadata?.spectators ?? []) roomByNickname.set(s.nickname, r.roomId);
+    }
     const friends = listFriends(userId).map((f) => ({
       ...f,
-      online: isUserOnline(f.userId) || inRoomNicknames.has(f.nickname),
+      online: isUserOnline(f.userId) || roomByNickname.has(f.nickname),
+      roomId: roomByNickname.get(f.nickname) ?? null,
     }));
     res.json(friends);
   });
@@ -560,6 +559,48 @@ export function createGameServer(): Server {
       return;
     }
     res.json(listSentRequests(userId));
+  });
+
+  app.post("/api/invites/send", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { toUserId, roomId } = req.body ?? {};
+    if (!Number.isInteger(toUserId) || typeof roomId !== "string" || !roomId) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!areFriends(userId, toUserId)) {
+      res.status(403).json({ error: "친구가 아니에요." });
+      return;
+    }
+    const user = getUserById(userId);
+    sendInvite(user?.nickname ?? "누군가", toUserId, roomId);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/invites/pending", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    res.json(getPendingInvite(userId));
+  });
+
+  app.post("/api/invites/dismiss", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    dismissInvite(userId);
+    res.json({ ok: true });
   });
 
   const httpServer = createHttpServer(app);
