@@ -12,7 +12,7 @@ import { getInquiries, recordInquiry } from "./admin/inquiries";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
 import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
-import { getOnlineUsers, touchPresence } from "./admin/presence";
+import { getOnlineUsers, isUserOnline, touchPresence } from "./admin/presence";
 import {
   adminSetNickname,
   getOrCreateUser,
@@ -26,6 +26,16 @@ import {
   verifyGoogleIdToken,
 } from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
+import {
+  cancelRequest,
+  findUserByNickname,
+  listFriends,
+  listReceivedRequests,
+  listSentRequests,
+  removeFriend,
+  respondToRequest,
+  sendFriendRequest,
+} from "./friends/friendships";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDistPath = path.join(__dirname, "../public");
@@ -391,6 +401,146 @@ export function createGameServer(): Server {
   app.post("/api/auth/logout", (_req, res) => {
     res.clearCookie(SESSION_COOKIE_NAME);
     res.json({ ok: true });
+  });
+
+  app.post("/api/friends/request", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { nickname } = req.body as { nickname?: unknown };
+    if (typeof nickname !== "string" || !nickname.trim()) {
+      res.status(400).json({ error: "닉네임이 필요합니다." });
+      return;
+    }
+    const target = findUserByNickname(nickname.trim());
+    if (!target) {
+      res.status(404).json({ error: "그 닉네임의 유저를 찾을 수 없어요." });
+      return;
+    }
+    const result = sendFriendRequest(userId, target.id);
+    if (result === "self") {
+      res.status(409).json({ error: "자기 자신에게는 요청할 수 없어요." });
+      return;
+    }
+    if (result === "already_friends") {
+      res.status(409).json({ error: "이미 친구예요." });
+      return;
+    }
+    if (result === "already_pending") {
+      res.status(409).json({ error: "이미 요청을 보냈어요." });
+      return;
+    }
+    res.json({ result });
+  });
+
+  app.post("/api/friends/:id/accept", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const requestId = Number(req.params.id);
+    if (!Number.isInteger(requestId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!respondToRequest(requestId, userId, true)) {
+      res.status(404).json({ error: "요청을 찾을 수 없어요." });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.post("/api/friends/:id/decline", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const requestId = Number(req.params.id);
+    if (!Number.isInteger(requestId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!respondToRequest(requestId, userId, false)) {
+      res.status(404).json({ error: "요청을 찾을 수 없어요." });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.post("/api/friends/:id/cancel", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const requestId = Number(req.params.id);
+    if (!Number.isInteger(requestId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!cancelRequest(requestId, userId)) {
+      res.status(404).json({ error: "요청을 찾을 수 없어요." });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/friends/:id", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const friendshipId = Number(req.params.id);
+    if (!Number.isInteger(friendshipId)) {
+      res.status(400).json({ error: "잘못된 요청이에요." });
+      return;
+    }
+    if (!removeFriend(userId, friendshipId)) {
+      res.status(404).json({ error: "친구 관계를 찾을 수 없어요." });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.get("/api/friends", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const friends = listFriends(userId).map((f) => ({ ...f, online: isUserOnline(f.userId) }));
+    res.json(friends);
+  });
+
+  app.get("/api/friends/requests", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    res.json(listReceivedRequests(userId));
+  });
+
+  app.get("/api/friends/sent", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    res.json(listSentRequests(userId));
   });
 
   const httpServer = createHttpServer(app);
