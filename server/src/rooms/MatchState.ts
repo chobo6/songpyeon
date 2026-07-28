@@ -9,6 +9,8 @@ export class PlayerState extends Schema {
   @type("string") sessionId: string = "";
   @type("string") nickname: string = "";
   @type("string") nicknameColor: string = "";
+  @type("boolean") nicknameRainbow: boolean = false;
+  @type("boolean") nicknameGlow: boolean = false;
   @type("string") role: RoleChoice = "";
   @type("string") teamId: string = "";
   @type(["string"]) inventory = new ArraySchema<string>();
@@ -26,6 +28,8 @@ export class TeamState extends Schema {
 export class ChatMessage extends Schema {
   @type("string") nickname: string = "";
   @type("string") nicknameColor: string = "";
+  @type("boolean") nicknameRainbow: boolean = false;
+  @type("boolean") nicknameGlow: boolean = false;
   @type("string") text: string = "";
   @type("number") sentAt: number = 0;
 }
@@ -34,6 +38,8 @@ export class SpectatorState extends Schema {
   @type("string") sessionId: string = "";
   @type("string") nickname: string = "";
   @type("string") nicknameColor: string = "";
+  @type("boolean") nicknameRainbow: boolean = false;
+  @type("boolean") nicknameGlow: boolean = false;
 }
 
 export class MatchState extends Schema {

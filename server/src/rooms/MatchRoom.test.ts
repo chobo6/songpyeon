@@ -9,7 +9,7 @@ import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors
 import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
 import { _resetForTest as resetPressMonitor, subscribe as subscribeToPressMonitor } from "../admin/pressMonitor";
-import { getOrCreateUser, setNickname, setNicknameColor, setUserBanned } from "../auth/googleAuth";
+import { getOrCreateUser, setNickname, setNicknameColor, setNicknameEffects, setUserBanned } from "../auth/googleAuth";
 import { signSession } from "../auth/session";
 import { db } from "../db/connection";
 import type { Rng } from "../game/rng";
@@ -101,11 +101,18 @@ async function connectAsUser(
   room: ServerRoom<MatchState>,
   nickname: string,
   nicknameColor?: string,
+  nicknameEffects?: { rainbow?: boolean; glow?: boolean },
 ) {
   testUserCounter += 1;
   const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
   setNickname(user.id, nickname);
   if (nicknameColor) setNicknameColor(user.id, nicknameColor);
+  if (nicknameEffects) {
+    setNicknameEffects(user.id, {
+      rainbow: nicknameEffects.rainbow ?? false,
+      glow: nicknameEffects.glow ?? false,
+    });
+  }
   const token = signSession(user.id);
   const port = (colyseus.server as unknown as { port: number }).port;
   const client = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
@@ -1420,6 +1427,53 @@ describe("MatchRoom", () => {
 
       const leaveMessage = room.state.lobbyChat.find((m) => m.text === "시스템색깔님이 퇴장했습니다");
       expect(leaveMessage?.nicknameColor).toBe("");
+    });
+  });
+
+  describe("nickname rainbow/glow propagation", () => {
+    test("a player with rainbow/glow enabled has it reflected in PlayerState", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "레인보우돼지", undefined, { rainbow: true, glow: true });
+      await flush();
+
+      const player = room.state.players.get(client.sessionId);
+      expect(player?.nicknameRainbow).toBe(true);
+      expect(player?.nicknameGlow).toBe(true);
+    });
+
+    test("a player with neither enabled has both false, not undefined", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "평범플레이어");
+      await flush();
+
+      const player = room.state.players.get(client.sessionId);
+      expect(player?.nicknameRainbow).toBe(false);
+      expect(player?.nicknameGlow).toBe(false);
+    });
+
+    test("a chat message from a rainbow/glow player carries the same flags", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "채팅효과", undefined, { rainbow: true, glow: false });
+      client.send("sendChat", { text: "안녕" });
+      await flush();
+
+      const message = room.state.lobbyChat.find((m) => m.text === "안녕");
+      expect(message?.nicknameRainbow).toBe(true);
+      expect(message?.nicknameGlow).toBe(false);
+    });
+
+    test("a spectator with glow enabled has it reflected in SpectatorState, and in their chat messages", async () => {
+      const { room } = await fillRolesAndStart();
+      const spectatorClient = await connectAsUser(colyseus, room, "관전효과", undefined, { glow: true });
+      await flush();
+
+      expect(room.state.spectators.get(spectatorClient.sessionId)?.nicknameGlow).toBe(true);
+
+      spectatorClient.send("sendChat", { text: "구경중" });
+      await flush();
+
+      const message = room.state.matchChat.find((m) => m.text === "구경중");
+      expect(message?.nicknameGlow).toBe(true);
     });
   });
 

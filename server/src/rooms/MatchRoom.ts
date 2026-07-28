@@ -217,7 +217,14 @@ export class MatchRoom extends Room<MatchState> {
     if (user.bannedAt) {
       throw new Error("이용이 제한된 계정입니다.");
     }
-    return { ip: context.ip, userId: user.id, nickname: user.nickname, nicknameColor: user.nicknameColor ?? "" };
+    return {
+      ip: context.ip,
+      userId: user.id,
+      nickname: user.nickname,
+      nicknameColor: user.nicknameColor ?? "",
+      nicknameRainbow: user.nicknameRainbow,
+      nicknameGlow: user.nicknameGlow,
+    };
   }
 
   async onJoin(client: Client, _options: MatchRoomOptions = {}) {
@@ -242,6 +249,8 @@ export class MatchRoom extends Room<MatchState> {
       spectator.sessionId = client.sessionId;
       spectator.nickname = client.auth?.nickname ?? "관전자";
       spectator.nicknameColor = client.auth?.nicknameColor ?? "";
+      spectator.nicknameRainbow = client.auth?.nicknameRainbow ?? false;
+      spectator.nicknameGlow = client.auth?.nicknameGlow ?? false;
       this.state.spectators.set(client.sessionId, spectator);
       await this.setMetadata({ spectators: this.spectatorsForMetadata() });
       return;
@@ -265,6 +274,8 @@ export class MatchRoom extends Room<MatchState> {
     player.sessionId = client.sessionId;
     player.nickname = nickname;
     player.nicknameColor = client.auth?.nicknameColor ?? "";
+    player.nicknameRainbow = client.auth?.nicknameRainbow ?? false;
+    player.nicknameGlow = client.auth?.nicknameGlow ?? false;
     this.state.players.set(client.sessionId, player);
     if (client.auth?.userId) this.playerUserIds.set(client.sessionId, client.auth.userId);
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
@@ -429,7 +440,7 @@ export class MatchRoom extends Room<MatchState> {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       const list = this.state.phase === "lobby" ? this.state.lobbyChat : this.state.matchChat;
-      this.pushChat(list, player.nickname, text, player.nicknameColor);
+      this.pushChat(list, player.nickname, text, player.nicknameColor, player.nicknameRainbow, player.nicknameGlow);
       return;
     }
 
@@ -437,14 +448,30 @@ export class MatchRoom extends Room<MatchState> {
     if (spectator) {
       // 관전자는 진행 중인 매치(phase !== "lobby")에만 존재할 수 있으므로
       // (onJoin 참고) 항상 matchChat으로 보낸다.
-      this.pushChat(this.state.matchChat, `${spectator.nickname} (관전)`, text, spectator.nicknameColor);
+      this.pushChat(
+        this.state.matchChat,
+        `${spectator.nickname} (관전)`,
+        text,
+        spectator.nicknameColor,
+        spectator.nicknameRainbow,
+        spectator.nicknameGlow,
+      );
     }
   }
 
-  private pushChat(list: ArraySchema<ChatMessage>, nickname: string, text: string, nicknameColor: string = "") {
+  private pushChat(
+    list: ArraySchema<ChatMessage>,
+    nickname: string,
+    text: string,
+    nicknameColor: string = "",
+    nicknameRainbow: boolean = false,
+    nicknameGlow: boolean = false,
+  ) {
     const message = new ChatMessage();
     message.nickname = nickname;
     message.nicknameColor = nicknameColor;
+    message.nicknameRainbow = nicknameRainbow;
+    message.nicknameGlow = nicknameGlow;
     message.text = text;
     message.sentAt = Date.now();
     list.push(message);
