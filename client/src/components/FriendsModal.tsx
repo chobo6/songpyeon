@@ -14,6 +14,7 @@ import {
 } from "../game/friends";
 import { formatLastSeen } from "../game/formatLastSeen";
 import { DirectChatModal } from "./DirectChatModal";
+import { ProfileModal } from "./ProfileModal";
 import styles from "./FriendsModal.module.css";
 
 export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJoinRoom: (roomId: string) => void }) {
@@ -24,6 +25,7 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
   const [message, setMessage] = useState<string | null>(null);
   const [view, setView] = useState<"friends" | "requests">("friends");
   const [chatWith, setChatWith] = useState<{ userId: number; nickname: string } | null>(null);
+  const [profileNickname, setProfileNickname] = useState<string | null>(null);
 
   function refreshAll() {
     getFriends()
@@ -132,7 +134,9 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               {received?.length === 0 && <p className={styles.empty}>받은 요청이 없어요</p>}
               {received?.map((r) => (
                 <div key={r.requestId} className={styles.row}>
-                  <span className={styles.rowNickname}>{r.fromNickname}</span>
+                  <button className={styles.rowNickname} onClick={() => setProfileNickname(r.fromNickname)}>
+                    {r.fromNickname}
+                  </button>
                   <div className={styles.rowActions}>
                     <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
                       수락
@@ -151,7 +155,9 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               {sent?.length === 0 && <p className={styles.empty}>보낸 요청이 없어요</p>}
               {sent?.map((r) => (
                 <div key={r.requestId} className={styles.row}>
-                  <span className={styles.rowNickname}>{r.toNickname}</span>
+                  <button className={styles.rowNickname} onClick={() => setProfileNickname(r.toNickname)}>
+                    {r.toNickname}
+                  </button>
                   <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
                     취소
                   </button>
@@ -168,7 +174,9 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
             {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
             {friends?.map((f) => (
               <div key={f.friendshipId} className={styles.row}>
-                <span className={styles.rowNickname}>{f.nickname}</span>
+                <button className={styles.rowNickname} onClick={() => setProfileNickname(f.nickname)}>
+                  {f.nickname}
+                </button>
                 <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
                 <button
                   className={styles.chatButton}
@@ -196,6 +204,15 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
             friendNickname={chatWith.nickname}
             onClose={() => {
               setChatWith(null);
+              refreshAll();
+            }}
+          />
+        )}
+        {profileNickname && (
+          <ProfileModal
+            nickname={profileNickname}
+            onClose={() => {
+              setProfileNickname(null);
               refreshAll();
             }}
           />

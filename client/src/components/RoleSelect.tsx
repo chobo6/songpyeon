@@ -4,6 +4,7 @@ import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
 import { ChatBox } from "./ChatBox";
 import { InviteFriendsModal } from "./InviteFriendsModal";
+import { ProfileModal } from "./ProfileModal";
 import styles from "./RoleSelect.module.css";
 
 export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: () => void }) {
@@ -13,6 +14,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
   const lobbyChat = room.state.lobbyChat;
   const unassignedPlayers = Array.from(room.state.players.values()).filter((p) => p.role === "");
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [profileNickname, setProfileNickname] = useState<string | null>(null);
 
   function choose(role: Role) {
     room.send("chooseRole", { role });
@@ -51,9 +53,14 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             <span className={styles.pendingLabel}>역할 선택 중</span>
             <div className={styles.pendingNames}>
               {unassignedPlayers.map((p) => (
-                <span key={p.sessionId} className={styles.pendingName} style={{ color: p.nicknameColor || undefined }}>
+                <button
+                  key={p.sessionId}
+                  className={styles.pendingName}
+                  style={{ color: p.nicknameColor || undefined }}
+                  onClick={() => setProfileNickname(p.nickname)}
+                >
                   {p.nickname}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -88,12 +95,28 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
       <div className={styles.roster}>
         {teams.map((team) => (
           <div key={team.id} className={styles.rosterTeam}>
-            <span className={styles.rosterName} style={{ color: nicknameColorFor(team.pigSessionId) }}>
-              {nicknameFor(team.pigSessionId)}
-            </span>
-            <span className={styles.rosterName} style={{ color: nicknameColorFor(team.rabbitSessionId) }}>
-              {nicknameFor(team.rabbitSessionId)}
-            </span>
+            {team.pigSessionId ? (
+              <button
+                className={styles.rosterName}
+                style={{ color: nicknameColorFor(team.pigSessionId) }}
+                onClick={() => setProfileNickname(nicknameFor(team.pigSessionId))}
+              >
+                {nicknameFor(team.pigSessionId)}
+              </button>
+            ) : (
+              <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
+            )}
+            {team.rabbitSessionId ? (
+              <button
+                className={styles.rosterName}
+                style={{ color: nicknameColorFor(team.rabbitSessionId) }}
+                onClick={() => setProfileNickname(nicknameFor(team.rabbitSessionId))}
+              >
+                {nicknameFor(team.rabbitSessionId)}
+              </button>
+            ) : (
+              <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
+            )}
           </div>
         ))}
       </div>
@@ -106,6 +129,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
         </button>
       </div>
       {showInviteModal && <InviteFriendsModal roomId={room.roomId} onClose={() => setShowInviteModal(false)} />}
+      {profileNickname && <ProfileModal nickname={profileNickname} onClose={() => setProfileNickname(null)} />}
     </div>
   );
 }

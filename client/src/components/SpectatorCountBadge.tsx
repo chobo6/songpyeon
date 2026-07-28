@@ -1,10 +1,12 @@
 import { useState } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
+import { ProfileModal } from "./ProfileModal";
 import styles from "./SpectatorCountBadge.module.css";
 
 export function SpectatorCountBadge({ room }: { room: Room<MatchState> }) {
   const [showModal, setShowModal] = useState(false);
+  const [profileNickname, setProfileNickname] = useState<string | null>(null);
   const spectators = [...room.state.spectators.values()];
 
   return (
@@ -21,8 +23,10 @@ export function SpectatorCountBadge({ room }: { room: Room<MatchState> }) {
             ) : (
               <ul className={styles.list}>
                 {spectators.map((s) => (
-                  <li key={s.sessionId} className={styles.row}>
-                    {s.nickname}
+                  <li key={s.sessionId}>
+                    <button className={styles.row} onClick={() => setProfileNickname(s.nickname)}>
+                      {s.nickname}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -33,6 +37,7 @@ export function SpectatorCountBadge({ room }: { room: Room<MatchState> }) {
           </div>
         </div>
       )}
+      {profileNickname && <ProfileModal nickname={profileNickname} onClose={() => setProfileNickname(null)} />}
     </>
   );
 }

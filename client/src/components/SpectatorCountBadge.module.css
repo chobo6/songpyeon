@@ -66,10 +66,16 @@
 }
 
 .row {
+  width: 100%;
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   background: rgba(255, 255, 255, 0.08);
   text-align: left;
+  border: none;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
 .closeButton {
