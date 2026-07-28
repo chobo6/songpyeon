@@ -1,0 +1,36 @@
+/* Selector is `.rainbow.rainbow` (not plain `.rainbow`) on purpose: every
+   caller applies this alongside its own className (e.g.
+   `${styles.pendingName} ${effect.className}`), and several of those own
+   classes (RoleSelect.module.css's .pendingName/.rosterName) also set the
+   `background` shorthand for their own unrelated reasons (pill background,
+   resetting a <button>'s default). A same-specificity single-class rule
+   made this one lose the cascade purely based on which CSS module happened
+   to land later in Vite's bundle output — verified via browser (the
+   gradient rendered as a flat, invisible transparent-on-transparent blob in
+   RoleSelect's waiting list until this was added). Doubling the class
+   bumps specificity to (0,2,0), which reliably beats any plain single-class
+   rule regardless of bundle order, without needing `!important`. */
+.rainbow.rainbow {
+  background: linear-gradient(90deg, #ff6b6b, #ffb84d, #ffe86b, #6bd98a, #4dc4ff, #9b7bff, #ff6bcf, #ff6b6b);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-shift 4s linear infinite;
+}
+
+@keyframes rainbow-shift {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rainbow {
+    animation-duration: 40s;
+  }
+}

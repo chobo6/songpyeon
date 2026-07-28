@@ -12,6 +12,8 @@ export interface PlayerState {
   sessionId: string;
   nickname: string;
   nicknameColor: string;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
   role: RoleChoice;
   teamId: string;
   inventory: ItemId[];
@@ -29,6 +31,8 @@ export interface TeamState {
 export interface ChatMessage {
   nickname: string;
   nicknameColor: string;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
   text: string;
   sentAt: number;
 }
@@ -37,6 +41,8 @@ export interface SpectatorState {
   sessionId: string;
   nickname: string;
   nicknameColor: string;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
 }
 
 export interface MatchState {

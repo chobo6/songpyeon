@@ -3,6 +3,8 @@ export type DirectMessageEntry = {
   senderId: number;
   senderNickname: string;
   senderNicknameColor: string | null;
+  senderNicknameRainbow: boolean;
+  senderNicknameGlow: boolean;
   text: string;
   createdAt: string;
 };

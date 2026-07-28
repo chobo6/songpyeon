@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
+import { nicknameStyle } from "../game/nicknameStyle";
 import { ChatBox } from "./ChatBox";
 import { InviteFriendsModal } from "./InviteFriendsModal";
 import { ProfileModal } from "./ProfileModal";
@@ -37,6 +38,14 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
     return sessionId ? room.state.players.get(sessionId)?.nicknameColor || undefined : undefined;
   }
 
+  function nicknameRainbowFor(sessionId: string): boolean {
+    return sessionId ? (room.state.players.get(sessionId)?.nicknameRainbow ?? false) : false;
+  }
+
+  function nicknameGlowFor(sessionId: string): boolean {
+    return sessionId ? (room.state.players.get(sessionId)?.nicknameGlow ?? false) : false;
+  }
+
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
@@ -52,16 +61,19 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
           <div className={styles.pending}>
             <span className={styles.pendingLabel}>역할 선택 중</span>
             <div className={styles.pendingNames}>
-              {unassignedPlayers.map((p) => (
-                <button
-                  key={p.sessionId}
-                  className={styles.pendingName}
-                  style={{ color: p.nicknameColor || undefined }}
-                  onClick={() => setProfileNickname(p.nickname)}
-                >
-                  {p.nickname}
-                </button>
-              ))}
+              {unassignedPlayers.map((p) => {
+                const effect = nicknameStyle(p.nicknameColor, p.nicknameRainbow, p.nicknameGlow);
+                return (
+                  <button
+                    key={p.sessionId}
+                    className={`${styles.pendingName} ${effect.className}`}
+                    style={effect.style}
+                    onClick={() => setProfileNickname(p.nickname)}
+                  >
+                    {p.nickname}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -93,32 +105,44 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
         onSend={sendChat}
       />
       <div className={styles.roster}>
-        {teams.map((team) => (
-          <div key={team.id} className={styles.rosterTeam}>
-            {team.pigSessionId ? (
-              <button
-                className={styles.rosterName}
-                style={{ color: nicknameColorFor(team.pigSessionId) }}
-                onClick={() => setProfileNickname(nicknameFor(team.pigSessionId))}
-              >
-                {nicknameFor(team.pigSessionId)}
-              </button>
-            ) : (
-              <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
-            )}
-            {team.rabbitSessionId ? (
-              <button
-                className={styles.rosterName}
-                style={{ color: nicknameColorFor(team.rabbitSessionId) }}
-                onClick={() => setProfileNickname(nicknameFor(team.rabbitSessionId))}
-              >
-                {nicknameFor(team.rabbitSessionId)}
-              </button>
-            ) : (
-              <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
-            )}
-          </div>
-        ))}
+        {teams.map((team) => {
+          const pigEffect = nicknameStyle(
+            nicknameColorFor(team.pigSessionId),
+            nicknameRainbowFor(team.pigSessionId),
+            nicknameGlowFor(team.pigSessionId),
+          );
+          const rabbitEffect = nicknameStyle(
+            nicknameColorFor(team.rabbitSessionId),
+            nicknameRainbowFor(team.rabbitSessionId),
+            nicknameGlowFor(team.rabbitSessionId),
+          );
+          return (
+            <div key={team.id} className={styles.rosterTeam}>
+              {team.pigSessionId ? (
+                <button
+                  className={`${styles.rosterName} ${pigEffect.className}`}
+                  style={pigEffect.style}
+                  onClick={() => setProfileNickname(nicknameFor(team.pigSessionId))}
+                >
+                  {nicknameFor(team.pigSessionId)}
+                </button>
+              ) : (
+                <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
+              )}
+              {team.rabbitSessionId ? (
+                <button
+                  className={`${styles.rosterName} ${rabbitEffect.className}`}
+                  style={rabbitEffect.style}
+                  onClick={() => setProfileNickname(nicknameFor(team.rabbitSessionId))}
+                >
+                  {nicknameFor(team.rabbitSessionId)}
+                </button>
+              ) : (
+                <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
+              )}
+            </div>
+          );
+        })}
       </div>
       <div className={styles.exitRow}>
         <button className={styles.inviteButton} onClick={() => setShowInviteModal(true)}>

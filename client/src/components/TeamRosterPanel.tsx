@@ -1,5 +1,6 @@
 import { memo } from "react";
 import type { PlayerState, TeamState } from "../game/matchTypes";
+import { nicknameStyle } from "../game/nicknameStyle";
 import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./TeamRosterPanel.module.css";
 
@@ -39,16 +40,21 @@ function teamRosterPropsEqual(prev: TeamRosterPanelProps, next: TeamRosterPanelP
 function Seat({
   nickname,
   nicknameColor,
+  nicknameRainbow,
+  nicknameGlow,
   roleIcon,
 }: {
   nickname: string | undefined;
   nicknameColor: string | undefined;
+  nicknameRainbow: boolean | undefined;
+  nicknameGlow: boolean | undefined;
   roleIcon: string;
 }) {
+  const effect = nicknameStyle(nicknameColor, nicknameRainbow, nicknameGlow);
   return (
     <div className={styles.seat}>
       <img className={styles.seatIcon} src={roleIcon} alt="" />
-      <span className={styles.seatName} style={{ color: nicknameColor || undefined }}>
+      <span className={`${styles.seatName} ${effect.className}`} style={effect.style}>
         {nickname ?? "-"}
       </span>
     </div>
@@ -64,11 +70,15 @@ export const TeamRosterPanel = memo(function TeamRosterPanel({ teams, players }:
             <Seat
               nickname={players.get(team.pigSessionId)?.nickname}
               nicknameColor={players.get(team.pigSessionId)?.nicknameColor}
+              nicknameRainbow={players.get(team.pigSessionId)?.nicknameRainbow}
+              nicknameGlow={players.get(team.pigSessionId)?.nicknameGlow}
               roleIcon="/game-assets/ui/thanksgiving_room_start_player_pig.png"
             />
             <Seat
               nickname={players.get(team.rabbitSessionId)?.nickname}
               nicknameColor={players.get(team.rabbitSessionId)?.nicknameColor}
+              nicknameRainbow={players.get(team.rabbitSessionId)?.nicknameRainbow}
+              nicknameGlow={players.get(team.rabbitSessionId)?.nicknameGlow}
               roleIcon="/game-assets/ui/thanksgiving_room_start_player_rabbit.png"
             />
             {team.eliminated ? (

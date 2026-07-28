@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../game/matchTypes";
+import { nicknameStyle } from "../game/nicknameStyle";
 import styles from "./ChatBox.module.css";
 
 interface ChatBoxProps {
@@ -111,10 +112,11 @@ export const ChatBox = memo(function ChatBox({
     <div className={fill ? `${styles.wrap} ${styles.fill}` : styles.wrap}>
       <div className={styles.list} ref={listRef}>
         {messages.length === 0 && <p className={styles.empty}>아직 채팅이 없어요</p>}
-        {messages.map((m, i) =>
-          m.nickname ? (
+        {messages.map((m, i) => {
+          const effect = nicknameStyle(m.nicknameColor, m.nicknameRainbow, m.nicknameGlow);
+          return m.nickname ? (
             <p key={i} className={styles.line}>
-              <span className={styles.nickname} style={{ color: m.nicknameColor || undefined }}>
+              <span className={`${styles.nickname} ${effect.className}`} style={effect.style}>
                 {m.nickname}
               </span>
               <span className={styles.text}>{m.text}</span>
@@ -126,8 +128,8 @@ export const ChatBox = memo(function ChatBox({
             <p key={i} className={`${styles.line} ${styles.system}`}>
               {m.text}
             </p>
-          ),
-        )}
+          );
+        })}
       </div>
       <form className={styles.inputRow} onSubmit={handleSubmit}>
         <input
