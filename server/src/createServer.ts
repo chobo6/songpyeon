@@ -30,6 +30,7 @@ import {
   areFriends,
   cancelRequest,
   findUserByNickname,
+  getFriendshipStatus,
   listFriends,
   listReceivedRequests,
   listSentRequests,
@@ -687,6 +688,36 @@ export function createGameServer(): Server {
     }
     markRead(userId, friendUserId);
     res.json({ ok: true });
+  });
+
+  app.get("/api/profile/:nickname", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const target = findUserByNickname(req.params.nickname);
+    if (!target) {
+      res.status(404).json({ error: "존재하지 않는 유저예요." });
+      return;
+    }
+    const user = getUserById(target.id);
+    if (!user) {
+      res.status(404).json({ error: "존재하지 않는 유저예요." });
+      return;
+    }
+    const { status, friendshipId } = getFriendshipStatus(userId, target.id);
+    res.json({
+      userId: target.id,
+      nickname: user.nickname,
+      nicknameColor: user.nicknameColor,
+      maxRound: user.maxRound,
+      pigPlayCount: user.pigPlayCount,
+      rabbitPlayCount: user.rabbitPlayCount,
+      friendshipStatus: status,
+      friendshipId,
+    });
   });
 
   const httpServer = createHttpServer(app);
