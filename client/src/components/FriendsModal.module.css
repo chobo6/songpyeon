@@ -129,6 +129,25 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.friendRow {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.friendRowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.friendRowButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
 .rowNickname {
   flex: 1;
   font-weight: 600;

@@ -173,26 +173,30 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
             {friends === null && <p className={styles.loading}>불러오는 중...</p>}
             {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
             {friends?.map((f) => (
-              <div key={f.friendshipId} className={styles.row}>
-                <button className={styles.rowNickname} onClick={() => setProfileNickname(f.nickname)}>
-                  {f.nickname}
-                </button>
-                <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
-                <button
-                  className={styles.chatButton}
-                  onClick={() => setChatWith({ userId: f.userId, nickname: f.nickname })}
-                >
-                  채팅
-                  {f.unreadCount > 0 && <span className={styles.unreadBadge}>{f.unreadCount}</span>}
-                </button>
-                {f.online && f.roomId && (
-                  <button className={styles.followButton} onClick={() => onJoinRoom(f.roomId!)}>
-                    따라가기
+              <div key={f.friendshipId} className={`${styles.row} ${styles.friendRow}`}>
+                <div className={styles.friendRowTop}>
+                  <button className={styles.rowNickname} onClick={() => setProfileNickname(f.nickname)}>
+                    {f.nickname}
                   </button>
-                )}
-                <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
-                  삭제
-                </button>
+                  <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
+                </div>
+                <div className={styles.friendRowButtons}>
+                  <button
+                    className={styles.chatButton}
+                    onClick={() => setChatWith({ userId: f.userId, nickname: f.nickname })}
+                  >
+                    채팅
+                    {f.unreadCount > 0 && <span className={styles.unreadBadge}>{f.unreadCount}</span>}
+                  </button>
+                  {f.online && f.roomId && (
+                    <button className={styles.followButton} onClick={() => onJoinRoom(f.roomId!)}>
+                      따라가기
+                    </button>
+                  )}
+                  <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
+                    삭제
+                  </button>
+                </div>
               </div>
             ))}
           </section>
