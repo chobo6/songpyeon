@@ -134,7 +134,20 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
     );
   }
 
-  return <ConnectedOnlineFlow joinSpec={joinSpec} onExit={() => setJoinSpec(null)} />;
+  return (
+    <ConnectedOnlineFlow
+      joinSpec={joinSpec}
+      onExit={() => {
+        setJoinSpec(null);
+        // 방/매치에서 나갈 때마다 최신 스탯(특히 방금 딴 게임머니)을 다시 받아온다 —
+        // 안 그러면 로그인 시점 스냅샷이 그대로 남아, 매치를 마치고 로비로 돌아와도
+        // 화면엔 예전 값이 보인다(다음 새로고침 전까지).
+        fetchMe()
+          .then(setMe)
+          .catch(() => {});
+      }}
+    />
+  );
 }
 
 function OfflineFlow({ onExit }: { onExit: () => void }) {
