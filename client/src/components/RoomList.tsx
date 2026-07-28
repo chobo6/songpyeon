@@ -5,6 +5,7 @@ import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/inv
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
+import { WelcomeModal } from "./WelcomeModal";
 import { FriendsModal } from "./FriendsModal";
 import styles from "./RoomList.module.css";
 
@@ -38,6 +39,7 @@ export function RoomList({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
@@ -150,6 +152,9 @@ export function RoomList({
         </button>
       </div>
       <div className={styles.inquiryRow}>
+        <button className={styles.welcomeButton} onClick={() => setShowWelcomeModal(true)}>
+          안내
+        </button>
         <button className={styles.inquiryButton} onClick={() => setShowInquiryModal(true)}>
           문의하기
         </button>
@@ -160,7 +165,7 @@ export function RoomList({
           🐷 {pigPlayCount}판 🐰 {rabbitPlayCount}판
         </span>
         <span className={styles.profileStat}>최고 {maxRound}라운드</span>
-        <span className={styles.profileStat}>💰 {gameMoney}원</span>
+        <span className={styles.profileStat}>🪙 {gameMoney.toLocaleString("ko-KR")}원</span>
       </div>
       {showCreateModal && (
         <CreateRoomModal
@@ -173,6 +178,7 @@ export function RoomList({
       )}
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
+      {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
       {showFriendsModal && (
         <FriendsModal
           onJoinRoom={onJoinRoom}

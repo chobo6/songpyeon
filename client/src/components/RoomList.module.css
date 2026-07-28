@@ -176,11 +176,22 @@
 
 .inquiryRow {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   width: 100%;
   padding: 0.5rem 1.5rem;
   box-sizing: border-box;
   flex-shrink: 0;
+}
+
+.welcomeButton {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1c1d3a;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #e8a3b0, #f4d58d);
 }
 
 .inquiryButton {
