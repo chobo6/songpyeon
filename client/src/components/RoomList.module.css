@@ -2,13 +2,25 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
   color: #fff;
   text-align: center;
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.scrollArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
   padding: 1.5rem;
   box-sizing: border-box;
-  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .title {
@@ -162,10 +174,16 @@
   background: #4b5563;
 }
 
+.inquiryRow {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 0.5rem 1.5rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
 .inquiryButton {
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
   font-weight: 700;
@@ -174,7 +192,31 @@
   border-radius: 999px;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.12);
-  z-index: 5;
+}
+
+.profileBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  height: 20svh;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.profileNickname {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.profileStat {
+  font-size: 0.9rem;
+  opacity: 0.9;
 }
 
 .exitButton {
