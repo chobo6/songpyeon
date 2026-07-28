@@ -26,6 +26,7 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
       setProfile(refreshed);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "요청에 실패했어요.");
+      getProfile(nickname).then(setProfile).catch(() => {});
     } finally {
       setBusy(false);
     }
@@ -41,6 +42,7 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
       setProfile(refreshed);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "삭제에 실패했어요.");
+      getProfile(nickname).then(setProfile).catch(() => {});
     } finally {
       setBusy(false);
     }
