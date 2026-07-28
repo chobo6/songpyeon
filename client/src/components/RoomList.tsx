@@ -19,6 +19,7 @@ export function RoomList({
   maxRound,
   pigPlayCount,
   rabbitPlayCount,
+  gameMoney,
   onCreateRoom,
   onJoinRoom,
   onExit,
@@ -27,6 +28,7 @@ export function RoomList({
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
+  gameMoney: number;
   onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
@@ -158,6 +160,7 @@ export function RoomList({
           🐷 {pigPlayCount}판 🐰 {rabbitPlayCount}판
         </span>
         <span className={styles.profileStat}>최고 {maxRound}라운드</span>
+        <span className={styles.profileStat}>💰 {gameMoney}원</span>
       </div>
       {showCreateModal && (
         <CreateRoomModal

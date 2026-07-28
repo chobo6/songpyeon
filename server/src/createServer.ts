@@ -345,6 +345,7 @@ export function createGameServer(): Server {
         maxRound: user.maxRound,
         pigPlayCount: user.pigPlayCount,
         rabbitPlayCount: user.rabbitPlayCount,
+        gameMoney: user.gameMoney,
       });
     } catch (err) {
       console.error("구글 로그인 실패:", err);
@@ -369,6 +370,7 @@ export function createGameServer(): Server {
             maxRound: user.maxRound,
             pigPlayCount: user.pigPlayCount,
             rabbitPlayCount: user.rabbitPlayCount,
+            gameMoney: user.gameMoney,
           }
         : null,
     );
@@ -402,6 +404,7 @@ export function createGameServer(): Server {
       maxRound: user?.maxRound ?? 0,
       pigPlayCount: user?.pigPlayCount ?? 0,
       rabbitPlayCount: user?.rabbitPlayCount ?? 0,
+      gameMoney: user?.gameMoney ?? 0,
     });
   });
 

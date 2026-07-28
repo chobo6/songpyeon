@@ -60,6 +60,7 @@ export type Profile = {
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
+  gameMoney: number;
 };
 
 export async function loginWithGoogle(credential: string): Promise<Profile> {
