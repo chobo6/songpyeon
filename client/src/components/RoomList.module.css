@@ -199,14 +199,20 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   flex-shrink: 0;
   height: 20svh;
   width: 100%;
   box-sizing: border-box;
-  padding: 1rem 1.5rem;
+  padding: 0.6rem 1.5rem;
   background: rgba(255, 255, 255, 0.06);
   border-top: 1px solid rgba(255, 255, 255, 0.15);
+  /* :root의 `font: 18px/145%`는 line-height를 퍼센트로 지정해서, 이 값이
+     계산된 절대 px로 하위 요소에 그대로 상속된다 — 자식(.profileStat 등)이
+     자기 font-size(더 작음)로 다시 계산하지 않아, 줄 수가 늘어날수록(4줄)
+     실제 필요한 높이가 줄어들지 않고 그대로 누적돼 낮은 화면 높이에서 넘침.
+     unitless 값으로 재선언해 자식마다 자기 font-size 기준으로 다시 계산되게 함. */
+  line-height: 1.2;
 }
 
 .profileNickname {
