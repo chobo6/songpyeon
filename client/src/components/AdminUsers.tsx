@@ -13,6 +13,8 @@ type UserRow = {
   nicknameColor: string | null;
   createdAt: string;
   lastLoginAt: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
 };
 
 async function fetchJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: false; unauthorized: boolean }> {
@@ -148,6 +150,32 @@ export function AdminUsers({
     }
   }
 
+  async function toggleEffect(user: UserRow, effect: "rainbow" | "glow") {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/nickname-effects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          rainbow: effect === "rainbow" ? !user.nicknameRainbow : user.nicknameRainbow,
+          glow: effect === "glow" ? !user.nicknameGlow : user.nicknameGlow,
+        }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setError("효과 변경에 실패했습니다");
+        return;
+      }
+      await loadUsers();
+    } catch {
+      setError("효과 변경에 실패했습니다");
+    }
+  }
+
   async function toggleBan(user: UserRow) {
     setBanningId(user.id);
     setError(null);
@@ -206,6 +234,7 @@ export function AdminUsers({
                 <th>이름</th>
                 <th>닉네임</th>
                 <th>색상</th>
+                <th>효과</th>
                 <th>가입일</th>
                 <th>최근 로그인</th>
                 <th></th>
@@ -263,6 +292,20 @@ export function AdminUsers({
                         </button>
                       </div>
                     )}
+                  </td>
+                  <td>
+                    <label className={styles.effectLabel}>
+                      <input
+                        type="checkbox"
+                        checked={user.nicknameRainbow}
+                        onChange={() => toggleEffect(user, "rainbow")}
+                      />
+                      레인보우
+                    </label>
+                    <label className={styles.effectLabel}>
+                      <input type="checkbox" checked={user.nicknameGlow} onChange={() => toggleEffect(user, "glow")} />
+                      글로우
+                    </label>
                   </td>
                   <td>{user.createdAt}</td>
                   <td>{user.lastLoginAt ?? "-"}</td>

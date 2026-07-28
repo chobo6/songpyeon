@@ -21,6 +21,7 @@ import {
   listUsers,
   setNickname,
   setNicknameColor,
+  setNicknameEffects,
   setUserBanned,
   touchLastLogin,
   verifyGoogleIdToken,
@@ -262,6 +263,21 @@ export function createGameServer(): Server {
       res.status(400).json({ error: "#RRGGBB 형식의 색상 코드를 입력해주세요." });
       return;
     }
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/users/:id/nickname-effects", requireAdmin, (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    const { rainbow, glow } = req.body as { rainbow?: unknown; glow?: unknown };
+    if (typeof rainbow !== "boolean" || typeof glow !== "boolean") {
+      res.status(400).json({ error: "rainbow와 glow는 boolean이어야 합니다." });
+      return;
+    }
+    setNicknameEffects(userId, { rainbow, glow });
     res.json({ ok: true });
   });
 
