@@ -16,7 +16,7 @@ import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
 import { notifyPress } from "../admin/pressMonitor";
-import { getUserById, recordRolePlayed, recordRoundAchievement } from "../auth/googleAuth";
+import { addGameMoney, getUserById, recordRolePlayed, recordRoundAchievement } from "../auth/googleAuth";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
@@ -826,6 +826,7 @@ export class MatchRoom extends Room<MatchState> {
       // 4s timer (onTurnTimerExpired) to advance, so the success state stays
       // on screen for the rest of the turn instead of the next turn's fresh
       // state overwriting it on the very next tick.
+      this.creditTurnSuccess(activeTeam);
     }
   }
 
@@ -861,6 +862,17 @@ export class MatchRoom extends Room<MatchState> {
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) recordRoundAchievement(userId, round);
+    }
+  }
+
+  // 팀이 자기 차례(턴)를 성공적으로 완료할 때마다 호출 — 팀 소속 두 플레이어
+  // (돼지, 토끼) 각각에게 "10원 × 이 방의 팀 수"를 지급한다. creditRound와
+  // 동일한 이유로 playerUserIds에 없으면(빈 슬롯) 조용히 건너뛴다.
+  private creditTurnSuccess(team: TeamState) {
+    const reward = 10 * this.state.teams.length;
+    for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
+      const userId = this.playerUserIds.get(sessionId);
+      if (userId) addGameMoney(userId, reward);
     }
   }
 

@@ -907,6 +907,59 @@ describe("MatchRoom", () => {
   );
 
   test(
+    "a successful turn credits game_money to both team members, scaled by team count",
+    { timeout: 30000 },
+    async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      // fillRolesAndStart는 항상 2팀(플레이어0/1이 첫 팀, 2/3이 둘째 팀)으로 방을 만든다
+      // — teamCount 옵션을 안 줬을 때의 기본값이 2이기 때문(연결된 다른 테스트
+      // "onCreate defaults to 2 teams for a missing or out-of-range teamCount" 참고).
+      const activeTeam = room.state.teams[room.state.activeTeamIndex];
+      const pigNickname = room.state.players.get(activeTeam.pigSessionId)!.nickname;
+      const rabbitNickname = room.state.players.get(activeTeam.rabbitSessionId)!.nickname;
+
+      const gameMoneyOf = (nickname: string) =>
+        (db.prepare(`SELECT game_money FROM users WHERE nickname = ?`).get(nickname) as { game_money: number })
+          .game_money;
+
+      expect(gameMoneyOf(pigNickname)).toBe(0);
+      expect(gameMoneyOf(rabbitNickname)).toBe(0);
+
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+      // 2팀 방이므로 10 × 2 = 20원.
+      expect(gameMoneyOf(pigNickname)).toBe(20);
+      expect(gameMoneyOf(rabbitNickname)).toBe(20);
+    },
+  );
+
+  test("a successful turn in a 1-team room pays no multiplier (10 won)", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      teamCount: 1,
+      turnDurationMs: PRESS_HEAVY_TURN_MS,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    const clients: ClientRoom<MatchState>[] = [];
+    for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+      const client = await connectAsUser(colyseus, room, `외팀${i}`);
+      client.send("chooseRole", { role });
+      clients.push(client);
+    }
+    await flush();
+    await waitForCountdown();
+
+    const gameMoneyOf = (nickname: string) =>
+      (db.prepare(`SELECT game_money FROM users WHERE nickname = ?`).get(nickname) as { game_money: number })
+        .game_money;
+
+    await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+    expect(gameMoneyOf("외팀0")).toBe(10);
+    expect(gameMoneyOf("외팀1")).toBe(10);
+  });
+
+  test(
     "round only advances once every team that started the round alive has taken a turn, even if one gets eliminated mid-round",
     { timeout: 15000 },
     async () => {
