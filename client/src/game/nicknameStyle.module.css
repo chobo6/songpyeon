@@ -30,7 +30,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rainbow {
+  /* Must match the main rule's `.rainbow.rainbow` specificity (0,2,0) — a
+     plain `.rainbow` here (0,1,0) loses to the main rule's `animation`
+     shorthand regardless of media-query nesting, since specificity is
+     compared without regard to which rule sits inside an @media block. That
+     left this override a no-op: prefers-reduced-motion users still got the
+     full 4s animation. */
+  .rainbow.rainbow {
     animation-duration: 40s;
   }
 }
