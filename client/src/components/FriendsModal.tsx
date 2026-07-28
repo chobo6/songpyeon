@@ -13,6 +13,7 @@ import {
   type SentRequestEntry,
 } from "../game/friends";
 import { formatLastSeen } from "../game/formatLastSeen";
+import { nicknameStyle } from "../game/nicknameStyle";
 import { DirectChatModal } from "./DirectChatModal";
 import { ProfileModal } from "./ProfileModal";
 import styles from "./FriendsModal.module.css";
@@ -132,37 +133,51 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               <h3 className={styles.sectionTitle}>받은 요청</h3>
               {received === null && <p className={styles.loading}>불러오는 중...</p>}
               {received?.length === 0 && <p className={styles.empty}>받은 요청이 없어요</p>}
-              {received?.map((r) => (
-                <div key={r.requestId} className={styles.row}>
-                  <button className={styles.rowNickname} onClick={() => setProfileNickname(r.fromNickname)}>
-                    {r.fromNickname}
-                  </button>
-                  <div className={styles.rowActions}>
-                    <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
-                      수락
+              {received?.map((r) => {
+                const effect = nicknameStyle(r.fromNicknameColor, r.fromNicknameRainbow, r.fromNicknameGlow);
+                return (
+                  <div key={r.requestId} className={styles.row}>
+                    <button
+                      className={`${styles.rowNickname} ${effect.className}`}
+                      style={effect.style}
+                      onClick={() => setProfileNickname(r.fromNickname)}
+                    >
+                      {r.fromNickname}
                     </button>
-                    <button className={styles.declineButton} onClick={() => handleDecline(r.requestId)}>
-                      거절
-                    </button>
+                    <div className={styles.rowActions}>
+                      <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
+                        수락
+                      </button>
+                      <button className={styles.declineButton} onClick={() => handleDecline(r.requestId)}>
+                        거절
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </section>
 
             <section className={styles.section}>
               <h3 className={styles.sectionTitle}>보낸 요청</h3>
               {sent === null && <p className={styles.loading}>불러오는 중...</p>}
               {sent?.length === 0 && <p className={styles.empty}>보낸 요청이 없어요</p>}
-              {sent?.map((r) => (
-                <div key={r.requestId} className={styles.row}>
-                  <button className={styles.rowNickname} onClick={() => setProfileNickname(r.toNickname)}>
-                    {r.toNickname}
-                  </button>
-                  <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
-                    취소
-                  </button>
-                </div>
-              ))}
+              {sent?.map((r) => {
+                const effect = nicknameStyle(r.toNicknameColor, r.toNicknameRainbow, r.toNicknameGlow);
+                return (
+                  <div key={r.requestId} className={styles.row}>
+                    <button
+                      className={`${styles.rowNickname} ${effect.className}`}
+                      style={effect.style}
+                      onClick={() => setProfileNickname(r.toNickname)}
+                    >
+                      {r.toNickname}
+                    </button>
+                    <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
+                      취소
+                    </button>
+                  </div>
+                );
+              })}
             </section>
           </>
         )}
@@ -172,33 +187,40 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
             <h3 className={styles.sectionTitle}>친구 목록</h3>
             {friends === null && <p className={styles.loading}>불러오는 중...</p>}
             {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
-            {friends?.map((f) => (
-              <div key={f.friendshipId} className={`${styles.row} ${styles.friendRow}`}>
-                <div className={styles.friendRowTop}>
-                  <button className={styles.rowNickname} onClick={() => setProfileNickname(f.nickname)}>
-                    {f.nickname}
-                  </button>
-                  <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
-                </div>
-                <div className={styles.friendRowButtons}>
-                  <button
-                    className={styles.chatButton}
-                    onClick={() => setChatWith({ userId: f.userId, nickname: f.nickname })}
-                  >
-                    채팅
-                    {f.unreadCount > 0 && <span className={styles.unreadBadge}>{f.unreadCount}</span>}
-                  </button>
-                  {f.online && f.roomId && (
-                    <button className={styles.followButton} onClick={() => onJoinRoom(f.roomId!)}>
-                      따라가기
+            {friends?.map((f) => {
+              const effect = nicknameStyle(f.nicknameColor, f.nicknameRainbow, f.nicknameGlow);
+              return (
+                <div key={f.friendshipId} className={`${styles.row} ${styles.friendRow}`}>
+                  <div className={styles.friendRowTop}>
+                    <button
+                      className={`${styles.rowNickname} ${effect.className}`}
+                      style={effect.style}
+                      onClick={() => setProfileNickname(f.nickname)}
+                    >
+                      {f.nickname}
                     </button>
-                  )}
-                  <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
-                    삭제
-                  </button>
+                    <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
+                  </div>
+                  <div className={styles.friendRowButtons}>
+                    <button
+                      className={styles.chatButton}
+                      onClick={() => setChatWith({ userId: f.userId, nickname: f.nickname })}
+                    >
+                      채팅
+                      {f.unreadCount > 0 && <span className={styles.unreadBadge}>{f.unreadCount}</span>}
+                    </button>
+                    {f.online && f.roomId && (
+                      <button className={styles.followButton} onClick={() => onJoinRoom(f.roomId!)}>
+                        따라가기
+                      </button>
+                    )}
+                    <button className={styles.removeButton} onClick={() => handleRemove(f.friendshipId)}>
+                      삭제
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </section>
         )}
 

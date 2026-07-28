@@ -6,11 +6,30 @@ export type FriendEntry = {
   roomId: string | null;
   unreadCount: number;
   lastLoginAt: string | null;
+  nicknameColor: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
 };
 
-export type ReceivedRequestEntry = { requestId: number; fromUserId: number; fromNickname: string; createdAt: string };
+export type ReceivedRequestEntry = {
+  requestId: number;
+  fromUserId: number;
+  fromNickname: string;
+  createdAt: string;
+  fromNicknameColor: string | null;
+  fromNicknameRainbow: boolean;
+  fromNicknameGlow: boolean;
+};
 
-export type SentRequestEntry = { requestId: number; toUserId: number; toNickname: string; createdAt: string };
+export type SentRequestEntry = {
+  requestId: number;
+  toUserId: number;
+  toNickname: string;
+  createdAt: string;
+  toNicknameColor: string | null;
+  toNicknameRainbow: boolean;
+  toNicknameGlow: boolean;
+};
 
 async function friendsFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { credentials: "same-origin", ...init });

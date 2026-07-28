@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
+import { nicknameStyle } from "../game/nicknameStyle";
 import { ProfileModal } from "./ProfileModal";
 import styles from "./SpectatorCountBadge.module.css";
 
@@ -22,13 +23,20 @@ export function SpectatorCountBadge({ room }: { room: Room<MatchState> }) {
               <p className={styles.empty}>아직 관전자가 없어요</p>
             ) : (
               <ul className={styles.list}>
-                {spectators.map((s) => (
-                  <li key={s.sessionId}>
-                    <button className={styles.row} onClick={() => setProfileNickname(s.nickname)}>
-                      {s.nickname}
-                    </button>
-                  </li>
-                ))}
+                {spectators.map((s) => {
+                  const effect = nicknameStyle(s.nicknameColor, s.nicknameRainbow, s.nicknameGlow);
+                  return (
+                    <li key={s.sessionId}>
+                      <button
+                        className={`${styles.row} ${effect.className}`}
+                        style={effect.style}
+                        onClick={() => setProfileNickname(s.nickname)}
+                      >
+                        {s.nickname}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <button className={styles.closeButton} onClick={() => setShowModal(false)}>
