@@ -1,5 +1,5 @@
 import { OAuth2Client } from "google-auth-library";
-import { db } from "../db/connection";
+import { db, sqliteBool } from "../db/connection";
 import { sanitizeNickname } from "../game/nickname";
 
 let oauthClient: OAuth2Client | null = null;
@@ -33,6 +33,8 @@ export type UserProfile = {
   pigPlayCount: number;
   rabbitPlayCount: number;
   gameMoney: number;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
 };
 
 // googleSub 기준 조회 후 생성/갱신 — 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든)
@@ -63,14 +65,18 @@ export function getOrCreateUser(googleSub: string, info: { email?: string; name?
     ).run(googleSub, info.email ?? null, info.name ?? null);
   }
 
-  return db
+  const row = db
     .prepare(
       `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
               max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount,
-              game_money AS gameMoney
+              game_money AS gameMoney, nickname_rainbow AS nicknameRainbow, nickname_glow AS nicknameGlow
        FROM users WHERE google_sub = ?`,
     )
-    .get(googleSub) as UserProfile;
+    .get(googleSub) as Omit<UserProfile, "nicknameRainbow" | "nicknameGlow"> & {
+    nicknameRainbow: number;
+    nicknameGlow: number;
+  };
+  return { ...row, nicknameRainbow: sqliteBool(row.nicknameRainbow), nicknameGlow: sqliteBool(row.nicknameGlow) };
 }
 
 export type SetNicknameResult = "ok" | "already_set" | "taken";
@@ -87,14 +93,18 @@ export function setNickname(userId: number, nickname: string): SetNicknameResult
 }
 
 export function getUserById(userId: number): UserProfile | undefined {
-  return db
+  const row = db
     .prepare(
       `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
               max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount,
-              game_money AS gameMoney
+              game_money AS gameMoney, nickname_rainbow AS nicknameRainbow, nickname_glow AS nicknameGlow
        FROM users WHERE id = ?`,
     )
-    .get(userId) as UserProfile | undefined;
+    .get(userId) as
+    | (Omit<UserProfile, "nicknameRainbow" | "nicknameGlow"> & { nicknameRainbow: number; nicknameGlow: number })
+    | undefined;
+  if (!row) return undefined;
+  return { ...row, nicknameRainbow: sqliteBool(row.nicknameRainbow), nicknameGlow: sqliteBool(row.nicknameGlow) };
 }
 
 // getOrCreateUser의 last_login_at 갱신은 실제 구글 로그인 팝업을 거칠 때만 호출된다
@@ -115,16 +125,27 @@ export type AdminUserRow = {
   nicknameColor: string | null;
   createdAt: string;
   lastLoginAt: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
 };
 
 export function listUsers(): AdminUserRow[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT id, email, name, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
-              created_at AS createdAt, last_login_at AS lastLoginAt
+              created_at AS createdAt, last_login_at AS lastLoginAt,
+              nickname_rainbow AS nicknameRainbow, nickname_glow AS nicknameGlow
        FROM users ORDER BY id DESC`,
     )
-    .all() as AdminUserRow[];
+    .all() as (Omit<AdminUserRow, "nicknameRainbow" | "nicknameGlow"> & {
+    nicknameRainbow: number;
+    nicknameGlow: number;
+  })[];
+  return rows.map((row) => ({
+    ...row,
+    nicknameRainbow: sqliteBool(row.nicknameRainbow),
+    nicknameGlow: sqliteBool(row.nicknameGlow),
+  }));
 }
 
 export type AdminSetNicknameResult = "ok" | "taken";
@@ -151,6 +172,19 @@ export function setNicknameColor(userId: number, color: string | null): SetNickn
   if (clean !== null && !HEX_COLOR_PATTERN.test(clean)) return "invalid";
   db.prepare(`UPDATE users SET nickname_color = ? WHERE id = ?`).run(clean, userId);
   return "ok";
+}
+
+export type NicknameEffects = { rainbow: boolean; glow: boolean };
+
+// 색(setNicknameColor)과 완전히 같은 자리 — 관리자가 /admin에서 체크박스로
+// 즉시 켜고 끈다. 형식 검증이 필요한 색과 달리 boolean 두 개라 실패 케이스가
+// 없어 결과 타입도 없음(항상 성공).
+export function setNicknameEffects(userId: number, effects: NicknameEffects): void {
+  db.prepare(`UPDATE users SET nickname_rainbow = ?, nickname_glow = ? WHERE id = ?`).run(
+    effects.rainbow ? 1 : 0,
+    effects.glow ? 1 : 0,
+    userId,
+  );
 }
 
 export function setUserBanned(userId: number, banned: boolean): void {
@@ -187,18 +221,34 @@ export function addGameMoney(userId: number, amount: number): void {
   db.prepare(`UPDATE users SET game_money = game_money + ? WHERE id = ?`).run(amount, userId);
 }
 
-export type RankingEntry = { nickname: string; nicknameColor: string | null; maxRound: number };
+export type RankingEntry = {
+  nickname: string;
+  nicknameColor: string | null;
+  maxRound: number;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
+};
 
 // nickname IS NOT NULL is defensive (every account reaching a round already
 // has one) — max_round > 0 keeps accounts that never finished a round out
 // of the list instead of padding the top 10 with ties at 0.
 export function getTopRanking(limit: number): RankingEntry[] {
-  return db
+  const rows = db
     .prepare(
-      `SELECT nickname, nickname_color AS nicknameColor, max_round AS maxRound FROM users
+      `SELECT nickname, nickname_color AS nicknameColor, max_round AS maxRound,
+              nickname_rainbow AS nicknameRainbow, nickname_glow AS nicknameGlow
+       FROM users
        WHERE nickname IS NOT NULL AND max_round > 0
        ORDER BY max_round DESC, id ASC
        LIMIT ?`,
     )
-    .all(limit) as RankingEntry[];
+    .all(limit) as (Omit<RankingEntry, "nicknameRainbow" | "nicknameGlow"> & {
+    nicknameRainbow: number;
+    nicknameGlow: number;
+  })[];
+  return rows.map((row) => ({
+    ...row,
+    nicknameRainbow: sqliteBool(row.nicknameRainbow),
+    nicknameGlow: sqliteBool(row.nicknameGlow),
+  }));
 }

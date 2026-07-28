@@ -17,6 +17,8 @@ export function createDb(filename: string): Database.Database {
       pig_play_count INTEGER NOT NULL DEFAULT 0,
       rabbit_play_count INTEGER NOT NULL DEFAULT 0,
       game_money INTEGER NOT NULL DEFAULT 0,
+      nickname_rainbow INTEGER NOT NULL DEFAULT 0,
+      nickname_glow INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
@@ -83,6 +85,12 @@ export function createDb(filename: string): Database.Database {
   if (!columns.includes("game_money")) {
     db.exec(`ALTER TABLE users ADD COLUMN game_money INTEGER NOT NULL DEFAULT 0`);
   }
+  if (!columns.includes("nickname_rainbow")) {
+    db.exec(`ALTER TABLE users ADD COLUMN nickname_rainbow INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!columns.includes("nickname_glow")) {
+    db.exec(`ALTER TABLE users ADD COLUMN nickname_glow INTEGER NOT NULL DEFAULT 0`);
+  }
 
   // created_at used to default to UTC (datetime('now')); rows written before
   // this changed to KST (+9 hours, above and in getOrCreateUser's INSERT)
@@ -136,3 +144,11 @@ export function createDb(filename: string): Database.Database {
 }
 
 export const db = createDb(process.env.SQLITE_DB_PATH ?? "data/songpyeon.db");
+
+// SQLite는 boolean이 없어 0/1 INTEGER로 저장한다 — 이 값을 읽는 모든 곳(여러
+// 파일에 흩어진 SELECT 결과)에서 이 함수로 명시적으로 변환해서 실제 TS
+// boolean으로 다룬다. 그냥 `as SomeType`으로 캐스팅하면 타입은 boolean인데
+// 실제 값은 0/1 숫자로 남아있는 거짓말이 생긴다.
+export function sqliteBool(value: number): boolean {
+  return value === 1;
+}

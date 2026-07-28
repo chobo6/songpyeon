@@ -11,6 +11,7 @@ import {
   recordRoundAchievement,
   setNickname,
   setNicknameColor,
+  setNicknameEffects,
   setUserBanned,
   touchLastLogin,
 } from "./googleAuth";
@@ -149,7 +150,9 @@ describe("recordRoundAchievement", () => {
     recordRoundAchievement(user.id, 7);
     expect(getTopRanking(10)).toEqual([]); // no nickname yet, excluded from ranking
     setNickname(user.id, "달리기");
-    expect(getTopRanking(10)).toEqual([{ nickname: "달리기", nicknameColor: null, maxRound: 7 }]);
+    expect(getTopRanking(10)).toEqual([
+      { nickname: "달리기", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 7 },
+    ]);
   });
 
   test("never lowers an existing max_round", () => {
@@ -157,7 +160,9 @@ describe("recordRoundAchievement", () => {
     setNickname(user.id, "버티기");
     recordRoundAchievement(user.id, 9);
     recordRoundAchievement(user.id, 2);
-    expect(getTopRanking(10)).toEqual([{ nickname: "버티기", nicknameColor: null, maxRound: 9 }]);
+    expect(getTopRanking(10)).toEqual([
+      { nickname: "버티기", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 9 },
+    ]);
   });
 });
 
@@ -220,8 +225,8 @@ describe("getTopRanking", () => {
     }
 
     expect(getTopRanking(2)).toEqual([
-      { nickname: "1등후보", nicknameColor: null, maxRound: 12 },
-      { nickname: "2등후보", nicknameColor: null, maxRound: 8 },
+      { nickname: "1등후보", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 12 },
+      { nickname: "2등후보", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 8 },
     ]);
   });
 
@@ -251,7 +256,9 @@ describe("setNicknameColor", () => {
     setNicknameColor(user.id, "#00ff00");
 
     expect(listUsers().find((u) => u.id === user.id)?.nicknameColor).toBe("#00ff00");
-    expect(getTopRanking(10)).toEqual([{ nickname: "색깔유저", nicknameColor: "#00ff00", maxRound: 4 }]);
+    expect(getTopRanking(10)).toEqual([
+      { nickname: "색깔유저", nicknameColor: "#00ff00", nicknameRainbow: false, nicknameGlow: false, maxRound: 4 },
+    ]);
   });
 
   test.each(["red", "#fff", "#gggggg", "#ff6b6b1", "not-a-color"])(
@@ -270,6 +277,40 @@ describe("setNicknameColor", () => {
     const result = setNicknameColor(user.id, null);
     expect(result).toBe("ok");
     expect(getUserById(user.id)?.nicknameColor).toBeNull();
+  });
+});
+
+describe("setNicknameEffects", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("turns rainbow and glow on independently", () => {
+    const user = getOrCreateUser("sub-effects-1", {});
+    setNicknameEffects(user.id, { rainbow: true, glow: false });
+
+    const profile = getUserById(user.id);
+    expect(profile?.nicknameRainbow).toBe(true);
+    expect(profile?.nicknameGlow).toBe(false);
+  });
+
+  test("turns them back off", () => {
+    const user = getOrCreateUser("sub-effects-2", {});
+    setNicknameEffects(user.id, { rainbow: true, glow: true });
+    setNicknameEffects(user.id, { rainbow: false, glow: false });
+
+    const profile = getUserById(user.id);
+    expect(profile?.nicknameRainbow).toBe(false);
+    expect(profile?.nicknameGlow).toBe(false);
+  });
+
+  test("getUserById returns real booleans, not 0/1 numbers", () => {
+    const user = getOrCreateUser("sub-effects-3", {});
+    setNicknameEffects(user.id, { rainbow: true, glow: true });
+
+    const profile = getUserById(user.id);
+    expect(typeof profile?.nicknameRainbow).toBe("boolean");
+    expect(typeof profile?.nicknameGlow).toBe("boolean");
   });
 });
 
