@@ -29,6 +29,9 @@ export type UserProfile = {
   nickname: string | null;
   bannedAt: string | null;
   nicknameColor: string | null;
+  maxRound: number;
+  pigPlayCount: number;
+  rabbitPlayCount: number;
 };
 
 // googleSub 기준 조회 후 생성/갱신 — 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든)
@@ -60,7 +63,11 @@ export function getOrCreateUser(googleSub: string, info: { email?: string; name?
   }
 
   return db
-    .prepare(`SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor FROM users WHERE google_sub = ?`)
+    .prepare(
+      `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
+              max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount
+       FROM users WHERE google_sub = ?`,
+    )
     .get(googleSub) as UserProfile;
 }
 
@@ -79,7 +86,11 @@ export function setNickname(userId: number, nickname: string): SetNicknameResult
 
 export function getUserById(userId: number): UserProfile | undefined {
   return db
-    .prepare(`SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor FROM users WHERE id = ?`)
+    .prepare(
+      `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
+              max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount
+       FROM users WHERE id = ?`,
+    )
     .get(userId) as UserProfile | undefined;
 }
 
@@ -153,6 +164,17 @@ export function setUserBanned(userId: number, banned: boolean): void {
 // impossible, not just unlikely).
 export function recordRoundAchievement(userId: number, round: number): void {
   db.prepare(`UPDATE users SET max_round = MAX(max_round, ?) WHERE id = ?`).run(round, userId);
+}
+
+// 매치가 실제로 시작될 때(대기 화면 카운트다운이 끝나는 시점) 그 판에 배정된
+// 역할로 +1 — 관전자는 대상이 아니고, 중간에 나가도 이미 카운트된 판은 그대로
+// 유지된다(끝까지 완주했는지가 아니라 그 역할로 몇 번 시작했는지를 센다).
+export function recordRolePlayed(userId: number, role: "pig" | "rabbit"): void {
+  if (role === "pig") {
+    db.prepare(`UPDATE users SET pig_play_count = pig_play_count + 1 WHERE id = ?`).run(userId);
+  } else {
+    db.prepare(`UPDATE users SET rabbit_play_count = rabbit_play_count + 1 WHERE id = ?`).run(userId);
+  }
 }
 
 export type RankingEntry = { nickname: string; nicknameColor: string | null; maxRound: number };

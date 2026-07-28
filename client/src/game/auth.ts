@@ -54,7 +54,13 @@ export async function renderGoogleButton(
   });
 }
 
-export type Profile = { id: number; nickname: string | null };
+export type Profile = {
+  id: number;
+  nickname: string | null;
+  maxRound: number;
+  pigPlayCount: number;
+  rabbitPlayCount: number;
+};
 
 export async function loginWithGoogle(credential: string): Promise<Profile> {
   const res = await fetch("/api/auth/google", {

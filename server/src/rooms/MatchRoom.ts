@@ -16,7 +16,7 @@ import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
 import { notifyPress } from "../admin/pressMonitor";
-import { getUserById, recordRoundAchievement } from "../auth/googleAuth";
+import { getUserById, recordRolePlayed, recordRoundAchievement } from "../auth/googleAuth";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
@@ -564,6 +564,7 @@ export class MatchRoom extends Room<MatchState> {
     this.state.activeTeamIndex = 0;
     this.turnsThisRound = 0;
     this.teamsAliveAtRoundStart = this.state.teams.length;
+    this.recordRolePlaysStarted();
     // room.locked (what /api/rooms used to read) never becomes true anymore
     // now that maybeStartGame uses setPrivate instead of lock() — the public
     // room list needs some other signal for "this match is in progress," so
@@ -860,6 +861,18 @@ export class MatchRoom extends Room<MatchState> {
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) recordRoundAchievement(userId, round);
+    }
+  }
+
+  // beginPlaying()에서 딱 한 번 — 그 판에 실제로 배정된 역할로 "몇 판 했는지"를
+  // 센다. 관전자는 이 roster에 아예 없으니 자동으로 제외됨. creditRound와 달리
+  // 라운드 진행/팀 탈락과 무관하게 게임이 시작되는 시점에 모든 팀에 대해 실행.
+  private recordRolePlaysStarted() {
+    for (const team of this.state.teams) {
+      const pigUserId = this.playerUserIds.get(team.pigSessionId);
+      if (pigUserId) recordRolePlayed(pigUserId, "pig");
+      const rabbitUserId = this.playerUserIds.get(team.rabbitSessionId);
+      if (rabbitUserId) recordRolePlayed(rabbitUserId, "rabbit");
     }
   }
 

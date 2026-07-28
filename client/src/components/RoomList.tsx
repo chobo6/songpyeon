@@ -16,11 +16,17 @@ const ADMIN_NICKNAME = "홍바들";
 
 export function RoomList({
   nickname,
+  maxRound,
+  pigPlayCount,
+  rabbitPlayCount,
   onCreateRoom,
   onJoinRoom,
   onExit,
 }: {
   nickname: string;
+  maxRound: number;
+  pigPlayCount: number;
+  rabbitPlayCount: number;
   onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
@@ -146,11 +152,12 @@ export function RoomList({
           문의하기
         </button>
       </div>
-      {/* 레이아웃 미리보기 — 실제 판수/최고라운드 연동은 아직 없음, 자리만 잡아둠 */}
       <div className={styles.profileBar}>
         <span className={styles.profileNickname}>{nickname}</span>
-        <span className={styles.profileStat}>🐷 0판 🐰 0판</span>
-        <span className={styles.profileStat}>최고 0라운드</span>
+        <span className={styles.profileStat}>
+          🐷 {pigPlayCount}판 🐰 {rabbitPlayCount}판
+        </span>
+        <span className={styles.profileStat}>최고 {maxRound}라운드</span>
       </div>
       {showCreateModal && (
         <CreateRoomModal

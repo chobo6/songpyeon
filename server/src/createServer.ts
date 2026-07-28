@@ -338,7 +338,13 @@ export function createGameServer(): Server {
         secure: req.secure,
         maxAge: SESSION_MAX_AGE_MS,
       });
-      res.json({ id: user.id, nickname: user.nickname });
+      res.json({
+        id: user.id,
+        nickname: user.nickname,
+        maxRound: user.maxRound,
+        pigPlayCount: user.pigPlayCount,
+        rabbitPlayCount: user.rabbitPlayCount,
+      });
     } catch (err) {
       console.error("구글 로그인 실패:", err);
       res.status(401).json({ error: "로그인에 실패했습니다." });
@@ -354,7 +360,17 @@ export function createGameServer(): Server {
     }
     const user = getUserById(userId);
     if (user) touchLastLogin(userId);
-    res.json(user ? { id: user.id, nickname: user.nickname } : null);
+    res.json(
+      user
+        ? {
+            id: user.id,
+            nickname: user.nickname,
+            maxRound: user.maxRound,
+            pigPlayCount: user.pigPlayCount,
+            rabbitPlayCount: user.rabbitPlayCount,
+          }
+        : null,
+    );
   });
 
   app.post("/api/auth/nickname", (req, res) => {
@@ -379,7 +395,13 @@ export function createGameServer(): Server {
       return;
     }
     const user = getUserById(userId);
-    res.json({ id: userId, nickname: user?.nickname ?? null });
+    res.json({
+      id: userId,
+      nickname: user?.nickname ?? null,
+      maxRound: user?.maxRound ?? 0,
+      pigPlayCount: user?.pigPlayCount ?? 0,
+      rabbitPlayCount: user?.rabbitPlayCount ?? 0,
+    });
   });
 
   // 로비(방 목록) 화면의 "문의하기" 버튼에서만 호출됨 — 온라인 입장 자체가

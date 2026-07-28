@@ -6,6 +6,7 @@ import {
   getTopRanking,
   getUserById,
   listUsers,
+  recordRolePlayed,
   recordRoundAchievement,
   setNickname,
   setNicknameColor,
@@ -156,6 +157,26 @@ describe("recordRoundAchievement", () => {
     recordRoundAchievement(user.id, 9);
     recordRoundAchievement(user.id, 2);
     expect(getTopRanking(10)).toEqual([{ nickname: "버티기", nicknameColor: null, maxRound: 9 }]);
+  });
+});
+
+describe("recordRolePlayed", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("increments pig_play_count independently of rabbit_play_count", () => {
+    const user = getOrCreateUser("sub-role-1", {});
+    recordRolePlayed(user.id, "pig");
+    recordRolePlayed(user.id, "pig");
+    recordRolePlayed(user.id, "rabbit");
+
+    expect(getUserById(user.id)).toMatchObject({ pigPlayCount: 2, rabbitPlayCount: 1 });
+  });
+
+  test("starts both counts at zero for a brand-new user", () => {
+    const user = getOrCreateUser("sub-role-2", {});
+    expect(getUserById(user.id)).toMatchObject({ pigPlayCount: 0, rabbitPlayCount: 0 });
   });
 });
 

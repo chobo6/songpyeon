@@ -14,6 +14,8 @@ export function createDb(filename: string): Database.Database {
       banned_at TEXT,
       nickname_color TEXT,
       last_login_at TEXT,
+      pig_play_count INTEGER NOT NULL DEFAULT 0,
+      rabbit_play_count INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
@@ -70,6 +72,12 @@ export function createDb(filename: string): Database.Database {
   }
   if (!columns.includes("last_login_at")) {
     db.exec(`ALTER TABLE users ADD COLUMN last_login_at TEXT`);
+  }
+  if (!columns.includes("pig_play_count")) {
+    db.exec(`ALTER TABLE users ADD COLUMN pig_play_count INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!columns.includes("rabbit_play_count")) {
+    db.exec(`ALTER TABLE users ADD COLUMN rabbit_play_count INTEGER NOT NULL DEFAULT 0`);
   }
 
   // created_at used to default to UTC (datetime('now')); rows written before
