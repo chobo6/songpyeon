@@ -178,7 +178,7 @@
 .declineButton,
 .cancelButton,
 .removeButton {
-  padding: 0.35rem 0.7rem;
+  padding: 0.25rem 0.7rem;
   font-size: 0.8rem;
   border-radius: 0.4rem;
   border: none;
@@ -202,7 +202,7 @@
 }
 
 .followButton {
-  padding: 0.35rem 0.7rem;
+  padding: 0.25rem 0.7rem;
   font-size: 0.8rem;
   border-radius: 0.4rem;
   border: none;
@@ -215,7 +215,7 @@
 
 .chatButton {
   position: relative;
-  padding: 0.35rem 0.7rem;
+  padding: 0.25rem 0.7rem;
   font-size: 0.8rem;
   border-radius: 0.4rem;
   border: none;
