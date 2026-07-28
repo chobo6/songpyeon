@@ -38,6 +38,42 @@ npm run lint   # oxlint
   `socket.remoteAddress`)를 받아 `client.auth`에 담아둠 — `onJoin`/`onLeave`가 세션ID·닉네임과
   함께 입장/퇴장 로그로 남김(아래 관리자 페이지가 이 로그를 보여줌). `onJoin`/`onLeave` 둘 다
   `async`이며, 방 메타데이터(`setMetadata`)에 현재 방 인원 명단(`players`)도 매번 갱신함.
+- **친구 시스템** (2026-07-27~): 요청 보내기/수락/거절/취소/삭제(`server/src/friends/friendships.ts`,
+  `client/src/game/friends.ts`, `FriendsModal.tsx` — 친구 목록/받은 요청/보낸 요청 3개 탭), 온라인
+  여부(로비 폴링 기반 presence, `server/src/admin/presence.ts` 재사용) 및 같은 방에 있으면 방ID까지
+  같이 내려줘서 대기실에서 "초대하기"(`InviteFriendsModal.tsx`, 60초 TTL 메모리 큐,
+  `server/src/friends/invites.ts`)로 부르거나 로비 친구 목록에서 "따라가기"로 바로 합류 가능. 친구끼리는
+  1:1 영구 채팅도 가능(`server/src/chat/directMessages.ts`, `direct_messages`/`chat_read_state` 테이블,
+  안 읽은 개수 뱃지) — 인게임 채팅과 같은 `ChatBox.tsx`를 재사용(`directMessageToChatMessage.ts`로 모양만
+  변환). 설계: `docs/superpowers/specs/2026-07-27-friend-invite-follow-design.md`,
+  `2026-07-28-friend-direct-chat-design.md`.
+- **닉네임 클릭 → 프로필 팝업** (2026-07-28~): 대기실/친구창/관전자 목록(매치 진행 중 화면은 관전자
+  목록만 — 플레이어 팀 로스터는 어디서도 클릭 불가, `TeamRosterPanel.tsx`는 의도적으로 미대상)에서
+  닉네임을 누르면 `ProfileModal.tsx`가 역할별 판수/최고라운드와 함께 뜨고, 친구 여부에 따라 친구 요청
+  보내기/삭제 버튼이 분기됨(`GET /api/profile/:nickname`, `friendships.ts`의 `getFriendshipStatus`).
+  설계: `docs/superpowers/specs/2026-07-28-clickable-profile-design.md`.
+- **로비 하단 프로필바 + 게임머니** (2026-07-28~): 로비(`RoomList.tsx`) 화면 하단 20%에 닉네임/역할별
+  플레이횟수(`pig_play_count`/`rabbit_play_count`, 매치가 실제로 시작될 때 `MatchRoom.beginPlaying()`이
+  1회 카운트)/최고라운드/게임머니(`🪙`, 천단위 쉼표)를 세로로 보여줌. 게임머니는 팀이 자기 차례(턴)를
+  성공적으로 완료할 때마다 팀원 둘 다 각각 "10원 × 그 방의 팀 수"를 적립(`MatchRoom.ts`의
+  `creditTurnSuccess`, `googleAuth.ts`의 `addGameMoney`) — 상점/차감 기능은 아직 없음(적립만).
+  매치/방에서 나갈 때마다 `fetchMe()`를 다시 불러 최신 값으로 갱신함(`App.tsx`) — 안 그러면 방금
+  딴 돈이 로비로 돌아와도 안 보이고 다음 새로고침 전까지 예전 스냅샷이 남음.
+- **닉네임 특수효과 — 레인보우/글로우** (2026-07-29~, `/admin` → 유저 정보 → 효과 체크박스로 관리자가
+  수동 지급, `setNicknameEffects`): 레인보우는 움직이는 그라데이션으로 지정된 단색(`nicknameColor`)을
+  덮어쓰고, 글로우는 닉네임 자기 색 기준 `text-shadow`(색 없거나 레인보우와 같이 켜져 있으면 흰색
+  대체)로 레인보우와 독립적으로 켤 수 있음. 클라이언트 공용 헬퍼
+  `client/src/game/nicknameStyle.ts`(`nicknameStyle(color, rainbow, glow)`) 하나로 색이 나오는 모든
+  화면(인게임 로스터/대기실/채팅/랭킹/프로필 팝업/친구창/관전자 목록/관리자 목록)이 스타일을 계산함 —
+  새 화면에 닉네임을 표시할 땐 반드시 이 헬퍼를 거칠 것, `style={{color: ...}}`를 직접 쓰지 말 것.
+  `background-clip: text`(레인보우 구현 방식) 특성상 이 클래스를 붙인 엘리먼트 자체의 배경은 사라짐 —
+  대부분 화면은 닉네임 안쪽 `<span>`에만 붙여서 문제없지만, 관전자 목록/대기실 "역할 선택 중" 목록은
+  버튼(알약 배경) 자체에 붙어 있어 레인보우 유저는 알약 배경 없이 보임(의도적으로 유지하기로 확정,
+  버그 아님). SQLite는 boolean이 없어 `nickname_rainbow`/`nickname_glow`를 0/1 `INTEGER`로 저장하고
+  읽을 때마다 `server/src/db/connection.ts`의 `sqliteBool()`로 명시 변환함 — 그냥 캐스팅하지 말 것.
+  설계: `docs/superpowers/specs/2026-07-29-nickname-effects-design.md`.
+- **로비 안내 버튼** (2026-07-28~): 메인 로비 화면(`RoomList.tsx`) 좌측 하단의 "안내" 버튼 →
+  `WelcomeModal.tsx`. 표시 문구는 `WELCOME_MESSAGE` 상수를 직접 수정(자유 텍스트, 줄바꿈 그대로 반영).
 - **관리자 모니터링 페이지** (`/admin`, 고정 비밀번호 인증 — `ADMIN_PASSWORD` 환경변수): 현재
   활성 방/인원, 최근 입장·퇴장 로그, 전체 공지 배너(SSE)를 제공. `server/src/admin/`
   (`eventLog.ts`=입장·퇴장 로그(IP 포함), `auth.ts`=비밀번호+세션, `announcements.ts`=SSE 방송),
@@ -138,6 +174,11 @@ npm run lint   # oxlint
     -v /home/ec2-user/songpyeon-data:/app/server/data songpyeon:latest
   ```
   잘못된 볼륨으로 이미 배포해버렸다면: 실제 데이터는 바인드 마운트 경로에 그대로 안전하게 남아있음(컨테이너를 지워도 안 지워짐) — 컨테이너만 올바른 마운트로 재생성하면 즉시 복구됨. 다만 그 사이 로그인한 사람이 있었다면 세션 쿠키가 (텅 빈 DB 기준으로 새로 매겨진) 엉뚱한 낮은 id를 가리키게 돼 실제 DB로 복구한 뒤에도 다른 사람 계정으로 로그인된 것처럼 보이는 2차 문제가 생김 — `SESSION_JWT_SECRET`을 새로 발급해 재배포하면(기존 세션 전부 무효화, 재로그인 시 `google_sub` 기준으로 정확한 계정을 다시 찾음) 해결됨.
+- **`docker build`에 `--build-arg VITE_GOOGLE_CLIENT_ID=...`를 빠뜨리면 구글 로그인이 빈 client_id로 배포됨** — 서버 쪽 `GOOGLE_CLIENT_ID`(위 `docker run -e`, 런타임에 ID 토큰 검증용 audience로 씀)와 클라이언트 쪽 `VITE_GOOGLE_CLIENT_ID`(Vite가 **빌드 시점**에 번들에 직접 박아 넣음, `client/src/game/auth.ts`)는 이름이 비슷해도 완전히 다른 주입 경로라, 하나를 챙겼다고 다른 하나도 챙겨지는 게 아님. `.dockerignore`의 `**/.env`/`**/.env.*`가 재귀 제외라 실제 값이 든 `client/.env.local`은 빌드 컨텍스트에 아예 안 들어가므로, `--build-arg` 없이 빌드하면 소리 없이 빈 문자열로 굳어짐(타입에러도, 빌드 실패도 안 남 — 로그인 버튼은 뜨지만 눌러도 실패). 재배포 시 항상:
+  ```
+  docker build --build-arg VITE_GOOGLE_CLIENT_ID=<client/.env.local의 VITE_GOOGLE_CLIENT_ID 값> -t songpyeon:latest .
+  ```
+  로 빌드하고, 배포 전에 `docker create`+`docker cp`로 이미지 안 번들을 꺼내 `grep -o "client_id:\`[^\`]*\`"`로 실제 값이 들어있는지 확인한 뒤 진행할 것(배포 후에도 라이브 사이트의 서빙되는 JS 번들을 같은 방식으로 재확인). 상세 재현/수정 기록은 `docs/TROUBLESHOOTING.md` #33 참고.
 
 ## Workflow
 

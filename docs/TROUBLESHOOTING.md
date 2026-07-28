@@ -1775,3 +1775,67 @@ flex 기본값(`min-height: auto`, 내용물 이하로 안 줄어듦)이 그대�
 - `client/src/components/ChatBox.module.css`
 - `client/src/components/SequenceBoard.module.css`
 - `client/src/components/PlayingScreen.module.css`
+
+---
+
+## #33 `docker build`에 `--build-arg VITE_GOOGLE_CLIENT_ID`를 빠뜨려 구글 로그인이 빈 client_id로 배포됨
+
+### 증상
+
+게임머니 기능을 배포하고 나서, 프로덕션 사이트(`https://52-79-227-179.nip.io`)에서 구글 로그인
+버튼을 눌러도 로그인이 진행되지 않는 상태였음(에러 메시지도 명확하지 않음). 실제 서빙되는 JS 번들을
+`curl`로 받아 확인해보니:
+```
+google.accounts.id.initialize({client_id:``,callback:e=>t(e.credential
+```
+`client_id`가 빈 템플릿 문자열로 그대로 박혀있었음.
+
+### 원인
+
+이 프로젝트는 구글 클라이언트 ID를 두 군데서 각자 다른 방식으로 씀:
+- **서버**: `GOOGLE_CLIENT_ID` — `docker run -e GOOGLE_CLIENT_ID=...`로 컨테이너 실행 시점에 주입,
+  `verifyGoogleIdToken`이 ID 토큰의 audience를 검증할 때 런타임에 읽음.
+- **클라이언트**: `VITE_GOOGLE_CLIENT_ID` — `client/src/game/auth.ts`의 `renderGoogleButton`이
+  `import.meta.env.VITE_GOOGLE_CLIENT_ID`로 참조하는데, Vite는 이 값을 **빌드 시점**에 번들에 문자열
+  그대로 박아 넣음(런타임에 다시 안 읽음). `Dockerfile`의 `client-build` 스테이지가
+  `ARG VITE_GOOGLE_CLIENT_ID` + `ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID`로 이 값을 받아서
+  `vite build`에 넘기는 구조.
+
+로컬에는 `client/.env.local`에 실제 값이 있지만(`VITE_SERVER_URL`과 함께), `.dockerignore`의
+`**/.env`/`**/.env.*`가 재귀적으로 이 파일을 빌드 컨텍스트에서 제외함(의도된 동작 — #9 참고). 즉
+`docker build`에 `--build-arg VITE_GOOGLE_CLIENT_ID=...`를 **명시적으로** 안 넘기면, `ARG`가 빈 채로
+`vite build`가 진행되어 번들에 빈 문자열이 그대로 굳어짐 — 타입에러도 빌드 실패도 없이 조용히
+일어나서, 배포 직후 직접 로그인을 시도해보지 않으면 알아채기 어려움. 실제로 게임머니 기능을
+`docker build -t songpyeon:latest .`(플래그 없이)로 빌드해서 이 사고가 발생했음.
+
+### 수정
+
+`--build-arg`를 명시해서 재빌드·재배포:
+```
+docker build --build-arg VITE_GOOGLE_CLIENT_ID=<client/.env.local의 값> -t songpyeon:latest .
+```
+
+### 검증
+
+배포 전, 로컬에서 이미지를 빌드한 직후 컨테이너를 굳이 실행하지 않고도 번들만 꺼내서 확인 가능:
+```
+docker create --name verify-temp songpyeon:latest
+docker cp verify-temp:/app/server/public/assets ./verify-image/
+docker rm verify-temp
+grep -o "client_id:\`[^\`]*\`" ./verify-image/assets/index-*.js
+```
+값이 제대로 박혀있는 걸 확인한 뒤에만 `docker save`/`scp`/배포 진행. 배포 후에도 라이브 사이트의
+실제 서빙되는 JS 번들 경로를 `curl`로 받아 같은 `grep`으로 재확인 — 로컬 이미지 검증과 실제 배포된
+컨테이너가 다를 수 있으므로(예: 옛 이미지가 캐시되어 재사용됐거나) 이중으로 확인하는 게 안전함.
+
+### 교훈
+
+이름이 비슷한 두 환경변수(`GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`)가 완전히 다른 주입 경로
+(런타임 `-e` vs 빌드타임 `--build-arg`)를 쓴다는 게 이 사고의 핵심 — 재배포 시 `docker run` 쪽 환경변수
+체크리스트(#27에서 이미 강조)만 챙기고 `docker build` 쪽 build-arg는 별도로 안 챙기면 재발함. 두
+단계 모두 "이전 값 그대로 재사용" 습관을 들일 것: `docker run`은 `docker inspect`로, `docker build`는
+`client/.env.local`을 소스로. CLAUDE.md의 Gotchas에 정확한 명령어를 고정해서 매번 재구성하지 않게
+해둠.
+
+### 관련 파일
+- `Dockerfile`, `.dockerignore`, `client/.env.local`, `client/src/game/auth.ts`
