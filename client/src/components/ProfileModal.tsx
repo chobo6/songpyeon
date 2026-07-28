@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getProfile, type PublicProfile } from "../game/profile";
 import { removeFriend, sendFriendRequest } from "../game/friends";
+import { nicknameStyle } from "../game/nicknameStyle";
 import styles from "./ProfileModal.module.css";
 
 export function ProfileModal({ nickname, onClose }: { nickname: string; onClose: () => void }) {
@@ -8,6 +9,9 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const effect = profile
+    ? nicknameStyle(profile.nicknameColor, profile.nicknameRainbow, profile.nicknameGlow)
+    : { className: "", style: {} };
 
   useEffect(() => {
     getProfile(nickname)
@@ -55,7 +59,7 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
         {!error && !profile && <p className={styles.loading}>불러오는 중...</p>}
         {profile && (
           <>
-            <h2 className={styles.heading} style={{ color: profile.nicknameColor || undefined }}>
+            <h2 className={`${styles.heading} ${effect.className}`} style={effect.style}>
               {profile.nickname}
             </h2>
             <div className={styles.stats}>

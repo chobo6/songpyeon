@@ -4,6 +4,8 @@ export type PublicProfile = {
   userId: number;
   nickname: string;
   nicknameColor: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getRanking, type RankingEntry } from "../colyseus";
+import { nicknameStyle } from "../game/nicknameStyle";
 import styles from "./RankingModal.module.css";
 
 export function RankingModal({ onClose }: { onClose: () => void }) {
@@ -29,15 +30,18 @@ export function RankingModal({ onClose }: { onClose: () => void }) {
         {!error && ranking?.length === 0 && <p className={styles.empty}>아직 기록이 없어요</p>}
         {!error && ranking && ranking.length > 0 && (
           <ol className={styles.list}>
-            {ranking.map((entry, i) => (
-              <li key={entry.nickname} className={i === 0 ? `${styles.row} ${styles.first}` : styles.row}>
-                <span className={styles.rank}>{i + 1}</span>
-                <span className={styles.nickname} style={{ color: entry.nicknameColor || undefined }}>
-                  {entry.nickname}
-                </span>
-                <span className={styles.round}>{entry.maxRound}라운드</span>
-              </li>
-            ))}
+            {ranking.map((entry, i) => {
+              const effect = nicknameStyle(entry.nicknameColor, entry.nicknameRainbow, entry.nicknameGlow);
+              return (
+                <li key={entry.nickname} className={i === 0 ? `${styles.row} ${styles.first}` : styles.row}>
+                  <span className={styles.rank}>{i + 1}</span>
+                  <span className={`${styles.nickname} ${effect.className}`} style={effect.style}>
+                    {entry.nickname}
+                  </span>
+                  <span className={styles.round}>{entry.maxRound}라운드</span>
+                </li>
+              );
+            })}
           </ol>
         )}
         <button className={styles.closeButton} onClick={onClose}>

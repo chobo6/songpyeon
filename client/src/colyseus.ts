@@ -36,6 +36,8 @@ export async function listRooms(): Promise<RoomListEntry[]> {
 export interface RankingEntry {
   nickname: string;
   nicknameColor: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
   maxRound: number;
 }
 

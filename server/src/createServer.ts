@@ -731,6 +731,8 @@ export function createGameServer(): Server {
       userId: target.id,
       nickname: user.nickname,
       nicknameColor: user.nicknameColor,
+      nicknameRainbow: user.nicknameRainbow,
+      nicknameGlow: user.nicknameGlow,
       maxRound: user.maxRound,
       pigPlayCount: user.pigPlayCount,
       rabbitPlayCount: user.rabbitPlayCount,
