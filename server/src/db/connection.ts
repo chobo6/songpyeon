@@ -16,6 +16,7 @@ export function createDb(filename: string): Database.Database {
       last_login_at TEXT,
       pig_play_count INTEGER NOT NULL DEFAULT 0,
       rabbit_play_count INTEGER NOT NULL DEFAULT 0,
+      game_money INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
@@ -78,6 +79,9 @@ export function createDb(filename: string): Database.Database {
   }
   if (!columns.includes("rabbit_play_count")) {
     db.exec(`ALTER TABLE users ADD COLUMN rabbit_play_count INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!columns.includes("game_money")) {
+    db.exec(`ALTER TABLE users ADD COLUMN game_money INTEGER NOT NULL DEFAULT 0`);
   }
 
   // created_at used to default to UTC (datetime('now')); rows written before

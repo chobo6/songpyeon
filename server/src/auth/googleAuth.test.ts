@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db } from "../db/connection";
 import {
+  addGameMoney,
   adminSetNickname,
   getOrCreateUser,
   getTopRanking,
@@ -177,6 +178,27 @@ describe("recordRolePlayed", () => {
   test("starts both counts at zero for a brand-new user", () => {
     const user = getOrCreateUser("sub-role-2", {});
     expect(getUserById(user.id)).toMatchObject({ pigPlayCount: 0, rabbitPlayCount: 0 });
+  });
+});
+
+describe("addGameMoney", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("increases game_money by the given amount for a fresh user", () => {
+    const user = getOrCreateUser("sub-money-1", {});
+    addGameMoney(user.id, 20);
+
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: 20 });
+  });
+
+  test("accumulates across multiple calls", () => {
+    const user = getOrCreateUser("sub-money-2", {});
+    addGameMoney(user.id, 10);
+    addGameMoney(user.id, 30);
+
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: 40 });
   });
 });
 

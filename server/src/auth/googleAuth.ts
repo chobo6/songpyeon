@@ -32,6 +32,7 @@ export type UserProfile = {
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
+  gameMoney: number;
 };
 
 // googleSub 기준 조회 후 생성/갱신 — 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든)
@@ -65,7 +66,8 @@ export function getOrCreateUser(googleSub: string, info: { email?: string; name?
   return db
     .prepare(
       `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
-              max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount
+              max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount,
+              game_money AS gameMoney
        FROM users WHERE google_sub = ?`,
     )
     .get(googleSub) as UserProfile;
@@ -88,7 +90,8 @@ export function getUserById(userId: number): UserProfile | undefined {
   return db
     .prepare(
       `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
-              max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount
+              max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount,
+              game_money AS gameMoney
        FROM users WHERE id = ?`,
     )
     .get(userId) as UserProfile | undefined;
@@ -175,6 +178,13 @@ export function recordRolePlayed(userId: number, role: "pig" | "rabbit"): void {
   } else {
     db.prepare(`UPDATE users SET rabbit_play_count = rabbit_play_count + 1 WHERE id = ?`).run(userId);
   }
+}
+
+// 팀이 자기 차례(턴)를 성공적으로 완료할 때마다 호출된다(MatchRoom.ts의
+// handlePressButton, turnOutcome이 "success"로 확정되는 지점). amount는
+// 호출부에서 이미 "10 × 팀 수"로 계산해서 넘겨준다 — 여기서는 그냥 누적만 한다.
+export function addGameMoney(userId: number, amount: number): void {
+  db.prepare(`UPDATE users SET game_money = game_money + ? WHERE id = ?`).run(amount, userId);
 }
 
 export type RankingEntry = { nickname: string; nicknameColor: string | null; maxRound: number };
