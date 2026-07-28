@@ -1,4 +1,4 @@
-import { db } from "../db/connection";
+import { db, sqliteBool } from "../db/connection";
 
 export function findUserByNickname(nickname: string): { id: number } | undefined {
   return db.prepare(`SELECT id FROM users WHERE nickname = ?`).get(nickname) as { id: number } | undefined;
@@ -99,44 +99,101 @@ export function removeFriend(userId: number, friendshipId: number): boolean {
   return true;
 }
 
-export type FriendListEntry = { friendshipId: number; userId: number; nickname: string; lastLoginAt: string | null };
+export type FriendListEntry = {
+  friendshipId: number;
+  userId: number;
+  nickname: string;
+  lastLoginAt: string | null;
+  nicknameColor: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
+};
 
 export function listFriends(userId: number): FriendListEntry[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT f.id AS friendshipId,
               u.id AS userId,
               u.nickname AS nickname,
-              u.last_login_at AS lastLoginAt
+              u.last_login_at AS lastLoginAt,
+              u.nickname_color AS nicknameColor,
+              u.nickname_rainbow AS nicknameRainbow,
+              u.nickname_glow AS nicknameGlow
        FROM friendships f
        JOIN users u ON u.id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END
        WHERE f.status = 'accepted' AND (f.requester_id = ? OR f.addressee_id = ?)`,
     )
-    .all(userId, userId, userId) as FriendListEntry[];
+    .all(userId, userId, userId) as (Omit<FriendListEntry, "nicknameRainbow" | "nicknameGlow"> & {
+    nicknameRainbow: number;
+    nicknameGlow: number;
+  })[];
+  return rows.map((row) => ({
+    ...row,
+    nicknameRainbow: sqliteBool(row.nicknameRainbow),
+    nicknameGlow: sqliteBool(row.nicknameGlow),
+  }));
 }
 
-export type ReceivedRequestEntry = { requestId: number; fromUserId: number; fromNickname: string; createdAt: string };
+export type ReceivedRequestEntry = {
+  requestId: number;
+  fromUserId: number;
+  fromNickname: string;
+  createdAt: string;
+  fromNicknameColor: string | null;
+  fromNicknameRainbow: boolean;
+  fromNicknameGlow: boolean;
+};
 
 export function listReceivedRequests(userId: number): ReceivedRequestEntry[] {
-  return db
+  const rows = db
     .prepare(
-      `SELECT f.id AS requestId, u.id AS fromUserId, u.nickname AS fromNickname, f.created_at AS createdAt
+      `SELECT f.id AS requestId, u.id AS fromUserId, u.nickname AS fromNickname, f.created_at AS createdAt,
+              u.nickname_color AS fromNicknameColor,
+              u.nickname_rainbow AS fromNicknameRainbow,
+              u.nickname_glow AS fromNicknameGlow
        FROM friendships f
        JOIN users u ON u.id = f.requester_id
        WHERE f.addressee_id = ? AND f.status = 'pending'`,
     )
-    .all(userId) as ReceivedRequestEntry[];
+    .all(userId) as (Omit<ReceivedRequestEntry, "fromNicknameRainbow" | "fromNicknameGlow"> & {
+    fromNicknameRainbow: number;
+    fromNicknameGlow: number;
+  })[];
+  return rows.map((row) => ({
+    ...row,
+    fromNicknameRainbow: sqliteBool(row.fromNicknameRainbow),
+    fromNicknameGlow: sqliteBool(row.fromNicknameGlow),
+  }));
 }
 
-export type SentRequestEntry = { requestId: number; toUserId: number; toNickname: string; createdAt: string };
+export type SentRequestEntry = {
+  requestId: number;
+  toUserId: number;
+  toNickname: string;
+  createdAt: string;
+  toNicknameColor: string | null;
+  toNicknameRainbow: boolean;
+  toNicknameGlow: boolean;
+};
 
 export function listSentRequests(userId: number): SentRequestEntry[] {
-  return db
+  const rows = db
     .prepare(
-      `SELECT f.id AS requestId, u.id AS toUserId, u.nickname AS toNickname, f.created_at AS createdAt
+      `SELECT f.id AS requestId, u.id AS toUserId, u.nickname AS toNickname, f.created_at AS createdAt,
+              u.nickname_color AS toNicknameColor,
+              u.nickname_rainbow AS toNicknameRainbow,
+              u.nickname_glow AS toNicknameGlow
        FROM friendships f
        JOIN users u ON u.id = f.addressee_id
        WHERE f.requester_id = ? AND f.status = 'pending'`,
     )
-    .all(userId) as SentRequestEntry[];
+    .all(userId) as (Omit<SentRequestEntry, "toNicknameRainbow" | "toNicknameGlow"> & {
+    toNicknameRainbow: number;
+    toNicknameGlow: number;
+  })[];
+  return rows.map((row) => ({
+    ...row,
+    toNicknameRainbow: sqliteBool(row.toNicknameRainbow),
+    toNicknameGlow: sqliteBool(row.toNicknameGlow),
+  }));
 }

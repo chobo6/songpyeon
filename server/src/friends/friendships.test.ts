@@ -190,8 +190,28 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
     const id = getFriendshipId(a, b);
     respondToRequest(id, b, true);
 
-    expect(listFriends(a)).toEqual([{ friendshipId: id, userId: b, nickname: "비", lastLoginAt: expect.any(String) }]);
-    expect(listFriends(b)).toEqual([{ friendshipId: id, userId: a, nickname: "에이", lastLoginAt: expect.any(String) }]);
+    expect(listFriends(a)).toEqual([
+      {
+        friendshipId: id,
+        userId: b,
+        nickname: "비",
+        lastLoginAt: expect.any(String),
+        nicknameColor: null,
+        nicknameRainbow: false,
+        nicknameGlow: false,
+      },
+    ]);
+    expect(listFriends(b)).toEqual([
+      {
+        friendshipId: id,
+        userId: a,
+        nickname: "에이",
+        lastLoginAt: expect.any(String),
+        nicknameColor: null,
+        nicknameRainbow: false,
+        nicknameGlow: false,
+      },
+    ]);
   });
 
   test("listReceivedRequests only shows pending requests addressed to me", () => {
@@ -200,7 +220,15 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
     sendFriendRequest(a, b);
 
     expect(listReceivedRequests(b)).toEqual([
-      { requestId: getFriendshipId(a, b), fromUserId: a, fromNickname: "에이", createdAt: expect.any(String) },
+      {
+        requestId: getFriendshipId(a, b),
+        fromUserId: a,
+        fromNickname: "에이",
+        createdAt: expect.any(String),
+        fromNicknameColor: null,
+        fromNicknameRainbow: false,
+        fromNicknameGlow: false,
+      },
     ]);
     expect(listReceivedRequests(a)).toEqual([]);
   });
@@ -211,7 +239,15 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
     sendFriendRequest(a, b);
 
     expect(listSentRequests(a)).toEqual([
-      { requestId: getFriendshipId(a, b), toUserId: b, toNickname: "비", createdAt: expect.any(String) },
+      {
+        requestId: getFriendshipId(a, b),
+        toUserId: b,
+        toNickname: "비",
+        createdAt: expect.any(String),
+        toNicknameColor: null,
+        toNicknameRainbow: false,
+        toNicknameGlow: false,
+      },
     ]);
     expect(listSentRequests(b)).toEqual([]);
   });

@@ -1,10 +1,12 @@
-import { db } from "../db/connection";
+import { db, sqliteBool } from "../db/connection";
 
 export type DirectMessageEntry = {
   id: number;
   senderId: number;
   senderNickname: string;
   senderNicknameColor: string | null;
+  senderNicknameRainbow: boolean;
+  senderNicknameGlow: boolean;
   text: string;
   createdAt: string;
 };
@@ -16,15 +18,27 @@ export function getMessages(userId: number, otherUserId: number): DirectMessageE
   const rows = db
     .prepare(
       `SELECT m.id AS id, m.sender_id AS senderId, u.nickname AS senderNickname,
-              u.nickname_color AS senderNicknameColor, m.text AS text, m.created_at AS createdAt
+              u.nickname_color AS senderNicknameColor,
+              u.nickname_rainbow AS senderNicknameRainbow,
+              u.nickname_glow AS senderNicknameGlow,
+              m.text AS text, m.created_at AS createdAt
        FROM direct_messages m
        JOIN users u ON u.id = m.sender_id
        WHERE (m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?)
        ORDER BY m.id DESC
        LIMIT ?`,
     )
-    .all(userId, otherUserId, otherUserId, userId, HISTORY_LIMIT) as DirectMessageEntry[];
-  return rows.reverse();
+    .all(userId, otherUserId, otherUserId, userId, HISTORY_LIMIT) as (Omit<
+    DirectMessageEntry,
+    "senderNicknameRainbow" | "senderNicknameGlow"
+  > & { senderNicknameRainbow: number; senderNicknameGlow: number })[];
+  return rows
+    .map((row) => ({
+      ...row,
+      senderNicknameRainbow: sqliteBool(row.senderNicknameRainbow),
+      senderNicknameGlow: sqliteBool(row.senderNicknameGlow),
+    }))
+    .reverse();
 }
 
 export function sendMessage(senderId: number, recipientId: number, text: string): void {
