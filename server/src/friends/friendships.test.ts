@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db } from "../db/connection";
 import { getOrCreateUser } from "../auth/googleAuth";
-import { sendFriendRequest, respondToRequest, cancelRequest, removeFriend, listFriends, listReceivedRequests, listSentRequests, areFriends } from "./friendships";
+import { sendFriendRequest, respondToRequest, cancelRequest, removeFriend, listFriends, listReceivedRequests, listSentRequests, areFriends, getFriendshipStatus } from "./friendships";
 
 function makeUser(sub: string, nickname: string): number {
   const user = getOrCreateUser(sub, {});
@@ -259,5 +259,52 @@ describe("areFriends", () => {
     const a = makeUser("sub-a", "에이");
     const b = makeUser("sub-b", "비");
     expect(areFriends(a, b)).toBe(false);
+  });
+});
+
+describe("getFriendshipStatus", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM friendships");
+    db.exec("DELETE FROM users");
+  });
+
+  test("returns self when viewer and target are the same", () => {
+    const a = makeUser("sub-status-1", "에이");
+    expect(getFriendshipStatus(a, a)).toEqual({ status: "self", friendshipId: null });
+  });
+
+  test("returns none when there's no friendship row", () => {
+    const a = makeUser("sub-status-2", "에이");
+    const b = makeUser("sub-status-3", "비");
+    expect(getFriendshipStatus(a, b)).toEqual({ status: "none", friendshipId: null });
+  });
+
+  test("returns pending_sent when the viewer sent the request", () => {
+    const a = makeUser("sub-status-4", "에이");
+    const b = makeUser("sub-status-5", "비");
+    sendFriendRequest(a, b);
+    const result = getFriendshipStatus(a, b);
+    expect(result.status).toBe("pending_sent");
+    expect(result.friendshipId).toEqual(expect.any(Number));
+  });
+
+  test("returns pending_received when the viewer received the request", () => {
+    const a = makeUser("sub-status-6", "에이");
+    const b = makeUser("sub-status-7", "비");
+    sendFriendRequest(a, b);
+    const result = getFriendshipStatus(b, a);
+    expect(result.status).toBe("pending_received");
+    expect(result.friendshipId).toEqual(expect.any(Number));
+  });
+
+  test("returns friends with the friendshipId once accepted, symmetric both directions", () => {
+    const a = makeUser("sub-status-8", "에이");
+    const b = makeUser("sub-status-9", "비");
+    sendFriendRequest(a, b);
+    const requestId = getFriendshipId(a, b);
+    respondToRequest(requestId, b, true);
+
+    expect(getFriendshipStatus(a, b)).toEqual({ status: "friends", friendshipId: requestId });
+    expect(getFriendshipStatus(b, a)).toEqual({ status: "friends", friendshipId: requestId });
   });
 });

@@ -16,6 +16,18 @@ function findFriendshipRow(userA: number, userB: number): FriendshipRow | undefi
     .get(userA, userB, userB, userA) as FriendshipRow | undefined;
 }
 
+export type FriendshipStatus = "self" | "friends" | "pending_sent" | "pending_received" | "none";
+
+export type FriendshipStatusResult = { status: FriendshipStatus; friendshipId: number | null };
+
+export function getFriendshipStatus(viewerId: number, targetId: number): FriendshipStatusResult {
+  if (viewerId === targetId) return { status: "self", friendshipId: null };
+  const row = findFriendshipRow(viewerId, targetId);
+  if (!row) return { status: "none", friendshipId: null };
+  if (row.status === "accepted") return { status: "friends", friendshipId: row.id };
+  return { status: row.requester_id === viewerId ? "pending_sent" : "pending_received", friendshipId: row.id };
+}
+
 // requesterId/addresseeId 방향 무관, status='accepted' row가 있는지만 확인한다.
 export function areFriends(userIdA: number, userIdB: number): boolean {
   const row = db
