@@ -229,6 +229,11 @@
 .profileNickname {
   font-weight: 800;
   font-size: 1.1rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
 }
 
 .profileStat {

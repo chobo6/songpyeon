@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { getReceivedRequests } from "../game/friends";
 import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/invites";
+import { nicknameStyle } from "../game/nicknameStyle";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
 import { WelcomeModal } from "./WelcomeModal";
 import { FriendsModal } from "./FriendsModal";
+import { ProfileModal } from "./ProfileModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -17,6 +19,9 @@ const ADMIN_NICKNAME = "홍바들";
 
 export function RoomList({
   nickname,
+  nicknameColor,
+  nicknameRainbow,
+  nicknameGlow,
   maxRound,
   pigPlayCount,
   rabbitPlayCount,
@@ -24,8 +29,12 @@ export function RoomList({
   onCreateRoom,
   onJoinRoom,
   onExit,
+  onProfileChanged,
 }: {
   nickname: string;
+  nicknameColor: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
@@ -33,6 +42,7 @@ export function RoomList({
   onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
+  onProfileChanged: () => void;
 }) {
   const isAdmin = nickname === ADMIN_NICKNAME;
   const [rooms, setRooms] = useState<RoomListEntry[]>([]);
@@ -41,8 +51,10 @@ export function RoomList({
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showOwnProfile, setShowOwnProfile] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
+  const nicknameEffect = nicknameStyle(nicknameColor, nicknameRainbow, nicknameGlow);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,7 +172,14 @@ export function RoomList({
         </button>
       </div>
       <div className={styles.profileBar}>
-        <span className={styles.profileNickname}>{nickname}</span>
+        <button
+          type="button"
+          className={`${styles.profileNickname} ${nicknameEffect.className}`}
+          style={nicknameEffect.style}
+          onClick={() => setShowOwnProfile(true)}
+        >
+          {nickname}
+        </button>
         <span className={styles.profileStat}>
           🐷 {pigPlayCount}판 🐰 {rabbitPlayCount}판
         </span>
@@ -179,6 +198,13 @@ export function RoomList({
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
       {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
+      {showOwnProfile && (
+        <ProfileModal
+          nickname={nickname}
+          onClose={() => setShowOwnProfile(false)}
+          onSelfColorChanged={onProfileChanged}
+        />
+      )}
       {showFriendsModal && (
         <FriendsModal
           onJoinRoom={onJoinRoom}

@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
-import { getProfile, type PublicProfile } from "../game/profile";
+import { getProfile, rerollNicknameColor, type PublicProfile } from "../game/profile";
 import { removeFriend, sendFriendRequest } from "../game/friends";
 import { nicknameStyle } from "../game/nicknameStyle";
 import styles from "./ProfileModal.module.css";
 
-export function ProfileModal({ nickname, onClose }: { nickname: string; onClose: () => void }) {
+export function ProfileModal({
+  nickname,
+  onClose,
+  onSelfColorChanged,
+}: {
+  nickname: string;
+  onClose: () => void;
+  onSelfColorChanged?: () => void;
+}) {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,6 +60,20 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
     }
   }
 
+  async function handleReroll() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { nicknameColor } = await rerollNicknameColor();
+      setProfile((prev) => (prev ? { ...prev, nicknameColor } : prev));
+      onSelfColorChanged?.();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "닉색 변경에 실패했어요.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -69,6 +91,11 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
               <span className={styles.stat}>최고 {profile.maxRound}라운드</span>
             </div>
             {message && <p className={styles.message}>{message}</p>}
+            {profile.friendshipStatus === "self" && (
+              <button className={styles.actionButton} onClick={handleReroll} disabled={busy}>
+                닉색 변경 (20,000원)
+              </button>
+            )}
             {profile.friendshipStatus === "none" && (
               <button className={styles.actionButton} onClick={handleSendRequest} disabled={busy}>
                 친구 요청 보내기

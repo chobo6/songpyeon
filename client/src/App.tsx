@@ -121,6 +121,9 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
     return (
       <RoomList
         nickname={me.nickname}
+        nicknameColor={me.nicknameColor}
+        nicknameRainbow={me.nicknameRainbow}
+        nicknameGlow={me.nicknameGlow}
         maxRound={me.maxRound}
         pigPlayCount={me.pigPlayCount}
         rabbitPlayCount={me.rabbitPlayCount}
@@ -130,6 +133,7 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
         }
         onJoinRoom={(roomId) => setJoinSpec({ type: "joinById", roomId })}
         onExit={onExit}
+        onProfileChanged={() => fetchMe().then(setMe).catch(() => {})}
       />
     );
   }
