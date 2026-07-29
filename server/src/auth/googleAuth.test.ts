@@ -9,6 +9,7 @@ import {
   listUsers,
   recordRolePlayed,
   recordRoundAchievement,
+  rerollNicknameColor,
   setNickname,
   setNicknameColor,
   setNicknameEffects,
@@ -351,5 +352,49 @@ describe("touchLastLogin", () => {
     touchLastLogin(user.id);
 
     expect(listUsers().find((u) => u.id === user.id)?.lastLoginAt).toBeTruthy();
+  });
+});
+
+describe("rerollNicknameColor", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("deducts exactly 20000 and stores a valid #RRGGBB color when funds are sufficient", () => {
+    const user = getOrCreateUser("sub-reroll-1", {});
+    addGameMoney(user.id, 25000);
+
+    const result = rerollNicknameColor(user.id);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok result");
+    expect(result.gameMoney).toBe(5000);
+    expect(result.nicknameColor).toMatch(/^#[0-9a-f]{6}$/);
+    expect(getUserById(user.id)).toMatchObject({
+      gameMoney: 5000,
+      nicknameColor: result.nicknameColor,
+    });
+  });
+
+  test("succeeds at exactly the cost boundary (20000), leaving 0 left", () => {
+    const user = getOrCreateUser("sub-reroll-2", {});
+    addGameMoney(user.id, 20000);
+
+    const result = rerollNicknameColor(user.id);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected ok result");
+    expect(result.gameMoney).toBe(0);
+    expect(getUserById(user.id)?.gameMoney).toBe(0);
+  });
+
+  test("refuses when funds are insufficient and changes nothing", () => {
+    const user = getOrCreateUser("sub-reroll-3", {});
+    addGameMoney(user.id, 19999);
+
+    const result = rerollNicknameColor(user.id);
+
+    expect(result).toEqual({ ok: false, reason: "insufficient_funds" });
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: 19999, nicknameColor: null });
   });
 });

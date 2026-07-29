@@ -252,3 +252,35 @@ export function getTopRanking(limit: number): RankingEntry[] {
     nicknameGlow: sqliteBool(row.nicknameGlow),
   }));
 }
+
+const NICKNAME_REROLL_COST = 20000;
+
+export type RerollNicknameColorResult =
+  | { ok: true; nicknameColor: string; gameMoney: number }
+  | { ok: false; reason: "insufficient_funds" };
+
+// 게임머니 20,000원을 차감하고 #RRGGBB(16^6가지) 중 하나를 균등 랜덤으로 뽑아
+// nickname_color에 저장한다. 잔액 부족이면 아무것도 바꾸지 않고 실패를 반환한다.
+// better-sqlite3는 완전히 동기적이라(이 두 문장 사이에 await 없음) 조회 후 UPDATE
+// 사이에 다른 요청이 끼어들 수 없다 — getOrCreateUser의 기존 논리와 동일한 이유로
+// 트랜잭션 없이도 원자적이다.
+export function rerollNicknameColor(userId: number): RerollNicknameColorResult {
+  const row = db.prepare(`SELECT game_money AS gameMoney FROM users WHERE id = ?`).get(userId) as
+    | { gameMoney: number }
+    | undefined;
+  if (!row || row.gameMoney < NICKNAME_REROLL_COST) {
+    return { ok: false, reason: "insufficient_funds" };
+  }
+  const color = randomHexColor();
+  db.prepare(`UPDATE users SET game_money = game_money - ?, nickname_color = ? WHERE id = ?`).run(
+    NICKNAME_REROLL_COST,
+    color,
+    userId,
+  );
+  return { ok: true, nicknameColor: color, gameMoney: row.gameMoney - NICKNAME_REROLL_COST };
+}
+
+function randomHexColor(): string {
+  const n = Math.floor(Math.random() * 0x1000000);
+  return `#${n.toString(16).padStart(6, "0")}`;
+}
