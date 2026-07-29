@@ -1,28 +1,41 @@
 import type { CSSProperties } from "react";
 import styles from "./nicknameStyle.module.css";
 
-const DEFAULT_GLOW_COLOR = "#ffffff";
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram";
 
-// 닉네임을 렌더링하는 모든 화면(팀 로스터/채팅/랭킹/친구창/관전자 목록/
-// 프로필 팝업)이 공통으로 쓰는 스타일 계산기. 레인보우는 지정된 색을
-// 덮어쓰는 움직이는 그라데이션(className으로 적용 — 애니메이션은 CSS
-// keyframes가 필요해 인라인 style로는 불가능). 글로우는 닉네임 자기 색
-// 기준의 text-shadow이며 레인보우와 독립적으로 켤 수 있다 — 레인보우가
-// 켜져 있으면 대표색이 없으므로 흰색으로 대체한다.
+const DEFAULT_GLOW_COLOR = "#ffffff";
+const DEFAULT_SHINE_BASE_COLOR = "#6fb1ff";
+
+const EFFECT_CLASSNAME: Record<Exclude<NicknameEffect, "none">, string> = {
+  rainbow: styles.rainbow,
+  shine: styles.shine,
+  hologram: styles.hologram,
+};
+
+// 닉네임을 렌더링하는 모든 화면이 공통으로 쓰는 스타일 계산기. 레인보우/샤인/홀로그램은
+// 서로 배타적(닉네임의 "기본 색"을 정의하는 효과라 동시에 켤 수 없음 — nicknameEffect가
+// 이미 하나의 값만 가지므로 구조적으로 보장됨). 글로우는 독립적으로 켤 수 있는 text-shadow.
 export function nicknameStyle(
   color: string | null | undefined,
-  rainbow: boolean | undefined,
+  effect: NicknameEffect | undefined,
   glow: boolean | undefined,
 ): { className: string; style: CSSProperties } {
   const style: CSSProperties = {};
 
   if (glow) {
-    const glowColor = rainbow ? DEFAULT_GLOW_COLOR : color || DEFAULT_GLOW_COLOR;
+    const glowColor = effect && effect !== "none" ? DEFAULT_GLOW_COLOR : color || DEFAULT_GLOW_COLOR;
     style.textShadow = `0 0 6px ${glowColor}, 0 0 16px ${glowColor}`;
   }
 
-  if (rainbow) {
-    return { className: styles.rainbow, style };
+  if (effect === "shine") {
+    // 샤인은 "그 사람 색 위에" 빛이 지나가는 효과라 레인보우/홀로그램과 달리 고정
+    // 팔레트가 아님 — CSS 변수로 베이스 색을 주입한다(CSSProperties엔 커스텀
+    // 프로퍼티 타입이 없어 캐스팅이 필요).
+    (style as CSSProperties & Record<string, string>)["--nickname-base-color"] = color || DEFAULT_SHINE_BASE_COLOR;
+  }
+
+  if (effect && effect !== "none") {
+    return { className: EFFECT_CLASSNAME[effect], style };
   }
 
   if (color) {

@@ -29,6 +29,67 @@
   }
 }
 
+/* 샤인 — .shine.shine인 이유는 .rainbow.rainbow와 동일(위 주석 참고): 이 클래스도
+   pendingName/rosterName처럼 자기 background를 쓰는 클래스와 나란히 적용되므로 같은
+   특이도 트릭이 필요하다. */
+.shine.shine {
+  background: linear-gradient(
+    100deg,
+    var(--nickname-base-color, #6fb1ff) 0%,
+    var(--nickname-base-color, #6fb1ff) 42%,
+    #ffffff 50%,
+    var(--nickname-base-color, #6fb1ff) 58%,
+    var(--nickname-base-color, #6fb1ff) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: shine-sweep 2.6s ease-in-out infinite;
+}
+
+@keyframes shine-sweep {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -140% 0;
+  }
+}
+
+/* 홀로그램 — 레인보우처럼 nicknameColor 무시, 고정 파스텔 팔레트 + 밝기/채도 출렁임 */
+.hologram.hologram {
+  background: linear-gradient(115deg, #ff9ecb, #ffd59e, #e6ff9e, #9effc4, #9ee7ff, #c9a4ff, #ff9ecb);
+  background-size: 320% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation:
+    holo-shift 6s linear infinite,
+    holo-shimmer 2.2s ease-in-out infinite;
+}
+
+@keyframes holo-shift {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: -320% 0;
+  }
+}
+
+@keyframes holo-shimmer {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(1.3) saturate(1.35);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Must match the main rule's `.rainbow.rainbow` specificity (0,2,0) — a
      plain `.rainbow` here (0,1,0) loses to the main rule's `animation`
@@ -37,6 +98,11 @@
      left this override a no-op: prefers-reduced-motion users still got the
      full 4s animation. */
   .rainbow.rainbow {
+    animation-duration: 40s;
+  }
+
+  .shine.shine,
+  .hologram.hologram {
     animation-duration: 40s;
   }
 }
