@@ -360,9 +360,9 @@ describe("rerollNicknameColor", () => {
     db.exec("DELETE FROM users");
   });
 
-  test("deducts exactly 20000 and stores a valid #RRGGBB color when funds are sufficient", () => {
+  test("deducts exactly 10000 and stores a valid #RRGGBB color when funds are sufficient", () => {
     const user = getOrCreateUser("sub-reroll-1", {});
-    addGameMoney(user.id, 25000);
+    addGameMoney(user.id, 15000);
 
     const result = rerollNicknameColor(user.id);
 
@@ -376,9 +376,9 @@ describe("rerollNicknameColor", () => {
     });
   });
 
-  test("succeeds at exactly the cost boundary (20000), leaving 0 left", () => {
+  test("succeeds at exactly the cost boundary (10000), leaving 0 left", () => {
     const user = getOrCreateUser("sub-reroll-2", {});
-    addGameMoney(user.id, 20000);
+    addGameMoney(user.id, 10000);
 
     const result = rerollNicknameColor(user.id);
 
@@ -390,11 +390,11 @@ describe("rerollNicknameColor", () => {
 
   test("refuses when funds are insufficient and changes nothing", () => {
     const user = getOrCreateUser("sub-reroll-3", {});
-    addGameMoney(user.id, 19999);
+    addGameMoney(user.id, 9999);
 
     const result = rerollNicknameColor(user.id);
 
     expect(result).toEqual({ ok: false, reason: "insufficient_funds" });
-    expect(getUserById(user.id)).toMatchObject({ gameMoney: 19999, nicknameColor: null });
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: 9999, nicknameColor: null });
   });
 });

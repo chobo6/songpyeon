@@ -93,7 +93,7 @@ export function ProfileModal({
             {message && <p className={styles.message}>{message}</p>}
             {profile.friendshipStatus === "self" && (
               <button className={styles.actionButton} onClick={handleReroll} disabled={busy}>
-                닉색 변경 (20,000원)
+                닉색 변경 (10,000원)
               </button>
             )}
             {profile.friendshipStatus === "none" && (

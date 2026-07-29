@@ -253,13 +253,13 @@ export function getTopRanking(limit: number): RankingEntry[] {
   }));
 }
 
-const NICKNAME_REROLL_COST = 20000;
+const NICKNAME_REROLL_COST = 10000;
 
 export type RerollNicknameColorResult =
   | { ok: true; nicknameColor: string; gameMoney: number }
   | { ok: false; reason: "insufficient_funds" };
 
-// 게임머니 20,000원을 차감하고 #RRGGBB(16^6가지) 중 하나를 균등 랜덤으로 뽑아
+// 게임머니 10,000원을 차감하고 #RRGGBB(16^6가지) 중 하나를 균등 랜덤으로 뽑아
 // nickname_color에 저장한다. 잔액 부족이면 아무것도 바꾸지 않고 실패를 반환한다.
 // better-sqlite3는 완전히 동기적이라(이 두 문장 사이에 await 없음) 조회 후 UPDATE
 // 사이에 다른 요청이 끼어들 수 없다 — getOrCreateUser의 기존 논리와 동일한 이유로
