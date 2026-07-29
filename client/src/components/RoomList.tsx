@@ -9,6 +9,7 @@ import { InquiryModal } from "./InquiryModal";
 import { WelcomeModal } from "./WelcomeModal";
 import { FriendsModal } from "./FriendsModal";
 import { ProfileModal } from "./ProfileModal";
+import { ShopModal } from "./ShopModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -51,6 +52,7 @@ export function RoomList({
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
+  const [showShopModal, setShowShopModal] = useState(false);
   const [showOwnProfile, setShowOwnProfile] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
@@ -128,6 +130,9 @@ export function RoomList({
             친구
             {pendingRequestCount > 0 && <span className={styles.badge}>{pendingRequestCount}</span>}
           </button>
+          <button className={styles.shopButton} onClick={() => setShowShopModal(true)}>
+            상점
+          </button>
         </div>
         <div className={styles.list}>
           {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
@@ -198,13 +203,7 @@ export function RoomList({
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
       {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
-      {showOwnProfile && (
-        <ProfileModal
-          nickname={nickname}
-          onClose={() => setShowOwnProfile(false)}
-          onSelfColorChanged={onProfileChanged}
-        />
-      )}
+      {showOwnProfile && <ProfileModal nickname={nickname} onClose={() => setShowOwnProfile(false)} />}
       {showFriendsModal && (
         <FriendsModal
           onJoinRoom={onJoinRoom}
@@ -214,6 +213,15 @@ export function RoomList({
               .then((requests) => setPendingRequestCount(requests.length))
               .catch(() => {});
           }}
+        />
+      )}
+      {showShopModal && (
+        <ShopModal
+          nickname={nickname}
+          nicknameColor={nicknameColor}
+          nicknameGlow={nicknameGlow}
+          onClose={() => setShowShopModal(false)}
+          onProfileChanged={onProfileChanged}
         />
       )}
     </div>

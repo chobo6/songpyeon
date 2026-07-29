@@ -112,6 +112,17 @@
   background: linear-gradient(135deg, #6a5acd, #4b6cb7);
 }
 
+.shopButton {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  color: #1c1d3a;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffd76e, #f7a541);
+}
+
 .badge {
   position: absolute;
   top: -0.4rem;
