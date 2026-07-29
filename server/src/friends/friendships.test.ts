@@ -197,7 +197,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         nickname: "비",
         lastLoginAt: expect.any(String),
         nicknameColor: null,
-        nicknameRainbow: false,
+        nicknameEffect: "none",
         nicknameGlow: false,
       },
     ]);
@@ -208,7 +208,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         nickname: "에이",
         lastLoginAt: expect.any(String),
         nicknameColor: null,
-        nicknameRainbow: false,
+        nicknameEffect: "none",
         nicknameGlow: false,
       },
     ]);
@@ -226,7 +226,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         fromNickname: "에이",
         createdAt: expect.any(String),
         fromNicknameColor: null,
-        fromNicknameRainbow: false,
+        fromNicknameEffect: "none",
         fromNicknameGlow: false,
       },
     ]);
@@ -245,7 +245,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         toNickname: "비",
         createdAt: expect.any(String),
         toNicknameColor: null,
-        toNicknameRainbow: false,
+        toNicknameEffect: "none",
         toNicknameGlow: false,
       },
     ]);

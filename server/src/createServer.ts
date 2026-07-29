@@ -19,10 +19,12 @@ import {
   getTopRanking,
   getUserById,
   listUsers,
+  NICKNAME_EFFECTS,
+  type NicknameEffect,
   rerollNicknameColor,
   setNickname,
   setNicknameColor,
-  setNicknameEffects,
+  setNicknameEffect,
   setUserBanned,
   touchLastLogin,
   verifyGoogleIdToken,
@@ -273,12 +275,16 @@ export function createGameServer(): Server {
       res.status(400).json({ error: "invalid id" });
       return;
     }
-    const { rainbow, glow } = req.body as { rainbow?: unknown; glow?: unknown };
-    if (typeof rainbow !== "boolean" || typeof glow !== "boolean") {
-      res.status(400).json({ error: "rainbow와 glow는 boolean이어야 합니다." });
+    const { effect, glow } = req.body as { effect?: unknown; glow?: unknown };
+    if (typeof effect !== "string" || !NICKNAME_EFFECTS.includes(effect as NicknameEffect)) {
+      res.status(400).json({ error: "effect는 'none'|'rainbow'|'shine'|'hologram' 중 하나여야 합니다." });
       return;
     }
-    setNicknameEffects(userId, { rainbow, glow });
+    if (typeof glow !== "boolean") {
+      res.status(400).json({ error: "glow는 boolean이어야 합니다." });
+      return;
+    }
+    setNicknameEffect(userId, effect as NicknameEffect, glow);
     res.json({ ok: true });
   });
 
@@ -360,7 +366,7 @@ export function createGameServer(): Server {
         id: user.id,
         nickname: user.nickname,
         nicknameColor: user.nicknameColor,
-        nicknameRainbow: user.nicknameRainbow,
+        nicknameEffect: user.nicknameEffect,
         nicknameGlow: user.nicknameGlow,
         maxRound: user.maxRound,
         pigPlayCount: user.pigPlayCount,
@@ -388,7 +394,7 @@ export function createGameServer(): Server {
             id: user.id,
             nickname: user.nickname,
             nicknameColor: user.nicknameColor,
-            nicknameRainbow: user.nicknameRainbow,
+            nicknameEffect: user.nicknameEffect,
             nicknameGlow: user.nicknameGlow,
             maxRound: user.maxRound,
             pigPlayCount: user.pigPlayCount,
@@ -425,7 +431,7 @@ export function createGameServer(): Server {
       id: userId,
       nickname: user?.nickname ?? null,
       nicknameColor: user?.nicknameColor ?? null,
-      nicknameRainbow: user?.nicknameRainbow ?? false,
+      nicknameEffect: user?.nicknameEffect ?? "none",
       nicknameGlow: user?.nicknameGlow ?? false,
       maxRound: user?.maxRound ?? 0,
       pigPlayCount: user?.pigPlayCount ?? 0,
@@ -741,7 +747,7 @@ export function createGameServer(): Server {
       userId: target.id,
       nickname: user.nickname,
       nicknameColor: user.nicknameColor,
-      nicknameRainbow: user.nicknameRainbow,
+      nicknameEffect: user.nicknameEffect,
       nicknameGlow: user.nicknameGlow,
       maxRound: user.maxRound,
       pigPlayCount: user.pigPlayCount,

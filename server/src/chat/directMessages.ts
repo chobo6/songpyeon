@@ -1,11 +1,12 @@
 import { db, sqliteBool } from "../db/connection";
+import type { NicknameEffect } from "../auth/googleAuth";
 
 export type DirectMessageEntry = {
   id: number;
   senderId: number;
   senderNickname: string;
   senderNicknameColor: string | null;
-  senderNicknameRainbow: boolean;
+  senderNicknameEffect: NicknameEffect;
   senderNicknameGlow: boolean;
   text: string;
   createdAt: string;
@@ -19,7 +20,7 @@ export function getMessages(userId: number, otherUserId: number): DirectMessageE
     .prepare(
       `SELECT m.id AS id, m.sender_id AS senderId, u.nickname AS senderNickname,
               u.nickname_color AS senderNicknameColor,
-              u.nickname_rainbow AS senderNicknameRainbow,
+              u.nickname_effect AS senderNicknameEffect,
               u.nickname_glow AS senderNicknameGlow,
               m.text AS text, m.created_at AS createdAt
        FROM direct_messages m
@@ -30,12 +31,11 @@ export function getMessages(userId: number, otherUserId: number): DirectMessageE
     )
     .all(userId, otherUserId, otherUserId, userId, HISTORY_LIMIT) as (Omit<
     DirectMessageEntry,
-    "senderNicknameRainbow" | "senderNicknameGlow"
-  > & { senderNicknameRainbow: number; senderNicknameGlow: number })[];
+    "senderNicknameGlow"
+  > & { senderNicknameGlow: number })[];
   return rows
     .map((row) => ({
       ...row,
-      senderNicknameRainbow: sqliteBool(row.senderNicknameRainbow),
       senderNicknameGlow: sqliteBool(row.senderNicknameGlow),
     }))
     .reverse();
