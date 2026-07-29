@@ -91,6 +91,7 @@
 }
 
 .pulse.pulse {
+  background: none;
   color: var(--nickname-base-color, #6fb1ff);
   animation: pulse-glow 1.8s ease-in-out infinite;
 }
@@ -110,6 +111,7 @@
 }
 
 .neon.neon {
+  background: none;
   color: var(--nickname-base-color, #ff3df0);
   text-shadow:
     0 0 2px #fff,
