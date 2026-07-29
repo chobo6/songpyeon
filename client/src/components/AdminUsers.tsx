@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { NicknameEffect } from "../game/nicknameStyle";
 import styles from "./AdminUsers.module.css";
 
 const MAX_NICKNAME_LENGTH = 10;
@@ -13,7 +14,7 @@ type UserRow = {
   nicknameColor: string | null;
   createdAt: string;
   lastLoginAt: string | null;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
 };
 
@@ -150,17 +151,37 @@ export function AdminUsers({
     }
   }
 
-  async function toggleEffect(user: UserRow, effect: "rainbow" | "glow") {
+  async function setEffect(user: UserRow, effect: NicknameEffect) {
     setError(null);
     try {
       const res = await fetch(`/api/admin/users/${user.id}/nickname-effects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({
-          rainbow: effect === "rainbow" ? !user.nicknameRainbow : user.nicknameRainbow,
-          glow: effect === "glow" ? !user.nicknameGlow : user.nicknameGlow,
-        }),
+        body: JSON.stringify({ effect, glow: user.nicknameGlow }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setError("효과 변경에 실패했습니다");
+        return;
+      }
+      await loadUsers();
+    } catch {
+      setError("효과 변경에 실패했습니다");
+    }
+  }
+
+  async function toggleGlow(user: UserRow) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/nickname-effects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ effect: user.nicknameEffect, glow: !user.nicknameGlow }),
       });
       if (!res.ok) {
         if (res.status === 401) {
@@ -294,16 +315,17 @@ export function AdminUsers({
                     )}
                   </td>
                   <td>
+                    <select
+                      value={user.nicknameEffect}
+                      onChange={(e) => setEffect(user, e.target.value as NicknameEffect)}
+                    >
+                      <option value="none">없음</option>
+                      <option value="rainbow">레인보우</option>
+                      <option value="shine">샤인</option>
+                      <option value="hologram">홀로그램</option>
+                    </select>
                     <label className={styles.effectLabel}>
-                      <input
-                        type="checkbox"
-                        checked={user.nicknameRainbow}
-                        onChange={() => toggleEffect(user, "rainbow")}
-                      />
-                      레인보우
-                    </label>
-                    <label className={styles.effectLabel}>
-                      <input type="checkbox" checked={user.nicknameGlow} onChange={() => toggleEffect(user, "glow")} />
+                      <input type="checkbox" checked={user.nicknameGlow} onChange={() => toggleGlow(user)} />
                       글로우
                     </label>
                   </td>
