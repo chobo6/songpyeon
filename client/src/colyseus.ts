@@ -1,4 +1,5 @@
 import { Client, type Room } from "colyseus.js";
+import type { NicknameEffect } from "./game/nicknameStyle";
 
 // PROD builds always derive the endpoint from the page's own origin — both
 // the real deploy (behind Caddy) and a local `npm run sync-public` test on
@@ -36,7 +37,7 @@ export async function listRooms(): Promise<RoomListEntry[]> {
 export interface RankingEntry {
   nickname: string;
   nicknameColor: string | null;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   maxRound: number;
 }

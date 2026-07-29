@@ -1,4 +1,5 @@
 import type { Color, Role } from "./colors";
+import type { NicknameEffect } from "./nicknameStyle";
 
 // Manually mirrors server/src/rooms/MatchState.ts — client and server are
 // separate npm workspaces with no shared-types package yet, so these two
@@ -12,7 +13,7 @@ export interface PlayerState {
   sessionId: string;
   nickname: string;
   nicknameColor: string;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   role: RoleChoice;
   teamId: string;
@@ -31,7 +32,7 @@ export interface TeamState {
 export interface ChatMessage {
   nickname: string;
   nicknameColor: string;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   text: string;
   sentAt: number;
@@ -41,7 +42,7 @@ export interface SpectatorState {
   sessionId: string;
   nickname: string;
   nicknameColor: string;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
 }
 

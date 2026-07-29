@@ -5,7 +5,7 @@ export function directMessageToChatMessage(m: DirectMessageEntry): ChatMessage {
   return {
     nickname: m.senderNickname,
     nicknameColor: m.senderNicknameColor ?? "",
-    nicknameRainbow: m.senderNicknameRainbow,
+    nicknameEffect: m.senderNicknameEffect,
     nicknameGlow: m.senderNicknameGlow,
     text: m.text,
     sentAt: new Date(`${m.createdAt.replace(" ", "T")}+09:00`).getTime(),

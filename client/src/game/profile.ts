@@ -1,10 +1,12 @@
+import type { NicknameEffect } from "./nicknameStyle";
+
 export type FriendshipStatus = "self" | "friends" | "pending_sent" | "pending_received" | "none";
 
 export type PublicProfile = {
   userId: number;
   nickname: string;
   nicknameColor: string | null;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   maxRound: number;
   pigPlayCount: number;

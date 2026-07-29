@@ -1,3 +1,5 @@
+import type { NicknameEffect } from "./nicknameStyle";
+
 export type FriendEntry = {
   friendshipId: number;
   userId: number;
@@ -7,7 +9,7 @@ export type FriendEntry = {
   unreadCount: number;
   lastLoginAt: string | null;
   nicknameColor: string | null;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
 };
 
@@ -17,7 +19,7 @@ export type ReceivedRequestEntry = {
   fromNickname: string;
   createdAt: string;
   fromNicknameColor: string | null;
-  fromNicknameRainbow: boolean;
+  fromNicknameEffect: NicknameEffect;
   fromNicknameGlow: boolean;
 };
 
@@ -27,7 +29,7 @@ export type SentRequestEntry = {
   toNickname: string;
   createdAt: string;
   toNicknameColor: string | null;
-  toNicknameRainbow: boolean;
+  toNicknameEffect: NicknameEffect;
   toNicknameGlow: boolean;
 };
 

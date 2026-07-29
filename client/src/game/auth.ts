@@ -1,3 +1,5 @@
+import type { NicknameEffect } from "./nicknameStyle";
+
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 
 type GoogleAccountsId = {
@@ -58,7 +60,7 @@ export type Profile = {
   id: number;
   nickname: string | null;
   nicknameColor: string | null;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   maxRound: number;
   pigPlayCount: number;

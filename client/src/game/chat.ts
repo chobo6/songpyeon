@@ -1,9 +1,11 @@
+import type { NicknameEffect } from "./nicknameStyle";
+
 export type DirectMessageEntry = {
   id: number;
   senderId: number;
   senderNickname: string;
   senderNicknameColor: string | null;
-  senderNicknameRainbow: boolean;
+  senderNicknameEffect: NicknameEffect;
   senderNicknameGlow: boolean;
   text: string;
   createdAt: string;
