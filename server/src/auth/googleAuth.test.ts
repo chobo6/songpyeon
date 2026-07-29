@@ -12,7 +12,7 @@ import {
   rerollNicknameColor,
   setNickname,
   setNicknameColor,
-  setNicknameEffects,
+  setNicknameEffect,
   setUserBanned,
   touchLastLogin,
 } from "./googleAuth";
@@ -152,7 +152,7 @@ describe("recordRoundAchievement", () => {
     expect(getTopRanking(10)).toEqual([]); // no nickname yet, excluded from ranking
     setNickname(user.id, "달리기");
     expect(getTopRanking(10)).toEqual([
-      { nickname: "달리기", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 7 },
+      { nickname: "달리기", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 7 },
     ]);
   });
 
@@ -162,7 +162,7 @@ describe("recordRoundAchievement", () => {
     recordRoundAchievement(user.id, 9);
     recordRoundAchievement(user.id, 2);
     expect(getTopRanking(10)).toEqual([
-      { nickname: "버티기", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 9 },
+      { nickname: "버티기", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 9 },
     ]);
   });
 });
@@ -226,8 +226,8 @@ describe("getTopRanking", () => {
     }
 
     expect(getTopRanking(2)).toEqual([
-      { nickname: "1등후보", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 12 },
-      { nickname: "2등후보", nicknameColor: null, nicknameRainbow: false, nicknameGlow: false, maxRound: 8 },
+      { nickname: "1등후보", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 12 },
+      { nickname: "2등후보", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 8 },
     ]);
   });
 
@@ -258,7 +258,7 @@ describe("setNicknameColor", () => {
 
     expect(listUsers().find((u) => u.id === user.id)?.nicknameColor).toBe("#00ff00");
     expect(getTopRanking(10)).toEqual([
-      { nickname: "색깔유저", nicknameColor: "#00ff00", nicknameRainbow: false, nicknameGlow: false, maxRound: 4 },
+      { nickname: "색깔유저", nicknameColor: "#00ff00", nicknameEffect: "none", nicknameGlow: false, maxRound: 4 },
     ]);
   });
 
@@ -281,36 +281,45 @@ describe("setNicknameColor", () => {
   });
 });
 
-describe("setNicknameEffects", () => {
+describe("setNicknameEffect", () => {
   beforeEach(() => {
     db.exec("DELETE FROM users");
   });
 
-  test("turns rainbow and glow on independently", () => {
+  test("sets effect and glow independently", () => {
     const user = getOrCreateUser("sub-effects-1", {});
-    setNicknameEffects(user.id, { rainbow: true, glow: false });
+    setNicknameEffect(user.id, "rainbow", false);
 
     const profile = getUserById(user.id);
-    expect(profile?.nicknameRainbow).toBe(true);
+    expect(profile?.nicknameEffect).toBe("rainbow");
     expect(profile?.nicknameGlow).toBe(false);
   });
 
-  test("turns them back off", () => {
+  test("switches between effects (only one active at a time)", () => {
     const user = getOrCreateUser("sub-effects-2", {});
-    setNicknameEffects(user.id, { rainbow: true, glow: true });
-    setNicknameEffects(user.id, { rainbow: false, glow: false });
+    setNicknameEffect(user.id, "rainbow", true);
+    setNicknameEffect(user.id, "hologram", true);
 
     const profile = getUserById(user.id);
-    expect(profile?.nicknameRainbow).toBe(false);
+    expect(profile?.nicknameEffect).toBe("hologram");
+    expect(profile?.nicknameGlow).toBe(true);
+  });
+
+  test("turns everything back to none/off", () => {
+    const user = getOrCreateUser("sub-effects-3", {});
+    setNicknameEffect(user.id, "shine", true);
+    setNicknameEffect(user.id, "none", false);
+
+    const profile = getUserById(user.id);
+    expect(profile?.nicknameEffect).toBe("none");
     expect(profile?.nicknameGlow).toBe(false);
   });
 
-  test("getUserById returns real booleans, not 0/1 numbers", () => {
-    const user = getOrCreateUser("sub-effects-3", {});
-    setNicknameEffects(user.id, { rainbow: true, glow: true });
+  test("getUserById returns a real boolean for glow, not a 0/1 number", () => {
+    const user = getOrCreateUser("sub-effects-4", {});
+    setNicknameEffect(user.id, "shine", true);
 
     const profile = getUserById(user.id);
-    expect(typeof profile?.nicknameRainbow).toBe("boolean");
     expect(typeof profile?.nicknameGlow).toBe("boolean");
   });
 });

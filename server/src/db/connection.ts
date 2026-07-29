@@ -17,7 +17,7 @@ export function createDb(filename: string): Database.Database {
       pig_play_count INTEGER NOT NULL DEFAULT 0,
       rabbit_play_count INTEGER NOT NULL DEFAULT 0,
       game_money INTEGER NOT NULL DEFAULT 0,
-      nickname_rainbow INTEGER NOT NULL DEFAULT 0,
+      nickname_effect TEXT NOT NULL DEFAULT 'none',
       nickname_glow INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
@@ -85,11 +85,11 @@ export function createDb(filename: string): Database.Database {
   if (!columns.includes("game_money")) {
     db.exec(`ALTER TABLE users ADD COLUMN game_money INTEGER NOT NULL DEFAULT 0`);
   }
-  if (!columns.includes("nickname_rainbow")) {
-    db.exec(`ALTER TABLE users ADD COLUMN nickname_rainbow INTEGER NOT NULL DEFAULT 0`);
-  }
   if (!columns.includes("nickname_glow")) {
     db.exec(`ALTER TABLE users ADD COLUMN nickname_glow INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!columns.includes("nickname_effect")) {
+    db.exec(`ALTER TABLE users ADD COLUMN nickname_effect TEXT NOT NULL DEFAULT 'none'`);
   }
 
   // created_at used to default to UTC (datetime('now')); rows written before
@@ -102,6 +102,15 @@ export function createDb(filename: string): Database.Database {
   if (schemaVersion < 1) {
     db.exec(`UPDATE users SET created_at = datetime(created_at, '+9 hours')`);
     db.pragma("user_version = 1");
+  }
+  if (schemaVersion < 2) {
+    // 신규 DB(CREATE TABLE이 이미 새 스키마로 만듦)는 nickname_rainbow 컬럼이
+    // 아예 없으므로, 옛 DB에만 있는 이 컬럼이 실제로 존재할 때만 백필+제거한다.
+    if (columns.includes("nickname_rainbow")) {
+      db.exec(`UPDATE users SET nickname_effect = 'rainbow' WHERE nickname_rainbow = 1`);
+      db.exec(`ALTER TABLE users DROP COLUMN nickname_rainbow`);
+    }
+    db.pragma("user_version = 2");
   }
 
   db.exec(`
