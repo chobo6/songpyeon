@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
-import { nicknameStyle } from "../game/nicknameStyle";
+import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
 import { ChatBox } from "./ChatBox";
 import { InviteFriendsModal } from "./InviteFriendsModal";
 import { ProfileModal } from "./ProfileModal";
@@ -38,8 +38,8 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
     return sessionId ? room.state.players.get(sessionId)?.nicknameColor || undefined : undefined;
   }
 
-  function nicknameRainbowFor(sessionId: string): boolean {
-    return sessionId ? (room.state.players.get(sessionId)?.nicknameRainbow ?? false) : false;
+  function nicknameEffectFor(sessionId: string): NicknameEffect {
+    return sessionId ? (room.state.players.get(sessionId)?.nicknameEffect ?? "none") : "none";
   }
 
   function nicknameGlowFor(sessionId: string): boolean {
@@ -62,7 +62,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             <span className={styles.pendingLabel}>역할 선택 중</span>
             <div className={styles.pendingNames}>
               {unassignedPlayers.map((p) => {
-                const effect = nicknameStyle(p.nicknameColor, p.nicknameRainbow, p.nicknameGlow);
+                const effect = nicknameStyle(p.nicknameColor, p.nicknameEffect, p.nicknameGlow);
                 return (
                   <button
                     key={p.sessionId}
@@ -108,12 +108,12 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
         {teams.map((team) => {
           const pigEffect = nicknameStyle(
             nicknameColorFor(team.pigSessionId),
-            nicknameRainbowFor(team.pigSessionId),
+            nicknameEffectFor(team.pigSessionId),
             nicknameGlowFor(team.pigSessionId),
           );
           const rabbitEffect = nicknameStyle(
             nicknameColorFor(team.rabbitSessionId),
-            nicknameRainbowFor(team.rabbitSessionId),
+            nicknameEffectFor(team.rabbitSessionId),
             nicknameGlowFor(team.rabbitSessionId),
           );
           return (

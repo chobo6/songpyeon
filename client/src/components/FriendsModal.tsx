@@ -134,7 +134,7 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               {received === null && <p className={styles.loading}>불러오는 중...</p>}
               {received?.length === 0 && <p className={styles.empty}>받은 요청이 없어요</p>}
               {received?.map((r) => {
-                const effect = nicknameStyle(r.fromNicknameColor, r.fromNicknameRainbow, r.fromNicknameGlow);
+                const effect = nicknameStyle(r.fromNicknameColor, r.fromNicknameEffect, r.fromNicknameGlow);
                 return (
                   <div key={r.requestId} className={styles.row}>
                     <button
@@ -162,7 +162,7 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               {sent === null && <p className={styles.loading}>불러오는 중...</p>}
               {sent?.length === 0 && <p className={styles.empty}>보낸 요청이 없어요</p>}
               {sent?.map((r) => {
-                const effect = nicknameStyle(r.toNicknameColor, r.toNicknameRainbow, r.toNicknameGlow);
+                const effect = nicknameStyle(r.toNicknameColor, r.toNicknameEffect, r.toNicknameGlow);
                 return (
                   <div key={r.requestId} className={styles.row}>
                     <button
@@ -188,7 +188,7 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
             {friends === null && <p className={styles.loading}>불러오는 중...</p>}
             {friends?.length === 0 && <p className={styles.empty}>아직 친구가 없어요</p>}
             {friends?.map((f) => {
-              const effect = nicknameStyle(f.nicknameColor, f.nicknameRainbow, f.nicknameGlow);
+              const effect = nicknameStyle(f.nicknameColor, f.nicknameEffect, f.nicknameGlow);
               return (
                 <div key={f.friendshipId} className={`${styles.row} ${styles.friendRow}`}>
                   <div className={styles.friendRowTop}>

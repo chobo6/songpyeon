@@ -113,7 +113,7 @@ export const ChatBox = memo(function ChatBox({
       <div className={styles.list} ref={listRef}>
         {messages.length === 0 && <p className={styles.empty}>아직 채팅이 없어요</p>}
         {messages.map((m, i) => {
-          const effect = nicknameStyle(m.nicknameColor, m.nicknameRainbow, m.nicknameGlow);
+          const effect = nicknameStyle(m.nicknameColor, m.nicknameEffect, m.nicknameGlow);
           return m.nickname ? (
             <p key={i} className={styles.line}>
               <span className={`${styles.nickname} ${effect.className}`} style={effect.style}>

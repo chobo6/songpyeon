@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { getReceivedRequests } from "../game/friends";
 import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/invites";
-import { nicknameStyle } from "../game/nicknameStyle";
+import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
@@ -20,7 +20,7 @@ const ADMIN_NICKNAME = "홍바들";
 export function RoomList({
   nickname,
   nicknameColor,
-  nicknameRainbow,
+  nicknameEffect,
   nicknameGlow,
   maxRound,
   pigPlayCount,
@@ -33,7 +33,7 @@ export function RoomList({
 }: {
   nickname: string;
   nicknameColor: string | null;
-  nicknameRainbow: boolean;
+  nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   maxRound: number;
   pigPlayCount: number;
@@ -54,7 +54,7 @@ export function RoomList({
   const [showOwnProfile, setShowOwnProfile] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
-  const nicknameEffect = nicknameStyle(nicknameColor, nicknameRainbow, nicknameGlow);
+  const effect = nicknameStyle(nicknameColor, nicknameEffect, nicknameGlow);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,8 +174,8 @@ export function RoomList({
       <div className={styles.profileBar}>
         <button
           type="button"
-          className={`${styles.profileNickname} ${nicknameEffect.className}`}
-          style={nicknameEffect.style}
+          className={`${styles.profileNickname} ${effect.className}`}
+          style={effect.style}
           onClick={() => setShowOwnProfile(true)}
         >
           {nickname}

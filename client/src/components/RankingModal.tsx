@@ -31,7 +31,7 @@ export function RankingModal({ onClose }: { onClose: () => void }) {
         {!error && ranking && ranking.length > 0 && (
           <ol className={styles.list}>
             {ranking.map((entry, i) => {
-              const effect = nicknameStyle(entry.nicknameColor, entry.nicknameRainbow, entry.nicknameGlow);
+              const effect = nicknameStyle(entry.nicknameColor, entry.nicknameEffect, entry.nicknameGlow);
               return (
                 <li key={entry.nickname} className={i === 0 ? `${styles.row} ${styles.first}` : styles.row}>
                   <span className={styles.rank}>{i + 1}</span>

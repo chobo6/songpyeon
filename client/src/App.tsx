@@ -122,7 +122,7 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
       <RoomList
         nickname={me.nickname}
         nicknameColor={me.nicknameColor}
-        nicknameRainbow={me.nicknameRainbow}
+        nicknameEffect={me.nicknameEffect}
         nicknameGlow={me.nicknameGlow}
         maxRound={me.maxRound}
         pigPlayCount={me.pigPlayCount}

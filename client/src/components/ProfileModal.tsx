@@ -18,7 +18,7 @@ export function ProfileModal({
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const effect = profile
-    ? nicknameStyle(profile.nicknameColor, profile.nicknameRainbow, profile.nicknameGlow)
+    ? nicknameStyle(profile.nicknameColor, profile.nicknameEffect, profile.nicknameGlow)
     : { className: "", style: {} };
 
   useEffect(() => {
