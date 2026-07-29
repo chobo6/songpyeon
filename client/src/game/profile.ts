@@ -19,3 +19,10 @@ export async function getProfile(nickname: string): Promise<PublicProfile> {
   if (!res.ok) throw new Error(body?.error ?? "프로필을 불러오지 못했어요.");
   return body as PublicProfile;
 }
+
+export async function rerollNicknameColor(): Promise<{ nicknameColor: string; gameMoney: number }> {
+  const res = await fetch("/api/profile/reroll-color", { method: "POST", credentials: "same-origin" });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body?.error ?? "닉색 변경에 실패했어요.");
+  return body;
+}

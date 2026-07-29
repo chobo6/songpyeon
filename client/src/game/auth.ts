@@ -57,6 +57,9 @@ export async function renderGoogleButton(
 export type Profile = {
   id: number;
   nickname: string | null;
+  nicknameColor: string | null;
+  nicknameRainbow: boolean;
+  nicknameGlow: boolean;
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
