@@ -91,7 +91,7 @@ export function ShopModal({
           <>
             <p className={styles.money}>🪙 {shop.gameMoney.toLocaleString("ko-KR")}원</p>
             <div className={styles.grid}>
-              {SHOP_EFFECTS.map((effect) => {
+              {[...SHOP_EFFECTS].sort((a, b) => shop.prices[a] - shop.prices[b]).map((effect) => {
                 const isOwned = shop.owned.includes(effect);
                 const isEquipped = shop.equipped === effect;
                 const preview = nicknameStyle(nicknameColor, effect, nicknameGlow);
@@ -134,13 +134,13 @@ export function ShopModal({
               </div>
             </div>
             <div className={styles.rerollCard}>
-              <span className={styles.effectName}>닉네임 색 변경권</span>
+              <span className={styles.effectName}>닉네임 색 변경</span>
               <button
                 className={styles.actionButton}
                 disabled={busyEffect === "reroll-color"}
                 onClick={handleRerollColor}
               >
-                재추첨 ({shop.rerollColorPrice.toLocaleString("ko-KR")}원)
+                구매 ({shop.rerollColorPrice.toLocaleString("ko-KR")}원)
               </button>
             </div>
           </>

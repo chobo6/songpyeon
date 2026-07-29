@@ -9,6 +9,7 @@ import {
   getTopRanking,
   getUserById,
   listUsers,
+  NICKNAME_REROLL_COST,
   purchaseEffect,
   recordRolePlayed,
   recordRoundAchievement,
@@ -16,6 +17,7 @@ import {
   setNickname,
   setNicknameColor,
   setNicknameEffect,
+  SHOP_PRICES,
   setUserBanned,
   touchLastLogin,
 } from "./googleAuth";
@@ -372,9 +374,9 @@ describe("rerollNicknameColor", () => {
     db.exec("DELETE FROM users");
   });
 
-  test("deducts exactly 10000 and stores a valid #RRGGBB color when funds are sufficient", () => {
+  test("deducts exactly NICKNAME_REROLL_COST and stores a valid #RRGGBB color when funds are sufficient", () => {
     const user = getOrCreateUser("sub-reroll-1", {});
-    addGameMoney(user.id, 15000);
+    addGameMoney(user.id, NICKNAME_REROLL_COST + 5000);
 
     const result = rerollNicknameColor(user.id);
 
@@ -388,9 +390,9 @@ describe("rerollNicknameColor", () => {
     });
   });
 
-  test("succeeds at exactly the cost boundary (10000), leaving 0 left", () => {
+  test("succeeds at exactly the cost boundary, leaving 0 left", () => {
     const user = getOrCreateUser("sub-reroll-2", {});
-    addGameMoney(user.id, 10000);
+    addGameMoney(user.id, NICKNAME_REROLL_COST);
 
     const result = rerollNicknameColor(user.id);
 
@@ -402,12 +404,12 @@ describe("rerollNicknameColor", () => {
 
   test("refuses when funds are insufficient and changes nothing", () => {
     const user = getOrCreateUser("sub-reroll-3", {});
-    addGameMoney(user.id, 9999);
+    addGameMoney(user.id, NICKNAME_REROLL_COST - 1);
 
     const result = rerollNicknameColor(user.id);
 
     expect(result).toEqual({ ok: false, reason: "insufficient_funds" });
-    expect(getUserById(user.id)).toMatchObject({ gameMoney: 9999, nicknameColor: null });
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: NICKNAME_REROLL_COST - 1, nicknameColor: null });
   });
 });
 
@@ -419,7 +421,7 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
 
   test("purchasing deducts the exact price and records ownership", () => {
     const user = getOrCreateUser("sub-shop-1", {});
-    addGameMoney(user.id, 15000);
+    addGameMoney(user.id, SHOP_PRICES.chrome + 3000);
 
     const result = purchaseEffect(user.id, "chrome");
 
@@ -430,30 +432,31 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
 
   test("refuses purchase when funds are insufficient and changes nothing", () => {
     const user = getOrCreateUser("sub-shop-2", {});
-    addGameMoney(user.id, 5000);
+    addGameMoney(user.id, SHOP_PRICES.chrome - 1);
 
     const result = purchaseEffect(user.id, "chrome");
 
     expect(result).toBe("insufficient_funds");
-    expect(getUserById(user.id)?.gameMoney).toBe(5000);
+    expect(getUserById(user.id)?.gameMoney).toBe(SHOP_PRICES.chrome - 1);
     expect(getOwnedEffects(user.id)).toEqual([]);
   });
 
   test("refuses a duplicate purchase and doesn't charge twice", () => {
     const user = getOrCreateUser("sub-shop-3", {});
-    addGameMoney(user.id, 100000);
+    const startMoney = SHOP_PRICES.chrome * 10;
+    addGameMoney(user.id, startMoney);
     purchaseEffect(user.id, "chrome");
 
     const result = purchaseEffect(user.id, "chrome");
 
     expect(result).toBe("already_owned");
-    expect(getUserById(user.id)?.gameMoney).toBe(100000 - 12000);
+    expect(getUserById(user.id)?.gameMoney).toBe(startMoney - SHOP_PRICES.chrome);
     expect(getOwnedEffects(user.id)).toEqual(["chrome"]);
   });
 
   test("equipping an owned effect updates nicknameEffect without touching glow", () => {
     const user = getOrCreateUser("sub-shop-4", {});
-    addGameMoney(user.id, 100000);
+    addGameMoney(user.id, SHOP_PRICES.neon);
     purchaseEffect(user.id, "neon");
     setNicknameEffect(user.id, "rainbow", true); // sets glow=true and also owns rainbow
 

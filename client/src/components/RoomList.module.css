@@ -112,17 +112,6 @@
   background: linear-gradient(135deg, #6a5acd, #4b6cb7);
 }
 
-.shopButton {
-  padding: 0.6rem 1.2rem;
-  font-size: 1rem;
-  border-radius: 0.6rem;
-  border: none;
-  cursor: pointer;
-  color: #1c1d3a;
-  font-weight: 700;
-  background: linear-gradient(135deg, #ffd76e, #f7a541);
-}
-
 .badge {
   position: absolute;
   top: -0.4rem;
@@ -194,7 +183,7 @@
   flex-shrink: 0;
 }
 
-.welcomeButton {
+.shopButton {
   padding: 0.4rem 0.9rem;
   font-size: 0.8rem;
   font-weight: 700;
@@ -202,7 +191,7 @@
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  background: linear-gradient(135deg, #e8a3b0, #f4d58d);
+  background: linear-gradient(135deg, #ffd76e, #f7a541);
 }
 
 .inquiryButton {

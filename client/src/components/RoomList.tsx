@@ -6,7 +6,6 @@ import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
-import { WelcomeModal } from "./WelcomeModal";
 import { FriendsModal } from "./FriendsModal";
 import { ProfileModal } from "./ProfileModal";
 import { ShopModal } from "./ShopModal";
@@ -50,7 +49,6 @@ export function RoomList({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showOwnProfile, setShowOwnProfile] = useState(false);
@@ -130,9 +128,6 @@ export function RoomList({
             친구
             {pendingRequestCount > 0 && <span className={styles.badge}>{pendingRequestCount}</span>}
           </button>
-          <button className={styles.shopButton} onClick={() => setShowShopModal(true)}>
-            상점
-          </button>
         </div>
         <div className={styles.list}>
           {rooms.length === 0 && <p className={styles.empty}>열려있는 방이 없어요</p>}
@@ -169,8 +164,8 @@ export function RoomList({
         </button>
       </div>
       <div className={styles.inquiryRow}>
-        <button className={styles.welcomeButton} onClick={() => setShowWelcomeModal(true)}>
-          안내
+        <button className={styles.shopButton} onClick={() => setShowShopModal(true)}>
+          상점
         </button>
         <button className={styles.inquiryButton} onClick={() => setShowInquiryModal(true)}>
           문의하기
@@ -202,7 +197,6 @@ export function RoomList({
       )}
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
-      {showWelcomeModal && <WelcomeModal onClose={() => setShowWelcomeModal(false)} />}
       {showOwnProfile && <ProfileModal nickname={nickname} onClose={() => setShowOwnProfile(false)} />}
       {showFriendsModal && (
         <FriendsModal

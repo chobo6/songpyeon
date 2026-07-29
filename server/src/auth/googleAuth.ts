@@ -254,7 +254,7 @@ export function getTopRanking(limit: number): RankingEntry[] {
   }));
 }
 
-export const NICKNAME_REROLL_COST = 10000;
+export const NICKNAME_REROLL_COST = 6000;
 
 export type RerollNicknameColorResult =
   | { ok: true; nicknameColor: string; gameMoney: number }
@@ -290,12 +290,12 @@ export type ShopEffect = Exclude<NicknameEffect, "none">;
 
 // 임시 가격 — 나중에 이 숫자들만 바꾸면 됨.
 export const SHOP_PRICES: Record<ShopEffect, number> = {
-  rainbow: 20000,
-  shine: 15000,
-  hologram: 25000,
-  pulse: 12000,
-  neon: 15000,
-  chrome: 12000,
+  rainbow: 1500000,
+  shine: 500000,
+  hologram: 1500000,
+  pulse: 500000,
+  neon: 500000,
+  chrome: 600000,
 };
 
 export function getOwnedEffects(userId: number): NicknameEffect[] {
