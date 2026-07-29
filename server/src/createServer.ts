@@ -19,6 +19,7 @@ import {
   getTopRanking,
   getUserById,
   listUsers,
+  rerollNicknameColor,
   setNickname,
   setNicknameColor,
   setNicknameEffects,
@@ -358,6 +359,9 @@ export function createGameServer(): Server {
       res.json({
         id: user.id,
         nickname: user.nickname,
+        nicknameColor: user.nicknameColor,
+        nicknameRainbow: user.nicknameRainbow,
+        nicknameGlow: user.nicknameGlow,
         maxRound: user.maxRound,
         pigPlayCount: user.pigPlayCount,
         rabbitPlayCount: user.rabbitPlayCount,
@@ -383,6 +387,9 @@ export function createGameServer(): Server {
         ? {
             id: user.id,
             nickname: user.nickname,
+            nicknameColor: user.nicknameColor,
+            nicknameRainbow: user.nicknameRainbow,
+            nicknameGlow: user.nicknameGlow,
             maxRound: user.maxRound,
             pigPlayCount: user.pigPlayCount,
             rabbitPlayCount: user.rabbitPlayCount,
@@ -417,6 +424,9 @@ export function createGameServer(): Server {
     res.json({
       id: userId,
       nickname: user?.nickname ?? null,
+      nicknameColor: user?.nicknameColor ?? null,
+      nicknameRainbow: user?.nicknameRainbow ?? false,
+      nicknameGlow: user?.nicknameGlow ?? false,
       maxRound: user?.maxRound ?? 0,
       pigPlayCount: user?.pigPlayCount ?? 0,
       rabbitPlayCount: user?.rabbitPlayCount ?? 0,
@@ -739,6 +749,21 @@ export function createGameServer(): Server {
       friendshipStatus: status,
       friendshipId,
     });
+  });
+
+  app.post("/api/profile/reroll-color", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const result = rerollNicknameColor(userId);
+    if (!result.ok) {
+      res.status(400).json({ error: "게임머니가 부족해요." });
+      return;
+    }
+    res.json({ nicknameColor: result.nicknameColor, gameMoney: result.gameMoney });
   });
 
   const httpServer = createHttpServer(app);
