@@ -149,6 +149,15 @@ export function createDb(filename: string): Database.Database {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS owned_nickname_effects (
+      user_id INTEGER NOT NULL,
+      effect TEXT NOT NULL,
+      purchased_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours')),
+      PRIMARY KEY (user_id, effect)
+    )
+  `);
+
   return db;
 }
 

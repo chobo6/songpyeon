@@ -3,10 +3,13 @@ import { db } from "../db/connection";
 import {
   addGameMoney,
   adminSetNickname,
+  equipEffect,
   getOrCreateUser,
+  getOwnedEffects,
   getTopRanking,
   getUserById,
   listUsers,
+  purchaseEffect,
   recordRolePlayed,
   recordRoundAchievement,
   rerollNicknameColor,
@@ -405,5 +408,95 @@ describe("rerollNicknameColor", () => {
 
     expect(result).toEqual({ ok: false, reason: "insufficient_funds" });
     expect(getUserById(user.id)).toMatchObject({ gameMoney: 9999, nicknameColor: null });
+  });
+});
+
+describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+    db.exec("DELETE FROM owned_nickname_effects");
+  });
+
+  test("purchasing deducts the exact price and records ownership", () => {
+    const user = getOrCreateUser("sub-shop-1", {});
+    addGameMoney(user.id, 15000);
+
+    const result = purchaseEffect(user.id, "chrome");
+
+    expect(result).toBe("ok");
+    expect(getUserById(user.id)?.gameMoney).toBe(3000);
+    expect(getOwnedEffects(user.id)).toEqual(["chrome"]);
+  });
+
+  test("refuses purchase when funds are insufficient and changes nothing", () => {
+    const user = getOrCreateUser("sub-shop-2", {});
+    addGameMoney(user.id, 5000);
+
+    const result = purchaseEffect(user.id, "chrome");
+
+    expect(result).toBe("insufficient_funds");
+    expect(getUserById(user.id)?.gameMoney).toBe(5000);
+    expect(getOwnedEffects(user.id)).toEqual([]);
+  });
+
+  test("refuses a duplicate purchase and doesn't charge twice", () => {
+    const user = getOrCreateUser("sub-shop-3", {});
+    addGameMoney(user.id, 100000);
+    purchaseEffect(user.id, "chrome");
+
+    const result = purchaseEffect(user.id, "chrome");
+
+    expect(result).toBe("already_owned");
+    expect(getUserById(user.id)?.gameMoney).toBe(100000 - 12000);
+    expect(getOwnedEffects(user.id)).toEqual(["chrome"]);
+  });
+
+  test("equipping an owned effect updates nicknameEffect without touching glow", () => {
+    const user = getOrCreateUser("sub-shop-4", {});
+    addGameMoney(user.id, 100000);
+    purchaseEffect(user.id, "neon");
+    setNicknameEffect(user.id, "rainbow", true); // sets glow=true and also owns rainbow
+
+    const result = equipEffect(user.id, "neon");
+
+    expect(result).toBe("ok");
+    const profile = getUserById(user.id);
+    expect(profile?.nicknameEffect).toBe("neon");
+    expect(profile?.nicknameGlow).toBe(true); // untouched by equip
+  });
+
+  test("refuses to equip an effect that isn't owned", () => {
+    const user = getOrCreateUser("sub-shop-5", {});
+
+    const result = equipEffect(user.id, "hologram");
+
+    expect(result).toBe("not_owned");
+    expect(getUserById(user.id)?.nicknameEffect).toBe("none");
+  });
+
+  test("equipping 'none' is always allowed even with nothing owned", () => {
+    const user = getOrCreateUser("sub-shop-6", {});
+
+    const result = equipEffect(user.id, "none");
+
+    expect(result).toBe("ok");
+    expect(getUserById(user.id)?.nicknameEffect).toBe("none");
+  });
+
+  test("setNicknameEffect (admin grant) also records ownership", () => {
+    const user = getOrCreateUser("sub-shop-7", {});
+
+    setNicknameEffect(user.id, "shine", false);
+
+    expect(getOwnedEffects(user.id)).toEqual(["shine"]);
+    expect(getUserById(user.id)?.nicknameEffect).toBe("shine");
+  });
+
+  test("setNicknameEffect with 'none' does not add a bogus ownership row", () => {
+    const user = getOrCreateUser("sub-shop-8", {});
+
+    setNicknameEffect(user.id, "none", false);
+
+    expect(getOwnedEffects(user.id)).toEqual([]);
   });
 });

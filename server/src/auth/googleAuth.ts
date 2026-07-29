@@ -179,12 +179,17 @@ export function setNicknameColor(userId: number, color: string | null): SetNickn
 // 색(setNicknameColor)과 완전히 같은 자리 — 관리자가 /admin에서 select+체크박스로
 // 즉시 바꾼다. effect 유효성 검증은 라우트 레벨(NICKNAME_EFFECTS 화이트리스트)에서
 // 이미 끝나므로 이 함수 자체는 실패 케이스가 없어 결과 타입도 없음(항상 성공).
+// 관리자가 지급한 효과는 상점에서 산 것과 동일하게 소유 처리한다 — 안 그러면 유저가
+// 나중에 다른 효과로 장착을 바꿨다가 이걸로 스스로 되돌아올 수 없다.
 export function setNicknameEffect(userId: number, effect: NicknameEffect, glow: boolean): void {
   db.prepare(`UPDATE users SET nickname_effect = ?, nickname_glow = ? WHERE id = ?`).run(
     effect,
     glow ? 1 : 0,
     userId,
   );
+  if (effect !== "none") {
+    db.prepare(`INSERT OR IGNORE INTO owned_nickname_effects (user_id, effect) VALUES (?, ?)`).run(userId, effect);
+  }
 }
 
 export function setUserBanned(userId: number, banned: boolean): void {
@@ -249,7 +254,7 @@ export function getTopRanking(limit: number): RankingEntry[] {
   }));
 }
 
-const NICKNAME_REROLL_COST = 10000;
+export const NICKNAME_REROLL_COST = 10000;
 
 export type RerollNicknameColorResult =
   | { ok: true; nicknameColor: string; gameMoney: number }
@@ -279,4 +284,59 @@ export function rerollNicknameColor(userId: number): RerollNicknameColorResult {
 function randomHexColor(): string {
   const n = Math.floor(Math.random() * 0x1000000);
   return `#${n.toString(16).padStart(6, "0")}`;
+}
+
+export type ShopEffect = Exclude<NicknameEffect, "none">;
+
+// 임시 가격 — 나중에 이 숫자들만 바꾸면 됨.
+export const SHOP_PRICES: Record<ShopEffect, number> = {
+  rainbow: 20000,
+  shine: 15000,
+  hologram: 25000,
+  pulse: 12000,
+  neon: 15000,
+  chrome: 12000,
+};
+
+export function getOwnedEffects(userId: number): NicknameEffect[] {
+  const rows = db.prepare(`SELECT effect FROM owned_nickname_effects WHERE user_id = ?`).all(userId) as {
+    effect: NicknameEffect;
+  }[];
+  return rows.map((row) => row.effect);
+}
+
+export type PurchaseEffectResult = "ok" | "insufficient_funds" | "already_owned";
+
+// 이미 소유했는지부터 확인(중복 결제 방지) — 그다음 잔액 확인 후 차감+INSERT.
+// better-sqlite3는 완전히 동기적이라 이 세 문장 사이에 다른 요청이 끼어들 수 없다.
+export function purchaseEffect(userId: number, effect: ShopEffect): PurchaseEffectResult {
+  const alreadyOwned = db
+    .prepare(`SELECT 1 FROM owned_nickname_effects WHERE user_id = ? AND effect = ?`)
+    .get(userId, effect);
+  if (alreadyOwned) return "already_owned";
+
+  const price = SHOP_PRICES[effect];
+  const row = db.prepare(`SELECT game_money AS gameMoney FROM users WHERE id = ?`).get(userId) as
+    | { gameMoney: number }
+    | undefined;
+  if (!row || row.gameMoney < price) return "insufficient_funds";
+
+  db.prepare(`UPDATE users SET game_money = game_money - ? WHERE id = ?`).run(price, userId);
+  db.prepare(`INSERT INTO owned_nickname_effects (user_id, effect) VALUES (?, ?)`).run(userId, effect);
+  return "ok";
+}
+
+export type EquipEffectResult = "ok" | "not_owned";
+
+// glow는 안 건드린다(이번 스코프 제외 — 관리자가 지급한 글로우 상태를 장착 변경이
+// 실수로 꺼버리면 안 됨). "none"은 항상 허용(장착 해제).
+export function equipEffect(userId: number, effect: NicknameEffect): EquipEffectResult {
+  if (effect !== "none") {
+    const owned = db
+      .prepare(`SELECT 1 FROM owned_nickname_effects WHERE user_id = ? AND effect = ?`)
+      .get(userId, effect);
+    if (!owned) return "not_owned";
+  }
+  db.prepare(`UPDATE users SET nickname_effect = ? WHERE id = ?`).run(effect, userId);
+  return "ok";
 }
