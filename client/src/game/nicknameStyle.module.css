@@ -90,6 +90,76 @@
   }
 }
 
+.pulse.pulse {
+  color: var(--nickname-base-color, #6fb1ff);
+  animation: pulse-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    text-shadow:
+      0 0 4px var(--nickname-base-color, #6fb1ff),
+      0 0 8px var(--nickname-base-color, #6fb1ff);
+  }
+  50% {
+    text-shadow:
+      0 0 12px var(--nickname-base-color, #6fb1ff),
+      0 0 28px var(--nickname-base-color, #6fb1ff);
+  }
+}
+
+.neon.neon {
+  color: var(--nickname-base-color, #ff3df0);
+  text-shadow:
+    0 0 2px #fff,
+    0 0 6px var(--nickname-base-color, #ff3df0),
+    0 0 14px var(--nickname-base-color, #ff3df0),
+    0 0 28px var(--nickname-base-color, #ff3df0);
+  animation: neon-flicker 3.4s linear infinite;
+}
+
+@keyframes neon-flicker {
+  0%,
+  3%,
+  6%,
+  9%,
+  100% {
+    opacity: 1;
+  }
+  4% {
+    opacity: 0.4;
+  }
+  5% {
+    opacity: 0.85;
+  }
+  7% {
+    opacity: 0.5;
+  }
+  8% {
+    opacity: 1;
+  }
+}
+
+.chrome.chrome {
+  background: linear-gradient(100deg, #7c828c 0%, #7c828c 30%, #ffffff 50%, #4a4e56 65%, #7c828c 100%);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: chrome-sweep 3.2s ease-in-out infinite;
+}
+
+@keyframes chrome-sweep {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -140% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Must match the main rule's `.rainbow.rainbow` specificity (0,2,0) — a
      plain `.rainbow` here (0,1,0) loses to the main rule's `animation`
@@ -102,7 +172,10 @@
   }
 
   .shine.shine,
-  .hologram.hologram {
+  .hologram.hologram,
+  .pulse.pulse,
+  .neon.neon,
+  .chrome.chrome {
     animation-duration: 40s;
   }
 }

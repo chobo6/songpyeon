@@ -4,7 +4,7 @@ import { STARTING_MORTARS } from "../game/mortar";
 export type Phase = "lobby" | "playing";
 export type RoleChoice = "pig" | "rabbit" | "";
 export type TurnOutcome = "pending" | "success" | "fail";
-export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram";
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
 
 export class PlayerState extends Schema {
   @type("string") sessionId: string = "";

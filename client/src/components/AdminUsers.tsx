@@ -323,9 +323,17 @@ export function AdminUsers({
                       <option value="rainbow">레인보우</option>
                       <option value="shine">샤인</option>
                       <option value="hologram">홀로그램</option>
+                      <option value="pulse">Pulse</option>
+                      <option value="neon">네온사인</option>
+                      <option value="chrome">크롬</option>
                     </select>
                     <label className={styles.effectLabel}>
-                      <input type="checkbox" checked={user.nicknameGlow} onChange={() => toggleGlow(user)} />
+                      <input
+                        type="checkbox"
+                        checked={user.nicknameGlow}
+                        onChange={() => toggleGlow(user)}
+                        disabled={user.nicknameEffect === "pulse" || user.nicknameEffect === "neon"}
+                      />
                       글로우
                     </label>
                   </td>

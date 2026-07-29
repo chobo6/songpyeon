@@ -2,8 +2,16 @@ import { OAuth2Client } from "google-auth-library";
 import { db, sqliteBool } from "../db/connection";
 import { sanitizeNickname } from "../game/nickname";
 
-export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram";
-export const NICKNAME_EFFECTS: readonly NicknameEffect[] = ["none", "rainbow", "shine", "hologram"];
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
+export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
+  "none",
+  "rainbow",
+  "shine",
+  "hologram",
+  "pulse",
+  "neon",
+  "chrome",
+];
 
 let oauthClient: OAuth2Client | null = null;
 function getOAuthClient(): OAuth2Client {
