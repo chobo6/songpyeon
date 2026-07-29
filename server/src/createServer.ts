@@ -15,16 +15,22 @@ import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
 import { getOnlineUsers, isUserOnline, touchPresence } from "./admin/presence";
 import {
   adminSetNickname,
+  equipEffect,
   getOrCreateUser,
+  getOwnedEffects,
   getTopRanking,
   getUserById,
   listUsers,
   NICKNAME_EFFECTS,
+  NICKNAME_REROLL_COST,
   type NicknameEffect,
+  purchaseEffect,
   rerollNicknameColor,
   setNickname,
   setNicknameColor,
   setNicknameEffect,
+  SHOP_PRICES,
+  type ShopEffect,
   setUserBanned,
   touchLastLogin,
   verifyGoogleIdToken,
@@ -770,6 +776,71 @@ export function createGameServer(): Server {
       return;
     }
     res.json({ nicknameColor: result.nicknameColor, gameMoney: result.gameMoney });
+  });
+
+  app.get("/api/shop", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const user = getUserById(userId);
+    if (!user) {
+      res.status(404).json({ error: "존재하지 않는 유저예요." });
+      return;
+    }
+    res.json({
+      gameMoney: user.gameMoney,
+      prices: SHOP_PRICES,
+      owned: getOwnedEffects(userId),
+      equipped: user.nicknameEffect,
+      rerollColorPrice: NICKNAME_REROLL_COST,
+    });
+  });
+
+  app.post("/api/shop/purchase", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { effect } = req.body as { effect?: unknown };
+    if (typeof effect !== "string" || effect === "none" || !NICKNAME_EFFECTS.includes(effect as NicknameEffect)) {
+      res.status(400).json({ error: "잘못된 효과예요." });
+      return;
+    }
+    const result = purchaseEffect(userId, effect as ShopEffect);
+    if (result === "insufficient_funds") {
+      res.status(400).json({ error: "게임머니가 부족해요." });
+      return;
+    }
+    if (result === "already_owned") {
+      res.status(409).json({ error: "이미 보유한 효과예요." });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.post("/api/shop/equip", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { effect } = req.body as { effect?: unknown };
+    if (typeof effect !== "string" || !NICKNAME_EFFECTS.includes(effect as NicknameEffect)) {
+      res.status(400).json({ error: "잘못된 효과예요." });
+      return;
+    }
+    const result = equipEffect(userId, effect as NicknameEffect);
+    if (result === "not_owned") {
+      res.status(403).json({ error: "보유하지 않은 효과예요." });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   const httpServer = createHttpServer(app);
