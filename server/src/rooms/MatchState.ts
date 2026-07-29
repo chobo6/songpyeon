@@ -4,12 +4,13 @@ import { STARTING_MORTARS } from "../game/mortar";
 export type Phase = "lobby" | "playing";
 export type RoleChoice = "pig" | "rabbit" | "";
 export type TurnOutcome = "pending" | "success" | "fail";
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram";
 
 export class PlayerState extends Schema {
   @type("string") sessionId: string = "";
   @type("string") nickname: string = "";
   @type("string") nicknameColor: string = "";
-  @type("boolean") nicknameRainbow: boolean = false;
+  @type("string") nicknameEffect: NicknameEffect = "none";
   @type("boolean") nicknameGlow: boolean = false;
   @type("string") role: RoleChoice = "";
   @type("string") teamId: string = "";
@@ -28,7 +29,7 @@ export class TeamState extends Schema {
 export class ChatMessage extends Schema {
   @type("string") nickname: string = "";
   @type("string") nicknameColor: string = "";
-  @type("boolean") nicknameRainbow: boolean = false;
+  @type("string") nicknameEffect: NicknameEffect = "none";
   @type("boolean") nicknameGlow: boolean = false;
   @type("string") text: string = "";
   @type("number") sentAt: number = 0;
@@ -38,7 +39,7 @@ export class SpectatorState extends Schema {
   @type("string") sessionId: string = "";
   @type("string") nickname: string = "";
   @type("string") nicknameColor: string = "";
-  @type("boolean") nicknameRainbow: boolean = false;
+  @type("string") nicknameEffect: NicknameEffect = "none";
   @type("boolean") nicknameGlow: boolean = false;
 }
 

@@ -1,7 +1,7 @@
 import { Room, Client, type AuthContext, type Delayed } from "colyseus";
 import { ItemUseTracker, applyDoughAttack, applyTimeReduce, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
-import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState } from "./MatchState";
+import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState, type NicknameEffect } from "./MatchState";
 import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
@@ -222,7 +222,7 @@ export class MatchRoom extends Room<MatchState> {
       userId: user.id,
       nickname: user.nickname,
       nicknameColor: user.nicknameColor ?? "",
-      nicknameRainbow: user.nicknameRainbow,
+      nicknameEffect: user.nicknameEffect,
       nicknameGlow: user.nicknameGlow,
     };
   }
@@ -249,7 +249,7 @@ export class MatchRoom extends Room<MatchState> {
       spectator.sessionId = client.sessionId;
       spectator.nickname = client.auth?.nickname ?? "관전자";
       spectator.nicknameColor = client.auth?.nicknameColor ?? "";
-      spectator.nicknameRainbow = client.auth?.nicknameRainbow ?? false;
+      spectator.nicknameEffect = client.auth?.nicknameEffect ?? "none";
       spectator.nicknameGlow = client.auth?.nicknameGlow ?? false;
       this.state.spectators.set(client.sessionId, spectator);
       await this.setMetadata({ spectators: this.spectatorsForMetadata() });
@@ -274,7 +274,7 @@ export class MatchRoom extends Room<MatchState> {
     player.sessionId = client.sessionId;
     player.nickname = nickname;
     player.nicknameColor = client.auth?.nicknameColor ?? "";
-    player.nicknameRainbow = client.auth?.nicknameRainbow ?? false;
+    player.nicknameEffect = client.auth?.nicknameEffect ?? "none";
     player.nicknameGlow = client.auth?.nicknameGlow ?? false;
     this.state.players.set(client.sessionId, player);
     if (client.auth?.userId) this.playerUserIds.set(client.sessionId, client.auth.userId);
@@ -440,7 +440,7 @@ export class MatchRoom extends Room<MatchState> {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       const list = this.state.phase === "lobby" ? this.state.lobbyChat : this.state.matchChat;
-      this.pushChat(list, player.nickname, text, player.nicknameColor, player.nicknameRainbow, player.nicknameGlow);
+      this.pushChat(list, player.nickname, text, player.nicknameColor, player.nicknameEffect, player.nicknameGlow);
       return;
     }
 
@@ -453,7 +453,7 @@ export class MatchRoom extends Room<MatchState> {
         `${spectator.nickname} (관전)`,
         text,
         spectator.nicknameColor,
-        spectator.nicknameRainbow,
+        spectator.nicknameEffect,
         spectator.nicknameGlow,
       );
     }
@@ -464,13 +464,13 @@ export class MatchRoom extends Room<MatchState> {
     nickname: string,
     text: string,
     nicknameColor: string = "",
-    nicknameRainbow: boolean = false,
+    nicknameEffect: NicknameEffect = "none",
     nicknameGlow: boolean = false,
   ) {
     const message = new ChatMessage();
     message.nickname = nickname;
     message.nicknameColor = nicknameColor;
-    message.nicknameRainbow = nicknameRainbow;
+    message.nicknameEffect = nicknameEffect;
     message.nicknameGlow = nicknameGlow;
     message.text = text;
     message.sentAt = Date.now();

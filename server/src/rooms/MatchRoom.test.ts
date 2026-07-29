@@ -9,7 +9,14 @@ import { PIG_COLORS, RABBIT_COLORS, colorRole, type Color } from "../game/colors
 import type { MatchState } from "./MatchState";
 import { _resetForTest as resetEventLog, getEvents } from "../admin/eventLog";
 import { _resetForTest as resetPressMonitor, subscribe as subscribeToPressMonitor } from "../admin/pressMonitor";
-import { getOrCreateUser, setNickname, setNicknameColor, setNicknameEffects, setUserBanned } from "../auth/googleAuth";
+import {
+  getOrCreateUser,
+  type NicknameEffect,
+  setNickname,
+  setNicknameColor,
+  setNicknameEffect,
+  setUserBanned,
+} from "../auth/googleAuth";
 import { signSession } from "../auth/session";
 import { db } from "../db/connection";
 import type { Rng } from "../game/rng";
@@ -101,17 +108,14 @@ async function connectAsUser(
   room: ServerRoom<MatchState>,
   nickname: string,
   nicknameColor?: string,
-  nicknameEffects?: { rainbow?: boolean; glow?: boolean },
+  nicknameEffects?: { effect?: NicknameEffect; glow?: boolean },
 ) {
   testUserCounter += 1;
   const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
   setNickname(user.id, nickname);
   if (nicknameColor) setNicknameColor(user.id, nicknameColor);
   if (nicknameEffects) {
-    setNicknameEffects(user.id, {
-      rainbow: nicknameEffects.rainbow ?? false,
-      glow: nicknameEffects.glow ?? false,
-    });
+    setNicknameEffect(user.id, nicknameEffects.effect ?? "none", nicknameEffects.glow ?? false);
   }
   const token = signSession(user.id);
   const port = (colyseus.server as unknown as { port: number }).port;
@@ -1430,36 +1434,45 @@ describe("MatchRoom", () => {
     });
   });
 
-  describe("nickname rainbow/glow propagation", () => {
-    test("a player with rainbow/glow enabled has it reflected in PlayerState", async () => {
+  describe("nickname effect/glow propagation", () => {
+    test("a player with rainbow effect and glow enabled has it reflected in PlayerState", async () => {
       const room = await colyseus.createRoom<MatchState>("match");
-      const client = await connectAsUser(colyseus, room, "레인보우돼지", undefined, { rainbow: true, glow: true });
+      const client = await connectAsUser(colyseus, room, "레인보우돼지", undefined, { effect: "rainbow", glow: true });
       await flush();
 
       const player = room.state.players.get(client.sessionId);
-      expect(player?.nicknameRainbow).toBe(true);
+      expect(player?.nicknameEffect).toBe("rainbow");
       expect(player?.nicknameGlow).toBe(true);
     });
 
-    test("a player with neither enabled has both false, not undefined", async () => {
+    test("a player with neither enabled has effect 'none' and glow false, not undefined", async () => {
       const room = await colyseus.createRoom<MatchState>("match");
       const client = await connectAsUser(colyseus, room, "평범플레이어");
       await flush();
 
       const player = room.state.players.get(client.sessionId);
-      expect(player?.nicknameRainbow).toBe(false);
+      expect(player?.nicknameEffect).toBe("none");
       expect(player?.nicknameGlow).toBe(false);
     });
 
     test("a chat message from a rainbow/glow player carries the same flags", async () => {
       const room = await colyseus.createRoom<MatchState>("match");
-      const client = await connectAsUser(colyseus, room, "채팅효과", undefined, { rainbow: true, glow: false });
+      const client = await connectAsUser(colyseus, room, "채팅효과", undefined, { effect: "rainbow", glow: false });
       client.send("sendChat", { text: "안녕" });
       await flush();
 
       const message = room.state.lobbyChat.find((m) => m.text === "안녕");
-      expect(message?.nicknameRainbow).toBe(true);
+      expect(message?.nicknameEffect).toBe("rainbow");
       expect(message?.nicknameGlow).toBe(false);
+    });
+
+    test("a player with the shine effect has it reflected in PlayerState", async () => {
+      const room = await colyseus.createRoom<MatchState>("match");
+      const client = await connectAsUser(colyseus, room, "샤인유저", undefined, { effect: "shine" });
+      await flush();
+
+      const player = room.state.players.get(client.sessionId);
+      expect(player?.nicknameEffect).toBe("shine");
     });
 
     test("a spectator with glow enabled has it reflected in SpectatorState, and in their chat messages", async () => {
