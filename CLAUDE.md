@@ -73,7 +73,7 @@ npm run lint   # oxlint
   읽을 때마다 `server/src/db/connection.ts`의 `sqliteBool()`로 명시 변환함 — 그냥 캐스팅하지 말 것.
   설계: `docs/superpowers/specs/2026-07-29-nickname-effects-design.md`.
 - **닉네임 파티클 효과 — 반짝임/상승/궤도/눈** (2026-07-31~, `/admin` → 유저 정보 → 파티클
-  드롭다운으로 관리자가 수동 지급, 상점 판매 없음): 닉네임 주위에 뜨는 점 6개가 색상 문자열을
+  드롭다운으로 관리자가 수동 지급, 상점 판매 없음): 닉네임 주위에 뜨는 점 10개가 색상 문자열을
   시드로 한 유사난수로 폭 전체(4%~96%)에 각자 독립 스폰됨 — `Math.random()`은 안 씀(스타일
   계산 함수가 리렌더마다 다시 불려서 위치가 튀어 보이기 때문). `nickname_effect`/`nickname_glow`와
   완전히 독립된 세 번째 축(`nickname_particle`)이라 서로 자유롭게 조합됨.

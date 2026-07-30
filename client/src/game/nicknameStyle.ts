@@ -24,7 +24,7 @@ const EFFECT_CLASSNAME: Record<Exclude<NicknameEffect, "none">, string> = {
 // 그래서 이 둘일 땐 글로우를 아예 계산하지 않는다.
 const NO_INDEPENDENT_GLOW = new Set<NicknameEffect>(["pulse", "neon"]);
 
-const PARTICLE_DOT_COUNT = 6;
+const PARTICLE_DOT_COUNT = 10;
 const PARTICLE_SIMPLE_CLASSNAME: Record<Exclude<NicknameParticle, "none" | "orbit">, string> = {
   twinkle: styles.twinkleDot,
   rising: styles.risingDot,
