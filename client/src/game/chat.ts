@@ -1,4 +1,4 @@
-import type { NicknameEffect } from "./nicknameStyle";
+import type { NicknameEffect, NicknameParticle } from "./nicknameStyle";
 
 export type DirectMessageEntry = {
   id: number;
@@ -7,6 +7,7 @@ export type DirectMessageEntry = {
   senderNicknameColor: string | null;
   senderNicknameEffect: NicknameEffect;
   senderNicknameGlow: boolean;
+  senderNicknameParticle: NicknameParticle;
   text: string;
   createdAt: string;
 };

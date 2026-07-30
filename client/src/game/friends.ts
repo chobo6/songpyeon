@@ -1,4 +1,4 @@
-import type { NicknameEffect } from "./nicknameStyle";
+import type { NicknameEffect, NicknameParticle } from "./nicknameStyle";
 
 export type FriendEntry = {
   friendshipId: number;
@@ -11,6 +11,7 @@ export type FriendEntry = {
   nicknameColor: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
 };
 
 export type ReceivedRequestEntry = {
@@ -21,6 +22,7 @@ export type ReceivedRequestEntry = {
   fromNicknameColor: string | null;
   fromNicknameEffect: NicknameEffect;
   fromNicknameGlow: boolean;
+  fromNicknameParticle: NicknameParticle;
 };
 
 export type SentRequestEntry = {
@@ -31,6 +33,7 @@ export type SentRequestEntry = {
   toNicknameColor: string | null;
   toNicknameEffect: NicknameEffect;
   toNicknameGlow: boolean;
+  toNicknameParticle: NicknameParticle;
 };
 
 async function friendsFetch<T>(path: string, init?: RequestInit): Promise<T> {

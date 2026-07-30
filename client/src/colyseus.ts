@@ -1,5 +1,5 @@
 import { Client, type Room } from "colyseus.js";
-import type { NicknameEffect } from "./game/nicknameStyle";
+import type { NicknameEffect, NicknameParticle } from "./game/nicknameStyle";
 
 // PROD builds always derive the endpoint from the page's own origin — both
 // the real deploy (behind Caddy) and a local `npm run sync-public` test on
@@ -39,6 +39,7 @@ export interface RankingEntry {
   nicknameColor: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
   maxRound: number;
 }
 

@@ -1,4 +1,4 @@
-import type { NicknameEffect } from "./nicknameStyle";
+import type { NicknameEffect, NicknameParticle } from "./nicknameStyle";
 
 export type FriendshipStatus = "self" | "friends" | "pending_sent" | "pending_received" | "none";
 
@@ -8,6 +8,7 @@ export type PublicProfile = {
   nicknameColor: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;

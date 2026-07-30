@@ -1,4 +1,4 @@
-import type { NicknameEffect } from "./nicknameStyle";
+import type { NicknameEffect, NicknameParticle } from "./nicknameStyle";
 
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 
@@ -62,6 +62,7 @@ export type Profile = {
   nicknameColor: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
