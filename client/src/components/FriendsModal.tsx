@@ -137,12 +137,13 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
                 const effect = nicknameStyle(r.fromNicknameColor, r.fromNicknameEffect, r.fromNicknameGlow);
                 return (
                   <div key={r.requestId} className={styles.row}>
-                    <button
-                      className={`${styles.rowNickname} ${effect.className}`}
-                      style={effect.style}
-                      onClick={() => setProfileNickname(r.fromNickname)}
-                    >
-                      {r.fromNickname}
+                    <button className={styles.rowNickname} onClick={() => setProfileNickname(r.fromNickname)}>
+                      <span className={effect.className} style={effect.style}>
+                        {r.fromNickname}
+                        {effect.particles.map((p) => (
+                          <span key={p.key} className={p.className} style={p.style} />
+                        ))}
+                      </span>
                     </button>
                     <div className={styles.rowActions}>
                       <button className={styles.acceptButton} onClick={() => handleAccept(r.requestId)}>
@@ -165,12 +166,13 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
                 const effect = nicknameStyle(r.toNicknameColor, r.toNicknameEffect, r.toNicknameGlow);
                 return (
                   <div key={r.requestId} className={styles.row}>
-                    <button
-                      className={`${styles.rowNickname} ${effect.className}`}
-                      style={effect.style}
-                      onClick={() => setProfileNickname(r.toNickname)}
-                    >
-                      {r.toNickname}
+                    <button className={styles.rowNickname} onClick={() => setProfileNickname(r.toNickname)}>
+                      <span className={effect.className} style={effect.style}>
+                        {r.toNickname}
+                        {effect.particles.map((p) => (
+                          <span key={p.key} className={p.className} style={p.style} />
+                        ))}
+                      </span>
                     </button>
                     <button className={styles.cancelButton} onClick={() => handleCancel(r.requestId)}>
                       취소
@@ -192,12 +194,13 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               return (
                 <div key={f.friendshipId} className={`${styles.row} ${styles.friendRow}`}>
                   <div className={styles.friendRowTop}>
-                    <button
-                      className={`${styles.rowNickname} ${effect.className}`}
-                      style={effect.style}
-                      onClick={() => setProfileNickname(f.nickname)}
-                    >
-                      {f.nickname}
+                    <button className={styles.rowNickname} onClick={() => setProfileNickname(f.nickname)}>
+                      <span className={effect.className} style={effect.style}>
+                        {f.nickname}
+                        {effect.particles.map((p) => (
+                          <span key={p.key} className={p.className} style={p.style} />
+                        ))}
+                      </span>
                     </button>
                     <span className={styles.status}>{f.online ? "🟢 온라인" : formatLastSeen(f.lastLoginAt)}</span>
                   </div>

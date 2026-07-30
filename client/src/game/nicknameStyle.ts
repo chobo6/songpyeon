@@ -23,6 +23,71 @@ const EFFECT_CLASSNAME: Record<Exclude<NicknameEffect, "none">, string> = {
 // 그래서 이 둘일 땐 글로우를 아예 계산하지 않는다.
 const NO_INDEPENDENT_GLOW = new Set<NicknameEffect>(["pulse", "neon"]);
 
+// TEMP SPIKE — 파티클 레이아웃 확인용. 값만 바꿔서 어디서든 바로 눈으로 확인,
+// 결정 나면 이 블록과 nicknameStyle.module.css의 spike 섹션을 통째로 삭제.
+//
+// box-shadow 트릭(::before/::after 2개에 점 여러 개를 그리는 방식)은 한 그룹
+// 안의 점들이 전부 같은 transform을 공유해서 "항상 같은 2곳에서만 몇 개가
+// 반복해서 뜨는" 것처럼 보이는 근본적 한계가 있었다 — pseudo-element가 2개뿐이라
+// 진짜 독립적인 스폰 위치를 낼 수 없었음. 그래서 각 점을 실제 DOM 엘리먼트로
+// 바꿔서(SpikeDot[]) 하나하나 독립적인 위치/타이밍을 가지게 한다.
+export type SpikeParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
+const SPIKE_PARTICLE: SpikeParticle = "snow";
+const SPIKE_DOT_COUNT = 6;
+
+export type SpikeDot = { key: number; className: string; style: CSSProperties };
+
+// 문자열 해시 → [0,1) 유사난수. Math.random()은 nicknameStyle()이 리렌더마다
+// 다시 호출되는 일반 함수라 쓰면 매번 위치가 튀어 보이므로, color 문자열(유저마다
+// 고유)을 시드로 써서 "그 사람은 항상 같은 위치" + "사람마다 달라 보임"을 동시에
+// 만족시킨다. salt를 바꿔가며 여러 개의 서로 다른(상관없어 보이는) 값을 뽑는다.
+function seededUnit(seed: number, salt: number): number {
+  const x = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+function seededOffset(seed: number, salt: number, range: number): number {
+  return (seededUnit(seed, salt) - 0.5) * 2 * range;
+}
+function stringSeed(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return hash;
+}
+
+// 점 하나하나(SPIKE_DOT_COUNT개)가 닉네임 폭 전체(4%~96%)에서 각자 독립적인
+// 위치·타이밍으로 스폰되게 한다 — 색상 문자열 시드 기반이라 사실상 랜덤처럼
+// 보이지만 같은 사람은 항상 같은 배치를 유지한다.
+function spikeDots(particle: Exclude<SpikeParticle, "none" | "orbit">, color: string | null | undefined): SpikeDot[] {
+  const seed = stringSeed(color || "spike-default-seed");
+  const dotClass =
+    particle === "twinkle" ? styles.twinkleDot : particle === "rising" ? styles.risingDot : styles.snowDot;
+  const duration = particle === "snow" ? 2.8 : 2.6;
+
+  const dots: SpikeDot[] = [];
+  for (let i = 0; i < SPIKE_DOT_COUNT; i++) {
+    const leftPct = 4 + seededUnit(seed, 100 + i * 7) * 92;
+    const delay = seededUnit(seed, 200 + i * 11) * duration;
+    const style: CSSProperties & Record<string, string> = {
+      left: `${leftPct.toFixed(1)}%`,
+      animationDelay: `${delay.toFixed(2)}s`,
+    };
+    if (particle === "twinkle") {
+      // 반짝임은 이동이 없으니 세로 위치도 폭 전체에 걸쳐 자유롭게 흩뿌린다.
+      const topPct = 4 + seededUnit(seed, 300 + i * 13) * 92;
+      style.top = `${topPct.toFixed(1)}%`;
+    } else {
+      // 상승/눈은 낙하·상승 중 좌우로 흔들리는 drift(바람에 날리는 느낌) —
+      // translateY만 있으면 매번 완전히 같은 수직선을 그려서 반복이 티가 남.
+      style["--drift-mid"] = `${seededOffset(seed, 400 + i * 17, 0.3).toFixed(2)}em`;
+      style["--drift-end"] = `${seededOffset(seed, 500 + i * 19, 0.5).toFixed(2)}em`;
+    }
+    dots.push({ key: i, className: `${styles.spikeDot} ${dotClass}`, style });
+  }
+  return dots;
+}
+
 // 닉네임을 렌더링하는 모든 화면이 공통으로 쓰는 스타일 계산기. 레인보우/샤인/홀로그램/
 // Pulse/네온사인/크롬은 서로 배타적(닉네임의 "기본 색"을 정의하는 효과라 동시에 켤 수
 // 없음 — nicknameEffect가 이미 하나의 값만 가지므로 구조적으로 보장됨). 글로우는
@@ -31,7 +96,7 @@ export function nicknameStyle(
   color: string | null | undefined,
   effect: NicknameEffect | undefined,
   glow: boolean | undefined,
-): { className: string; style: CSSProperties } {
+): { className: string; style: CSSProperties; particles: SpikeDot[] } {
   const style: CSSProperties = {};
 
   if (glow && !(effect && NO_INDEPENDENT_GLOW.has(effect))) {
@@ -52,12 +117,21 @@ export function nicknameStyle(
     (style as CSSProperties & Record<string, string>)["--nickname-base-color"] = color || fallback;
   }
 
+  let spikeClass = "";
+  let particles: SpikeDot[] = [];
+  if (SPIKE_PARTICLE === "orbit") {
+    spikeClass = `${styles.spikeWrap} ${styles.spikeOrbit}`;
+  } else if (SPIKE_PARTICLE !== "none") {
+    spikeClass = styles.spikeWrap;
+    particles = spikeDots(SPIKE_PARTICLE, color);
+  }
+
   if (effect && effect !== "none") {
-    return { className: EFFECT_CLASSNAME[effect], style };
+    return { className: `${EFFECT_CLASSNAME[effect]} ${spikeClass}`.trim(), style, particles };
   }
 
   if (color) {
     style.color = color;
   }
-  return { className: "", style };
+  return { className: spikeClass, style, particles };
 }

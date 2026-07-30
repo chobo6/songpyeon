@@ -35,8 +35,13 @@ export function RankingModal({ onClose }: { onClose: () => void }) {
               return (
                 <li key={entry.nickname} className={i === 0 ? `${styles.row} ${styles.first}` : styles.row}>
                   <span className={styles.rank}>{i + 1}</span>
-                  <span className={`${styles.nickname} ${effect.className}`} style={effect.style}>
-                    {entry.nickname}
+                  <span className={styles.nickname}>
+                    <span className={effect.className} style={effect.style}>
+                      {entry.nickname}
+                      {effect.particles.map((p) => (
+                        <span key={p.key} className={p.className} style={p.style} />
+                      ))}
+                    </span>
                   </span>
                   <span className={styles.round}>{entry.maxRound}라운드</span>
                 </li>

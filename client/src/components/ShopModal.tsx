@@ -99,6 +99,9 @@ export function ShopModal({
                   <div key={effect} className={styles.card}>
                     <span className={`${styles.preview} ${preview.className}`} style={preview.style}>
                       {nickname}
+                      {preview.particles.map((p) => (
+                        <span key={p.key} className={p.className} style={p.style} />
+                      ))}
                     </span>
                     <span className={styles.effectName}>{EFFECT_LABELS[effect]}</span>
                     {isOwned ? (

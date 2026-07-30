@@ -11,7 +11,7 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
   const [busy, setBusy] = useState(false);
   const effect = profile
     ? nicknameStyle(profile.nicknameColor, profile.nicknameEffect, profile.nicknameGlow)
-    : { className: "", style: {} };
+    : { className: "", style: {}, particles: [] };
 
   useEffect(() => {
     getProfile(nickname)
@@ -61,6 +61,9 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
           <>
             <h2 className={`${styles.heading} ${effect.className}`} style={effect.style}>
               {profile.nickname}
+              {effect.particles.map((p) => (
+                <span key={p.key} className={p.className} style={p.style} />
+              ))}
             </h2>
             <div className={styles.stats}>
               <span className={styles.stat}>

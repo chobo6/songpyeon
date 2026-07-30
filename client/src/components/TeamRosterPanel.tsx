@@ -56,6 +56,9 @@ function Seat({
       <img className={styles.seatIcon} src={roleIcon} alt="" />
       <span className={`${styles.seatName} ${effect.className}`} style={effect.style}>
         {nickname ?? "-"}
+        {effect.particles.map((p) => (
+          <span key={p.key} className={p.className} style={p.style} />
+        ))}
       </span>
     </div>
   );

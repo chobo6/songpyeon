@@ -71,6 +71,9 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
                     onClick={() => setProfileNickname(p.nickname)}
                   >
                     {p.nickname}
+                    {effect.particles.map((d) => (
+                      <span key={d.key} className={d.className} style={d.style} />
+                    ))}
                   </button>
                 );
               })}
@@ -125,6 +128,9 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
                   onClick={() => setProfileNickname(nicknameFor(team.pigSessionId))}
                 >
                   {nicknameFor(team.pigSessionId)}
+                  {pigEffect.particles.map((d) => (
+                    <span key={d.key} className={d.className} style={d.style} />
+                  ))}
                 </button>
               ) : (
                 <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
@@ -136,6 +142,9 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
                   onClick={() => setProfileNickname(nicknameFor(team.rabbitSessionId))}
                 >
                   {nicknameFor(team.rabbitSessionId)}
+                  {rabbitEffect.particles.map((d) => (
+                    <span key={d.key} className={d.className} style={d.style} />
+                  ))}
                 </button>
               ) : (
                 <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>

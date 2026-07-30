@@ -162,6 +162,135 @@
   }
 }
 
+/* ============================================================
+   TEMP SPIKE — 파티클 레이아웃 확인용 임시 코드. 결정 나면 통째로 삭제.
+   ============================================================ */
+.spikeWrap {
+  position: relative;
+  display: inline-block;
+}
+
+/* 점 하나하나가 실제 DOM 엘리먼트(SpikeDot)라 각자 독립적인 left/top/delay를
+   인라인 style로 받는다 — box-shadow 트릭과 달리 진짜로 폭 전체에서 각자
+   다른 위치에 스폰될 수 있다. */
+.spikeDot {
+  position: absolute;
+  border-radius: 50%;
+  width: 3px;
+  height: 3px;
+  pointer-events: none;
+}
+
+/* 반짝임 — 이동이 없어서 폭 전체(가로+세로)에 자유롭게 흩뿌린다. */
+.twinkleDot {
+  background: #ffd76e;
+  box-shadow: 0 0 3px 1px #ffd76e;
+  animation: spike-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes spike-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* 상승 — 줄 높이 수준(1.2em)으로 이동거리를 압축, 낙하 중 좌우로 흔들리는
+   drift(바람에 날리는 느낌) 추가 — translateY만 있으면 매 루프 완전히 같은
+   수직선을 그려서 "항상 같은 경로"처럼 보임. */
+.risingDot {
+  background: #7cf5c4;
+  box-shadow: 0 0 3px 1px #7cf5c4;
+  bottom: -8%;
+  animation: spike-rise 2.6s ease-in infinite;
+}
+@keyframes spike-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0);
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-0.6em) translateX(var(--drift-mid, 0));
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-1.2em) translateX(var(--drift-end, 0));
+  }
+}
+
+/* 궤도 — 반지름을 글자 높이 수준(0.65em)으로 압축, em 단위라 화면마다
+   폰트 크기가 달라도 늘 텍스트 자기 크기에 비례해서 따라감 */
+.spikeWrap.spikeOrbit::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  box-shadow: 0 -0.65em 0 1.5px #ff8fd0;
+  animation: spike-spin 3s linear infinite;
+}
+.spikeWrap.spikeOrbit::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  box-shadow: 0 -0.45em 0 1.5px #7cf5c4;
+  animation: spike-spin 2.2s linear infinite reverse;
+}
+@keyframes spike-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 눈 — 낙하거리를 줄 높이 수준(1.2em)으로 압축. 좌우로 흔들리는 drift(바람에
+   날리는 느낌) 추가 — translateY만 있으면 매 루프 완전히 같은 수직선을
+   반복해서 "항상 같은 자리에서 떨어진다"는 인상을 줌. */
+.snowDot {
+  background: #cfe8ff;
+  box-shadow:
+    0 0 0 1px rgba(30, 60, 100, 0.25),
+    0 0 3px 1px #cfe8ff;
+  top: -8%;
+  animation: spike-snow 2.8s linear infinite;
+}
+@keyframes spike-snow {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0);
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(0.6em) translateX(var(--drift-mid, 0));
+  }
+  85% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(1.2em) translateX(var(--drift-end, 0));
+  }
+}
+/* ============================================================ */
+
 @media (prefers-reduced-motion: reduce) {
   /* Must match the main rule's `.rainbow.rainbow` specificity (0,2,0) — a
      plain `.rainbow` here (0,1,0) loses to the main rule's `animation`

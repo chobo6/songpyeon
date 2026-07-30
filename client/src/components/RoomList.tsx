@@ -179,6 +179,9 @@ export function RoomList({
           onClick={() => setShowOwnProfile(true)}
         >
           {nickname}
+          {effect.particles.map((p) => (
+            <span key={p.key} className={p.className} style={p.style} />
+          ))}
         </button>
         <span className={styles.profileStat}>
           🐷 {pigPlayCount}판 🐰 {rabbitPlayCount}판

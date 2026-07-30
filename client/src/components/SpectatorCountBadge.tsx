@@ -27,12 +27,13 @@ export function SpectatorCountBadge({ room }: { room: Room<MatchState> }) {
                   const effect = nicknameStyle(s.nicknameColor, s.nicknameEffect, s.nicknameGlow);
                   return (
                     <li key={s.sessionId}>
-                      <button
-                        className={`${styles.row} ${effect.className}`}
-                        style={effect.style}
-                        onClick={() => setProfileNickname(s.nickname)}
-                      >
-                        {s.nickname}
+                      <button className={styles.row} onClick={() => setProfileNickname(s.nickname)}>
+                        <span className={effect.className} style={effect.style}>
+                          {s.nickname}
+                          {effect.particles.map((p) => (
+                            <span key={p.key} className={p.className} style={p.style} />
+                          ))}
+                        </span>
                       </button>
                     </li>
                   );

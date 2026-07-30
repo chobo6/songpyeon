@@ -118,6 +118,9 @@ export const ChatBox = memo(function ChatBox({
             <p key={i} className={styles.line}>
               <span className={`${styles.nickname} ${effect.className}`} style={effect.style}>
                 {m.nickname}
+                {effect.particles.map((p) => (
+                  <span key={p.key} className={p.className} style={p.style} />
+                ))}
               </span>
               <span className={styles.text}>{m.text}</span>
             </p>
