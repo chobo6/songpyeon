@@ -72,6 +72,19 @@ npm run lint   # oxlint
   버그 아님). SQLite는 boolean이 없어 `nickname_rainbow`/`nickname_glow`를 0/1 `INTEGER`로 저장하고
   읽을 때마다 `server/src/db/connection.ts`의 `sqliteBool()`로 명시 변환함 — 그냥 캐스팅하지 말 것.
   설계: `docs/superpowers/specs/2026-07-29-nickname-effects-design.md`.
+- **닉네임 파티클 효과 — 반짝임/상승/궤도/눈** (2026-07-31~, `/admin` → 유저 정보 → 파티클
+  드롭다운으로 관리자가 수동 지급, 상점 판매 없음): 닉네임 주위에 뜨는 점 6개가 색상 문자열을
+  시드로 한 유사난수로 폭 전체(4%~96%)에 각자 독립 스폰됨 — `Math.random()`은 안 씀(스타일
+  계산 함수가 리렌더마다 다시 불려서 위치가 튀어 보이기 때문). `nickname_effect`/`nickname_glow`와
+  완전히 독립된 세 번째 축(`nickname_particle`)이라 서로 자유롭게 조합됨.
+  `nicknameStyle(color, effect, glow, particle)`의 반환값에 포함된 `particles` 배열을
+  각 화면이 `{key, className, style}` 스팬으로 직접 렌더링함(효과 6종과 달리 CSS 클래스 하나로
+  안 끝남 — 점 하나하나가 실제 DOM 엘리먼트라 화면 9곳 전부 `effect.particles.map(...)` 렌더링이
+  필요). **알려진 한계**: `TeamRosterPanel.tsx`의 `.seatName`은 다른 8곳과 달리 여백이 없고
+  `overflow: hidden`이라 상승/눈/궤도가 실제로 잘림(반짝임은 이동이 없어 안 잘림) — 궤도가 좁은
+  줄에서 글자와 겹치는 기존 한계와 같은 범주로 묶어 알려진 한계로 남김. 설계:
+  `docs/superpowers/specs/2026-07-30-nickname-particle-effects-design.md`, 구현 계획:
+  `docs/superpowers/plans/2026-07-30-nickname-particle-effects.md`.
 - **로비 안내 버튼** (2026-07-28~): 메인 로비 화면(`RoomList.tsx`) 좌측 하단의 "안내" 버튼 →
   `WelcomeModal.tsx`. 표시 문구는 `WELCOME_MESSAGE` 상수를 직접 수정(자유 텍스트, 줄바꿈 그대로 반영).
 - **관리자 모니터링 페이지** (`/admin`, 고정 비밀번호 인증 — `ADMIN_PASSWORD` 환경변수): 현재
