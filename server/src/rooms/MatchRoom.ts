@@ -1,7 +1,7 @@
 import { Room, Client, type AuthContext, type Delayed } from "colyseus";
 import { ItemUseTracker, applyDoughAttack, applyTimeReduce, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
-import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState, type NicknameEffect } from "./MatchState";
+import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState, type NicknameEffect, type NicknameParticle } from "./MatchState";
 import { generateSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
@@ -224,6 +224,7 @@ export class MatchRoom extends Room<MatchState> {
       nicknameColor: user.nicknameColor ?? "",
       nicknameEffect: user.nicknameEffect,
       nicknameGlow: user.nicknameGlow,
+      nicknameParticle: user.nicknameParticle,
     };
   }
 
@@ -251,6 +252,7 @@ export class MatchRoom extends Room<MatchState> {
       spectator.nicknameColor = client.auth?.nicknameColor ?? "";
       spectator.nicknameEffect = client.auth?.nicknameEffect ?? "none";
       spectator.nicknameGlow = client.auth?.nicknameGlow ?? false;
+      spectator.nicknameParticle = client.auth?.nicknameParticle ?? "none";
       this.state.spectators.set(client.sessionId, spectator);
       await this.setMetadata({ spectators: this.spectatorsForMetadata() });
       return;
@@ -276,6 +278,7 @@ export class MatchRoom extends Room<MatchState> {
     player.nicknameColor = client.auth?.nicknameColor ?? "";
     player.nicknameEffect = client.auth?.nicknameEffect ?? "none";
     player.nicknameGlow = client.auth?.nicknameGlow ?? false;
+    player.nicknameParticle = client.auth?.nicknameParticle ?? "none";
     this.state.players.set(client.sessionId, player);
     if (client.auth?.userId) this.playerUserIds.set(client.sessionId, client.auth.userId);
     this.pushChat(this.state.lobbyChat, "", `${player.nickname}님이 입장했습니다`);
@@ -440,7 +443,15 @@ export class MatchRoom extends Room<MatchState> {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       const list = this.state.phase === "lobby" ? this.state.lobbyChat : this.state.matchChat;
-      this.pushChat(list, player.nickname, text, player.nicknameColor, player.nicknameEffect, player.nicknameGlow);
+      this.pushChat(
+        list,
+        player.nickname,
+        text,
+        player.nicknameColor,
+        player.nicknameEffect,
+        player.nicknameGlow,
+        player.nicknameParticle,
+      );
       return;
     }
 
@@ -455,6 +466,7 @@ export class MatchRoom extends Room<MatchState> {
         spectator.nicknameColor,
         spectator.nicknameEffect,
         spectator.nicknameGlow,
+        spectator.nicknameParticle,
       );
     }
   }
@@ -466,12 +478,14 @@ export class MatchRoom extends Room<MatchState> {
     nicknameColor: string = "",
     nicknameEffect: NicknameEffect = "none",
     nicknameGlow: boolean = false,
+    nicknameParticle: NicknameParticle = "none",
   ) {
     const message = new ChatMessage();
     message.nickname = nickname;
     message.nicknameColor = nicknameColor;
     message.nicknameEffect = nicknameEffect;
     message.nicknameGlow = nicknameGlow;
+    message.nicknameParticle = nicknameParticle;
     message.text = text;
     message.sentAt = Date.now();
     list.push(message);

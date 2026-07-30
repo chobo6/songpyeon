@@ -5,6 +5,7 @@ export type Phase = "lobby" | "playing";
 export type RoleChoice = "pig" | "rabbit" | "";
 export type TurnOutcome = "pending" | "success" | "fail";
 export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
+export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
 
 export class PlayerState extends Schema {
   @type("string") sessionId: string = "";
@@ -12,6 +13,7 @@ export class PlayerState extends Schema {
   @type("string") nicknameColor: string = "";
   @type("string") nicknameEffect: NicknameEffect = "none";
   @type("boolean") nicknameGlow: boolean = false;
+  @type("string") nicknameParticle: NicknameParticle = "none";
   @type("string") role: RoleChoice = "";
   @type("string") teamId: string = "";
   @type(["string"]) inventory = new ArraySchema<string>();
@@ -31,6 +33,7 @@ export class ChatMessage extends Schema {
   @type("string") nicknameColor: string = "";
   @type("string") nicknameEffect: NicknameEffect = "none";
   @type("boolean") nicknameGlow: boolean = false;
+  @type("string") nicknameParticle: NicknameParticle = "none";
   @type("string") text: string = "";
   @type("number") sentAt: number = 0;
 }
@@ -41,6 +44,7 @@ export class SpectatorState extends Schema {
   @type("string") nicknameColor: string = "";
   @type("string") nicknameEffect: NicknameEffect = "none";
   @type("boolean") nicknameGlow: boolean = false;
+  @type("string") nicknameParticle: NicknameParticle = "none";
 }
 
 export class MatchState extends Schema {

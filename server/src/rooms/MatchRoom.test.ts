@@ -12,6 +12,7 @@ import { _resetForTest as resetPressMonitor, subscribe as subscribeToPressMonito
 import {
   getOrCreateUser,
   type NicknameEffect,
+  type NicknameParticle,
   setNickname,
   setNicknameColor,
   setNicknameEffect,
@@ -108,14 +109,14 @@ async function connectAsUser(
   room: ServerRoom<MatchState>,
   nickname: string,
   nicknameColor?: string,
-  nicknameEffects?: { effect?: NicknameEffect; glow?: boolean },
+  nicknameEffects?: { effect?: NicknameEffect; glow?: boolean; particle?: NicknameParticle },
 ) {
   testUserCounter += 1;
   const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
   setNickname(user.id, nickname);
   if (nicknameColor) setNicknameColor(user.id, nicknameColor);
   if (nicknameEffects) {
-    setNicknameEffect(user.id, nicknameEffects.effect ?? "none", nicknameEffects.glow ?? false);
+    setNicknameEffect(user.id, nicknameEffects.effect ?? "none", nicknameEffects.glow ?? false, nicknameEffects.particle ?? "none");
   }
   const token = signSession(user.id);
   const port = (colyseus.server as unknown as { port: number }).port;
