@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { NicknameEffect } from "../game/nicknameStyle";
+import type { NicknameEffect, NicknameParticle } from "../game/nicknameStyle";
 import styles from "./AdminUsers.module.css";
 
 const MAX_NICKNAME_LENGTH = 10;
@@ -16,6 +16,7 @@ type UserRow = {
   lastLoginAt: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
 };
 
 async function fetchJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: false; unauthorized: boolean }> {
@@ -158,7 +159,7 @@ export function AdminUsers({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ effect, glow: user.nicknameGlow }),
+        body: JSON.stringify({ effect, glow: user.nicknameGlow, particle: user.nicknameParticle }),
       });
       if (!res.ok) {
         if (res.status === 401) {
@@ -181,7 +182,7 @@ export function AdminUsers({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ effect: user.nicknameEffect, glow: !user.nicknameGlow }),
+        body: JSON.stringify({ effect: user.nicknameEffect, glow: !user.nicknameGlow, particle: user.nicknameParticle }),
       });
       if (!res.ok) {
         if (res.status === 401) {
@@ -194,6 +195,29 @@ export function AdminUsers({
       await loadUsers();
     } catch {
       setError("효과 변경에 실패했습니다");
+    }
+  }
+
+  async function setParticle(user: UserRow, particle: NicknameParticle) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/nickname-effects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ effect: user.nicknameEffect, glow: user.nicknameGlow, particle }),
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setError("파티클 변경에 실패했습니다");
+        return;
+      }
+      await loadUsers();
+    } catch {
+      setError("파티클 변경에 실패했습니다");
     }
   }
 
@@ -336,6 +360,16 @@ export function AdminUsers({
                       />
                       글로우
                     </label>
+                    <select
+                      value={user.nicknameParticle}
+                      onChange={(e) => setParticle(user, e.target.value as NicknameParticle)}
+                    >
+                      <option value="none">파티클 없음</option>
+                      <option value="twinkle">반짝임</option>
+                      <option value="rising">상승</option>
+                      <option value="orbit">궤도</option>
+                      <option value="snow">눈</option>
+                    </select>
                   </td>
                   <td>{user.createdAt}</td>
                   <td>{user.lastLoginAt ?? "-"}</td>
