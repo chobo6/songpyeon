@@ -22,8 +22,10 @@ import {
   getUserById,
   listUsers,
   NICKNAME_EFFECTS,
-  NICKNAME_REROLL_COST,
+  NICKNAME_PARTICLES,
   type NicknameEffect,
+  type NicknameParticle,
+  NICKNAME_REROLL_COST,
   purchaseEffect,
   rerollNicknameColor,
   setNickname,
@@ -281,7 +283,7 @@ export function createGameServer(): Server {
       res.status(400).json({ error: "invalid id" });
       return;
     }
-    const { effect, glow } = req.body as { effect?: unknown; glow?: unknown };
+    const { effect, glow, particle } = req.body as { effect?: unknown; glow?: unknown; particle?: unknown };
     if (typeof effect !== "string" || !NICKNAME_EFFECTS.includes(effect as NicknameEffect)) {
       res.status(400).json({ error: "effect는 'none'|'rainbow'|'shine'|'hologram' 중 하나여야 합니다." });
       return;
@@ -290,7 +292,11 @@ export function createGameServer(): Server {
       res.status(400).json({ error: "glow는 boolean이어야 합니다." });
       return;
     }
-    setNicknameEffect(userId, effect as NicknameEffect, glow);
+    if (typeof particle !== "string" || !NICKNAME_PARTICLES.includes(particle as NicknameParticle)) {
+      res.status(400).json({ error: "particle은 'none'|'twinkle'|'rising'|'orbit'|'snow' 중 하나여야 합니다." });
+      return;
+    }
+    setNicknameEffect(userId, effect as NicknameEffect, glow, particle as NicknameParticle);
     res.json({ ok: true });
   });
 
@@ -402,6 +408,7 @@ export function createGameServer(): Server {
             nicknameColor: user.nicknameColor,
             nicknameEffect: user.nicknameEffect,
             nicknameGlow: user.nicknameGlow,
+            nicknameParticle: user.nicknameParticle,
             maxRound: user.maxRound,
             pigPlayCount: user.pigPlayCount,
             rabbitPlayCount: user.rabbitPlayCount,
@@ -755,6 +762,7 @@ export function createGameServer(): Server {
       nicknameColor: user.nicknameColor,
       nicknameEffect: user.nicknameEffect,
       nicknameGlow: user.nicknameGlow,
+      nicknameParticle: user.nicknameParticle,
       maxRound: user.maxRound,
       pigPlayCount: user.pigPlayCount,
       rabbitPlayCount: user.rabbitPlayCount,
