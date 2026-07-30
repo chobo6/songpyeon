@@ -153,10 +153,20 @@ export function createDb(filename: string): Database.Database {
     CREATE TABLE IF NOT EXISTS owned_nickname_effects (
       user_id INTEGER NOT NULL,
       effect TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'admin', -- 'purchase' | 'admin' — admin이 지급한 건 회수 시 소유권도 같이 지워지지만, 실제 구매는 절대 자동으로 뺏기지 않음
       purchased_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours')),
       PRIMARY KEY (user_id, effect)
     )
   `);
+  // 이 테이블이 처음 배포됐을 땐 source 컬럼이 없었음 — 그 시점에 생긴 기존 행은
+  // 전부 관리자 테스트 지급이었으므로(아직 실제 구매 사례 없음) 'admin'으로
+  // 백필해도 안전하고, 그래야 이번 회수 로직으로 바로 정리됨.
+  const ownedEffectColumns = (db.prepare(`PRAGMA table_info(owned_nickname_effects)`).all() as { name: string }[]).map(
+    (col) => col.name,
+  );
+  if (!ownedEffectColumns.includes("source")) {
+    db.exec(`ALTER TABLE owned_nickname_effects ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'`);
+  }
 
   return db;
 }

@@ -502,4 +502,28 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
 
     expect(getOwnedEffects(user.id)).toEqual([]);
   });
+
+  test("admin revoking an admin-granted effect (setting it back to 'none') also removes ownership", () => {
+    const user = getOrCreateUser("sub-shop-9", {});
+    setNicknameEffect(user.id, "pulse", false);
+    expect(getOwnedEffects(user.id)).toEqual(["pulse"]);
+
+    setNicknameEffect(user.id, "none", false);
+
+    expect(getOwnedEffects(user.id)).toEqual([]);
+    expect(getUserById(user.id)?.nicknameEffect).toBe("none");
+  });
+
+  test("admin revoking a purchased effect's display does not strip the user's purchased ownership", () => {
+    const user = getOrCreateUser("sub-shop-10", {});
+    addGameMoney(user.id, SHOP_PRICES.neon);
+    purchaseEffect(user.id, "neon");
+    equipEffect(user.id, "neon");
+    expect(getOwnedEffects(user.id)).toEqual(["neon"]);
+
+    setNicknameEffect(user.id, "none", false);
+
+    expect(getUserById(user.id)?.nicknameEffect).toBe("none");
+    expect(getOwnedEffects(user.id)).toEqual(["neon"]);
+  });
 });

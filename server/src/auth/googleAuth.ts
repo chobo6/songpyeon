@@ -182,13 +182,26 @@ export function setNicknameColor(userId: number, color: string | null): SetNickn
 // 관리자가 지급한 효과는 상점에서 산 것과 동일하게 소유 처리한다 — 안 그러면 유저가
 // 나중에 다른 효과로 장착을 바꿨다가 이걸로 스스로 되돌아올 수 없다.
 export function setNicknameEffect(userId: number, effect: NicknameEffect, glow: boolean): void {
+  const previous = db.prepare(`SELECT nickname_effect AS effect FROM users WHERE id = ?`).get(userId) as
+    | { effect: NicknameEffect }
+    | undefined;
   db.prepare(`UPDATE users SET nickname_effect = ?, nickname_glow = ? WHERE id = ?`).run(
     effect,
     glow ? 1 : 0,
     userId,
   );
   if (effect !== "none") {
-    db.prepare(`INSERT OR IGNORE INTO owned_nickname_effects (user_id, effect) VALUES (?, ?)`).run(userId, effect);
+    db.prepare(`INSERT OR IGNORE INTO owned_nickname_effects (user_id, effect, source) VALUES (?, ?, 'admin')`).run(
+      userId,
+      effect,
+    );
+  } else if (previous && previous.effect !== "none") {
+    // 관리자가 지급한 효과를 회수할 때만 소유권도 같이 지운다 — 실제로 구매한
+    // 효과는 여기서 절대 지워지지 않는다(구매 시 source='purchase'로 기록됨).
+    db.prepare(`DELETE FROM owned_nickname_effects WHERE user_id = ? AND effect = ? AND source = 'admin'`).run(
+      userId,
+      previous.effect,
+    );
   }
 }
 
@@ -322,7 +335,10 @@ export function purchaseEffect(userId: number, effect: ShopEffect): PurchaseEffe
   if (!row || row.gameMoney < price) return "insufficient_funds";
 
   db.prepare(`UPDATE users SET game_money = game_money - ? WHERE id = ?`).run(price, userId);
-  db.prepare(`INSERT INTO owned_nickname_effects (user_id, effect) VALUES (?, ?)`).run(userId, effect);
+  db.prepare(`INSERT INTO owned_nickname_effects (user_id, effect, source) VALUES (?, ?, 'purchase')`).run(
+    userId,
+    effect,
+  );
   return "ok";
 }
 
