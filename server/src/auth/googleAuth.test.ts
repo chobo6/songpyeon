@@ -157,7 +157,7 @@ describe("recordRoundAchievement", () => {
     expect(getTopRanking(10)).toEqual([]); // no nickname yet, excluded from ranking
     setNickname(user.id, "달리기");
     expect(getTopRanking(10)).toEqual([
-      { nickname: "달리기", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 7 },
+      { nickname: "달리기", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, nicknameParticle: "none", maxRound: 7 },
     ]);
   });
 
@@ -167,7 +167,7 @@ describe("recordRoundAchievement", () => {
     recordRoundAchievement(user.id, 9);
     recordRoundAchievement(user.id, 2);
     expect(getTopRanking(10)).toEqual([
-      { nickname: "버티기", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 9 },
+      { nickname: "버티기", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, nicknameParticle: "none", maxRound: 9 },
     ]);
   });
 });
@@ -231,8 +231,8 @@ describe("getTopRanking", () => {
     }
 
     expect(getTopRanking(2)).toEqual([
-      { nickname: "1등후보", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 12 },
-      { nickname: "2등후보", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, maxRound: 8 },
+      { nickname: "1등후보", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, nicknameParticle: "none", maxRound: 12 },
+      { nickname: "2등후보", nicknameColor: null, nicknameEffect: "none", nicknameGlow: false, nicknameParticle: "none", maxRound: 8 },
     ]);
   });
 
@@ -263,7 +263,7 @@ describe("setNicknameColor", () => {
 
     expect(listUsers().find((u) => u.id === user.id)?.nicknameColor).toBe("#00ff00");
     expect(getTopRanking(10)).toEqual([
-      { nickname: "색깔유저", nicknameColor: "#00ff00", nicknameEffect: "none", nicknameGlow: false, maxRound: 4 },
+      { nickname: "색깔유저", nicknameColor: "#00ff00", nicknameEffect: "none", nicknameGlow: false, nicknameParticle: "none", maxRound: 4 },
     ]);
   });
 
@@ -293,7 +293,7 @@ describe("setNicknameEffect", () => {
 
   test("sets effect and glow independently", () => {
     const user = getOrCreateUser("sub-effects-1", {});
-    setNicknameEffect(user.id, "rainbow", false);
+    setNicknameEffect(user.id, "rainbow", false, "none");
 
     const profile = getUserById(user.id);
     expect(profile?.nicknameEffect).toBe("rainbow");
@@ -302,8 +302,8 @@ describe("setNicknameEffect", () => {
 
   test("switches between effects (only one active at a time)", () => {
     const user = getOrCreateUser("sub-effects-2", {});
-    setNicknameEffect(user.id, "rainbow", true);
-    setNicknameEffect(user.id, "hologram", true);
+    setNicknameEffect(user.id, "rainbow", true, "none");
+    setNicknameEffect(user.id, "hologram", true, "none");
 
     const profile = getUserById(user.id);
     expect(profile?.nicknameEffect).toBe("hologram");
@@ -312,8 +312,8 @@ describe("setNicknameEffect", () => {
 
   test("turns everything back to none/off", () => {
     const user = getOrCreateUser("sub-effects-3", {});
-    setNicknameEffect(user.id, "shine", true);
-    setNicknameEffect(user.id, "none", false);
+    setNicknameEffect(user.id, "shine", true, "none");
+    setNicknameEffect(user.id, "none", false, "none");
 
     const profile = getUserById(user.id);
     expect(profile?.nicknameEffect).toBe("none");
@@ -322,10 +322,30 @@ describe("setNicknameEffect", () => {
 
   test("getUserById returns a real boolean for glow, not a 0/1 number", () => {
     const user = getOrCreateUser("sub-effects-4", {});
-    setNicknameEffect(user.id, "shine", true);
+    setNicknameEffect(user.id, "shine", true, "none");
 
     const profile = getUserById(user.id);
     expect(typeof profile?.nicknameGlow).toBe("boolean");
+  });
+
+  test("stores particle independently of effect/glow", () => {
+    const user = getOrCreateUser("sub-effects-5", {});
+    setNicknameEffect(user.id, "rainbow", true, "snow");
+
+    const profile = getUserById(user.id);
+    expect(profile?.nicknameEffect).toBe("rainbow");
+    expect(profile?.nicknameGlow).toBe(true);
+    expect(profile?.nicknameParticle).toBe("snow");
+  });
+
+  test("switching effect doesn't reset particle, and vice versa", () => {
+    const user = getOrCreateUser("sub-effects-6", {});
+    setNicknameEffect(user.id, "none", false, "twinkle");
+    setNicknameEffect(user.id, "chrome", false, "twinkle");
+
+    const profile = getUserById(user.id);
+    expect(profile?.nicknameEffect).toBe("chrome");
+    expect(profile?.nicknameParticle).toBe("twinkle");
   });
 });
 
@@ -458,7 +478,7 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
     const user = getOrCreateUser("sub-shop-4", {});
     addGameMoney(user.id, SHOP_PRICES.neon);
     purchaseEffect(user.id, "neon");
-    setNicknameEffect(user.id, "rainbow", true); // sets glow=true and also owns rainbow
+    setNicknameEffect(user.id, "rainbow", true, "none"); // sets glow=true and also owns rainbow
 
     const result = equipEffect(user.id, "neon");
 
@@ -489,7 +509,7 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
   test("setNicknameEffect (admin grant) also records ownership", () => {
     const user = getOrCreateUser("sub-shop-7", {});
 
-    setNicknameEffect(user.id, "shine", false);
+    setNicknameEffect(user.id, "shine", false, "none");
 
     expect(getOwnedEffects(user.id)).toEqual(["shine"]);
     expect(getUserById(user.id)?.nicknameEffect).toBe("shine");
@@ -498,17 +518,17 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
   test("setNicknameEffect with 'none' does not add a bogus ownership row", () => {
     const user = getOrCreateUser("sub-shop-8", {});
 
-    setNicknameEffect(user.id, "none", false);
+    setNicknameEffect(user.id, "none", false, "none");
 
     expect(getOwnedEffects(user.id)).toEqual([]);
   });
 
   test("admin revoking an admin-granted effect (setting it back to 'none') also removes ownership", () => {
     const user = getOrCreateUser("sub-shop-9", {});
-    setNicknameEffect(user.id, "pulse", false);
+    setNicknameEffect(user.id, "pulse", false, "none");
     expect(getOwnedEffects(user.id)).toEqual(["pulse"]);
 
-    setNicknameEffect(user.id, "none", false);
+    setNicknameEffect(user.id, "none", false, "none");
 
     expect(getOwnedEffects(user.id)).toEqual([]);
     expect(getUserById(user.id)?.nicknameEffect).toBe("none");
@@ -521,7 +541,7 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
     equipEffect(user.id, "neon");
     expect(getOwnedEffects(user.id)).toEqual(["neon"]);
 
-    setNicknameEffect(user.id, "none", false);
+    setNicknameEffect(user.id, "none", false, "none");
 
     expect(getUserById(user.id)?.nicknameEffect).toBe("none");
     expect(getOwnedEffects(user.id)).toEqual(["neon"]);

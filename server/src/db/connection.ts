@@ -19,6 +19,7 @@ export function createDb(filename: string): Database.Database {
       game_money INTEGER NOT NULL DEFAULT 0,
       nickname_effect TEXT NOT NULL DEFAULT 'none',
       nickname_glow INTEGER NOT NULL DEFAULT 0,
+      nickname_particle TEXT NOT NULL DEFAULT 'none',
       created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
     )
   `);
@@ -90,6 +91,9 @@ export function createDb(filename: string): Database.Database {
   }
   if (!columns.includes("nickname_effect")) {
     db.exec(`ALTER TABLE users ADD COLUMN nickname_effect TEXT NOT NULL DEFAULT 'none'`);
+  }
+  if (!columns.includes("nickname_particle")) {
+    db.exec(`ALTER TABLE users ADD COLUMN nickname_particle TEXT NOT NULL DEFAULT 'none'`);
   }
 
   // created_at used to default to UTC (datetime('now')); rows written before

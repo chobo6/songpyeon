@@ -13,6 +13,9 @@ export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
   "chrome",
 ];
 
+export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
+export const NICKNAME_PARTICLES: readonly NicknameParticle[] = ["none", "twinkle", "rising", "orbit", "snow"];
+
 let oauthClient: OAuth2Client | null = null;
 function getOAuthClient(): OAuth2Client {
   if (!oauthClient) oauthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -46,6 +49,7 @@ export type UserProfile = {
   gameMoney: number;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
 };
 
 // googleSub 기준 조회 후 생성/갱신 — 이 함수는 로그인할 때마다(신규 계정이든 재로그인이든)
@@ -80,7 +84,8 @@ export function getOrCreateUser(googleSub: string, info: { email?: string; name?
     .prepare(
       `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
               max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount,
-              game_money AS gameMoney, nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow
+              game_money AS gameMoney, nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow,
+              nickname_particle AS nicknameParticle
        FROM users WHERE google_sub = ?`,
     )
     .get(googleSub) as Omit<UserProfile, "nicknameGlow"> & { nicknameGlow: number };
@@ -105,7 +110,8 @@ export function getUserById(userId: number): UserProfile | undefined {
     .prepare(
       `SELECT id, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
               max_round AS maxRound, pig_play_count AS pigPlayCount, rabbit_play_count AS rabbitPlayCount,
-              game_money AS gameMoney, nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow
+              game_money AS gameMoney, nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow,
+              nickname_particle AS nicknameParticle
        FROM users WHERE id = ?`,
     )
     .get(userId) as (Omit<UserProfile, "nicknameGlow"> & { nicknameGlow: number }) | undefined;
@@ -133,6 +139,7 @@ export type AdminUserRow = {
   lastLoginAt: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
 };
 
 export function listUsers(): AdminUserRow[] {
@@ -140,7 +147,8 @@ export function listUsers(): AdminUserRow[] {
     .prepare(
       `SELECT id, email, name, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
               created_at AS createdAt, last_login_at AS lastLoginAt,
-              nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow
+              nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow,
+              nickname_particle AS nicknameParticle
        FROM users ORDER BY id DESC`,
     )
     .all() as (Omit<AdminUserRow, "nicknameGlow"> & { nicknameGlow: number })[];
@@ -181,13 +189,19 @@ export function setNicknameColor(userId: number, color: string | null): SetNickn
 // 이미 끝나므로 이 함수 자체는 실패 케이스가 없어 결과 타입도 없음(항상 성공).
 // 관리자가 지급한 효과는 상점에서 산 것과 동일하게 소유 처리한다 — 안 그러면 유저가
 // 나중에 다른 효과로 장착을 바꿨다가 이걸로 스스로 되돌아올 수 없다.
-export function setNicknameEffect(userId: number, effect: NicknameEffect, glow: boolean): void {
+export function setNicknameEffect(
+  userId: number,
+  effect: NicknameEffect,
+  glow: boolean,
+  particle: NicknameParticle,
+): void {
   const previous = db.prepare(`SELECT nickname_effect AS effect FROM users WHERE id = ?`).get(userId) as
     | { effect: NicknameEffect }
     | undefined;
-  db.prepare(`UPDATE users SET nickname_effect = ?, nickname_glow = ? WHERE id = ?`).run(
+  db.prepare(`UPDATE users SET nickname_effect = ?, nickname_glow = ?, nickname_particle = ? WHERE id = ?`).run(
     effect,
     glow ? 1 : 0,
+    particle,
     userId,
   );
   if (effect !== "none") {
@@ -245,6 +259,7 @@ export type RankingEntry = {
   maxRound: number;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
 };
 
 // nickname IS NOT NULL is defensive (every account reaching a round already
@@ -254,7 +269,8 @@ export function getTopRanking(limit: number): RankingEntry[] {
   const rows = db
     .prepare(
       `SELECT nickname, nickname_color AS nicknameColor, max_round AS maxRound,
-              nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow
+              nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow,
+              nickname_particle AS nicknameParticle
        FROM users
        WHERE nickname IS NOT NULL AND max_round > 0
        ORDER BY max_round DESC, id ASC
