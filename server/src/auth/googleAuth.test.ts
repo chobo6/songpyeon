@@ -211,6 +211,22 @@ describe("addGameMoney", () => {
 
     expect(getUserById(user.id)).toMatchObject({ gameMoney: 40 });
   });
+
+  test("never lets game_money go below zero even when subtracting more than the balance", () => {
+    const user = getOrCreateUser("sub-money-3", {});
+    addGameMoney(user.id, 20);
+    addGameMoney(user.id, -50);
+
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: 0 });
+  });
+
+  test("subtracts normally when the balance stays non-negative", () => {
+    const user = getOrCreateUser("sub-money-4", {});
+    addGameMoney(user.id, 100);
+    addGameMoney(user.id, -30);
+
+    expect(getUserById(user.id)).toMatchObject({ gameMoney: 70 });
+  });
 });
 
 describe("getTopRanking", () => {

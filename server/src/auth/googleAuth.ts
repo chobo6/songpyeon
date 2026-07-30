@@ -140,6 +140,7 @@ export type AdminUserRow = {
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
   nicknameParticle: NicknameParticle;
+  gameMoney: number;
 };
 
 export function listUsers(): AdminUserRow[] {
@@ -148,7 +149,7 @@ export function listUsers(): AdminUserRow[] {
       `SELECT id, email, name, nickname, banned_at AS bannedAt, nickname_color AS nicknameColor,
               created_at AS createdAt, last_login_at AS lastLoginAt,
               nickname_effect AS nicknameEffect, nickname_glow AS nicknameGlow,
-              nickname_particle AS nicknameParticle
+              nickname_particle AS nicknameParticle, game_money AS gameMoney
        FROM users ORDER BY id DESC`,
     )
     .all() as (Omit<AdminUserRow, "nicknameGlow"> & { nicknameGlow: number })[];
@@ -250,7 +251,7 @@ export function recordRolePlayed(userId: number, role: "pig" | "rabbit"): void {
 // handlePressButton, turnOutcome이 "success"로 확정되는 지점). amount는
 // 호출부에서 이미 "10 × 팀 수"로 계산해서 넘겨준다 — 여기서는 그냥 누적만 한다.
 export function addGameMoney(userId: number, amount: number): void {
-  db.prepare(`UPDATE users SET game_money = game_money + ? WHERE id = ?`).run(amount, userId);
+  db.prepare(`UPDATE users SET game_money = MAX(0, game_money + ?) WHERE id = ?`).run(amount, userId);
 }
 
 export type RankingEntry = {

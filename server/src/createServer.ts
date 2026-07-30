@@ -14,6 +14,7 @@ import { broadcast, subscribe } from "./admin/announcements";
 import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
 import { getOnlineUsers, isUserOnline, touchPresence } from "./admin/presence";
 import {
+  addGameMoney,
   adminSetNickname,
   equipEffect,
   getOrCreateUser,
@@ -329,6 +330,28 @@ export function createGameServer(): Server {
       return;
     }
     setUserBanned(userId, false);
+    res.json({ ok: true });
+  });
+
+  // 증감(delta) 방식 — "새 잔액을 얼마로"가 아니라 "얼마를 더하거나 뺄지"를 받는다.
+  // addGameMoney가 이미 0 밑으로 안 내려가게 클램프하므로 여기서 따로 잔액 확인 안 함.
+  app.post("/api/admin/users/:id/game-money", requireAdmin, (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    const { delta } = req.body as { delta?: unknown };
+    if (typeof delta !== "number" || !Number.isInteger(delta) || delta === 0) {
+      res.status(400).json({ error: "delta는 0이 아닌 정수여야 합니다." });
+      return;
+    }
+    const user = getUserById(userId);
+    if (!user) {
+      res.status(404).json({ error: "존재하지 않는 유저입니다." });
+      return;
+    }
+    addGameMoney(userId, delta);
     res.json({ ok: true });
   });
 
