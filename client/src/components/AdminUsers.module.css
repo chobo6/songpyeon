@@ -80,14 +80,6 @@
   background: #f9fafb;
 }
 
-.editInput {
-  padding: 0.2rem 0.4rem;
-  font-size: 0.85rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.3rem;
-  width: 6rem;
-}
-
 .actionsCell {
   display: flex;
   gap: 0.4rem;
@@ -111,8 +103,7 @@
   opacity: 0.5;
 }
 
-.colorDisplayRow,
-.colorEditRow {
+.colorDisplayRow {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -127,18 +118,15 @@
   flex-shrink: 0;
 }
 
-.colorInput {
-  padding: 0.2rem 0.4rem;
-  font-size: 0.85rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.3rem;
-  width: 6rem;
-}
-
-.effectLabel {
+.pagination {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  white-space: nowrap;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.pageIndicator {
+  font-size: 0.85rem;
+  color: #374151;
 }
