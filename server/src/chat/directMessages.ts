@@ -1,5 +1,5 @@
 import { db, sqliteBool } from "../db/connection";
-import type { NicknameEffect } from "../auth/googleAuth";
+import type { NicknameEffect, NicknameParticle } from "../auth/googleAuth";
 
 export type DirectMessageEntry = {
   id: number;
@@ -8,6 +8,7 @@ export type DirectMessageEntry = {
   senderNicknameColor: string | null;
   senderNicknameEffect: NicknameEffect;
   senderNicknameGlow: boolean;
+  senderNicknameParticle: NicknameParticle;
   text: string;
   createdAt: string;
 };
@@ -22,6 +23,7 @@ export function getMessages(userId: number, otherUserId: number): DirectMessageE
               u.nickname_color AS senderNicknameColor,
               u.nickname_effect AS senderNicknameEffect,
               u.nickname_glow AS senderNicknameGlow,
+              u.nickname_particle AS senderNicknameParticle,
               m.text AS text, m.created_at AS createdAt
        FROM direct_messages m
        JOIN users u ON u.id = m.sender_id

@@ -1,5 +1,5 @@
 import { db, sqliteBool } from "../db/connection";
-import type { NicknameEffect } from "../auth/googleAuth";
+import type { NicknameEffect, NicknameParticle } from "../auth/googleAuth";
 
 export function findUserByNickname(nickname: string): { id: number } | undefined {
   return db.prepare(`SELECT id FROM users WHERE nickname = ?`).get(nickname) as { id: number } | undefined;
@@ -108,6 +108,7 @@ export type FriendListEntry = {
   nicknameColor: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
 };
 
 export function listFriends(userId: number): FriendListEntry[] {
@@ -119,7 +120,8 @@ export function listFriends(userId: number): FriendListEntry[] {
               u.last_login_at AS lastLoginAt,
               u.nickname_color AS nicknameColor,
               u.nickname_effect AS nicknameEffect,
-              u.nickname_glow AS nicknameGlow
+              u.nickname_glow AS nicknameGlow,
+              u.nickname_particle AS nicknameParticle
        FROM friendships f
        JOIN users u ON u.id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END
        WHERE f.status = 'accepted' AND (f.requester_id = ? OR f.addressee_id = ?)`,
@@ -139,6 +141,7 @@ export type ReceivedRequestEntry = {
   fromNicknameColor: string | null;
   fromNicknameEffect: NicknameEffect;
   fromNicknameGlow: boolean;
+  fromNicknameParticle: NicknameParticle;
 };
 
 export function listReceivedRequests(userId: number): ReceivedRequestEntry[] {
@@ -147,7 +150,8 @@ export function listReceivedRequests(userId: number): ReceivedRequestEntry[] {
       `SELECT f.id AS requestId, u.id AS fromUserId, u.nickname AS fromNickname, f.created_at AS createdAt,
               u.nickname_color AS fromNicknameColor,
               u.nickname_effect AS fromNicknameEffect,
-              u.nickname_glow AS fromNicknameGlow
+              u.nickname_glow AS fromNicknameGlow,
+              u.nickname_particle AS fromNicknameParticle
        FROM friendships f
        JOIN users u ON u.id = f.requester_id
        WHERE f.addressee_id = ? AND f.status = 'pending'`,
@@ -167,6 +171,7 @@ export type SentRequestEntry = {
   toNicknameColor: string | null;
   toNicknameEffect: NicknameEffect;
   toNicknameGlow: boolean;
+  toNicknameParticle: NicknameParticle;
 };
 
 export function listSentRequests(userId: number): SentRequestEntry[] {
@@ -175,7 +180,8 @@ export function listSentRequests(userId: number): SentRequestEntry[] {
       `SELECT f.id AS requestId, u.id AS toUserId, u.nickname AS toNickname, f.created_at AS createdAt,
               u.nickname_color AS toNicknameColor,
               u.nickname_effect AS toNicknameEffect,
-              u.nickname_glow AS toNicknameGlow
+              u.nickname_glow AS toNicknameGlow,
+              u.nickname_particle AS toNicknameParticle
        FROM friendships f
        JOIN users u ON u.id = f.addressee_id
        WHERE f.requester_id = ? AND f.status = 'pending'`,

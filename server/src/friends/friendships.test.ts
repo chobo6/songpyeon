@@ -199,6 +199,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         nicknameColor: null,
         nicknameEffect: "none",
         nicknameGlow: false,
+        nicknameParticle: "none",
       },
     ]);
     expect(listFriends(b)).toEqual([
@@ -210,6 +211,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         nicknameColor: null,
         nicknameEffect: "none",
         nicknameGlow: false,
+        nicknameParticle: "none",
       },
     ]);
   });
@@ -228,6 +230,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         fromNicknameColor: null,
         fromNicknameEffect: "none",
         fromNicknameGlow: false,
+        fromNicknameParticle: "none",
       },
     ]);
     expect(listReceivedRequests(a)).toEqual([]);
@@ -247,6 +250,7 @@ describe("listFriends / listReceivedRequests / listSentRequests", () => {
         toNicknameColor: null,
         toNicknameEffect: "none",
         toNicknameGlow: false,
+        toNicknameParticle: "none",
       },
     ]);
     expect(listSentRequests(b)).toEqual([]);
