@@ -163,17 +163,16 @@
 }
 
 /* ============================================================
-   TEMP SPIKE — 파티클 레이아웃 확인용 임시 코드. 결정 나면 통째로 삭제.
+   닉네임 파티클 효과 — 반짝임/상승/궤도/눈
    ============================================================ */
-.spikeWrap {
+.particleWrap {
   position: relative;
   display: inline-block;
 }
 
-/* 점 하나하나가 실제 DOM 엘리먼트(SpikeDot)라 각자 독립적인 left/top/delay를
-   인라인 style로 받는다 — box-shadow 트릭과 달리 진짜로 폭 전체에서 각자
-   다른 위치에 스폰될 수 있다. */
-.spikeDot {
+/* 점 하나하나가 실제 DOM 엘리먼트(ParticleDot)라 각자 독립적인 left/top/delay를
+   인라인 style로 받는다 — 폭 전체에서 각자 다른 위치에 스폰될 수 있다. */
+.particleDot {
   position: absolute;
   border-radius: 50%;
   width: 3px;
@@ -185,9 +184,9 @@
 .twinkleDot {
   background: #ffd76e;
   box-shadow: 0 0 3px 1px #ffd76e;
-  animation: spike-twinkle 2.6s ease-in-out infinite;
+  animation: particle-twinkle 2.6s ease-in-out infinite;
 }
-@keyframes spike-twinkle {
+@keyframes particle-twinkle {
   0%,
   100% {
     opacity: 0;
@@ -206,9 +205,9 @@
   background: #7cf5c4;
   box-shadow: 0 0 3px 1px #7cf5c4;
   bottom: -8%;
-  animation: spike-rise 2.6s ease-in infinite;
+  animation: particle-rise 2.6s ease-in infinite;
 }
-@keyframes spike-rise {
+@keyframes particle-rise {
   0% {
     opacity: 0;
     transform: translateY(0) translateX(0);
@@ -229,8 +228,9 @@
 }
 
 /* 궤도 — 반지름을 글자 높이 수준(0.65em)으로 압축, em 단위라 화면마다
-   폰트 크기가 달라도 늘 텍스트 자기 크기에 비례해서 따라감 */
-.spikeWrap.spikeOrbit::before {
+   폰트 크기가 달라도 늘 텍스트 자기 크기에 비례해서 따라감. 좁은 줄
+   높이에서는 글자와 겹칠 수 있음(알려진 한계, 스펙 참고). */
+.particleWrap.particleOrbit::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -238,9 +238,9 @@
   width: 0;
   height: 0;
   box-shadow: 0 -0.65em 0 1.5px #ff8fd0;
-  animation: spike-spin 3s linear infinite;
+  animation: particle-spin 3s linear infinite;
 }
-.spikeWrap.spikeOrbit::after {
+.particleWrap.particleOrbit::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -248,9 +248,9 @@
   width: 0;
   height: 0;
   box-shadow: 0 -0.45em 0 1.5px #7cf5c4;
-  animation: spike-spin 2.2s linear infinite reverse;
+  animation: particle-spin 2.2s linear infinite reverse;
 }
-@keyframes spike-spin {
+@keyframes particle-spin {
   from {
     transform: rotate(0deg);
   }
@@ -268,9 +268,9 @@
     0 0 0 1px rgba(30, 60, 100, 0.25),
     0 0 3px 1px #cfe8ff;
   top: -8%;
-  animation: spike-snow 2.8s linear infinite;
+  animation: particle-snow 2.8s linear infinite;
 }
-@keyframes spike-snow {
+@keyframes particle-snow {
   0% {
     opacity: 0;
     transform: translateY(0) translateX(0);
@@ -308,5 +308,13 @@
   .neon.neon,
   .chrome.chrome {
     animation-duration: 40s;
+  }
+
+  .twinkleDot,
+  .risingDot,
+  .snowDot,
+  .particleWrap.particleOrbit::before,
+  .particleWrap.particleOrbit::after {
+    animation-duration: 40s !important;
   }
 }

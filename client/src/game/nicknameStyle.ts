@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import styles from "./nicknameStyle.module.css";
 
 export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
+export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
 
 const DEFAULT_GLOW_COLOR = "#ffffff";
 const DEFAULT_SHINE_BASE_COLOR = "#6fb1ff";
@@ -23,19 +24,14 @@ const EFFECT_CLASSNAME: Record<Exclude<NicknameEffect, "none">, string> = {
 // 그래서 이 둘일 땐 글로우를 아예 계산하지 않는다.
 const NO_INDEPENDENT_GLOW = new Set<NicknameEffect>(["pulse", "neon"]);
 
-// TEMP SPIKE — 파티클 레이아웃 확인용. 값만 바꿔서 어디서든 바로 눈으로 확인,
-// 결정 나면 이 블록과 nicknameStyle.module.css의 spike 섹션을 통째로 삭제.
-//
-// box-shadow 트릭(::before/::after 2개에 점 여러 개를 그리는 방식)은 한 그룹
-// 안의 점들이 전부 같은 transform을 공유해서 "항상 같은 2곳에서만 몇 개가
-// 반복해서 뜨는" 것처럼 보이는 근본적 한계가 있었다 — pseudo-element가 2개뿐이라
-// 진짜 독립적인 스폰 위치를 낼 수 없었음. 그래서 각 점을 실제 DOM 엘리먼트로
-// 바꿔서(SpikeDot[]) 하나하나 독립적인 위치/타이밍을 가지게 한다.
-export type SpikeParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
-const SPIKE_PARTICLE: SpikeParticle = "snow";
-const SPIKE_DOT_COUNT = 6;
+const PARTICLE_DOT_COUNT = 6;
+const PARTICLE_SIMPLE_CLASSNAME: Record<Exclude<NicknameParticle, "none" | "orbit">, string> = {
+  twinkle: styles.twinkleDot,
+  rising: styles.risingDot,
+  snow: styles.snowDot,
+};
 
-export type SpikeDot = { key: number; className: string; style: CSSProperties };
+export type ParticleDot = { key: number; className: string; style: CSSProperties };
 
 // 문자열 해시 → [0,1) 유사난수. Math.random()은 nicknameStyle()이 리렌더마다
 // 다시 호출되는 일반 함수라 쓰면 매번 위치가 튀어 보이므로, color 문자열(유저마다
@@ -56,17 +52,19 @@ function stringSeed(str: string): number {
   return hash;
 }
 
-// 점 하나하나(SPIKE_DOT_COUNT개)가 닉네임 폭 전체(4%~96%)에서 각자 독립적인
-// 위치·타이밍으로 스폰되게 한다 — 색상 문자열 시드 기반이라 사실상 랜덤처럼
-// 보이지만 같은 사람은 항상 같은 배치를 유지한다.
-function spikeDots(particle: Exclude<SpikeParticle, "none" | "orbit">, color: string | null | undefined): SpikeDot[] {
-  const seed = stringSeed(color || "spike-default-seed");
-  const dotClass =
-    particle === "twinkle" ? styles.twinkleDot : particle === "rising" ? styles.risingDot : styles.snowDot;
+// 점 하나하나(PARTICLE_DOT_COUNT개)가 실제 DOM 엘리먼트라 닉네임 폭 전체
+// (4%~96%)에서 각자 독립적인 위치·타이밍으로 스폰된다 — 색상 문자열 시드
+// 기반이라 사실상 랜덤처럼 보이지만 같은 사람은 항상 같은 배치를 유지한다.
+function particleDots(
+  particle: Exclude<NicknameParticle, "none" | "orbit">,
+  color: string | null | undefined,
+): ParticleDot[] {
+  const seed = stringSeed(color || "particle-default-seed");
+  const dotClass = PARTICLE_SIMPLE_CLASSNAME[particle];
   const duration = particle === "snow" ? 2.8 : 2.6;
 
-  const dots: SpikeDot[] = [];
-  for (let i = 0; i < SPIKE_DOT_COUNT; i++) {
+  const dots: ParticleDot[] = [];
+  for (let i = 0; i < PARTICLE_DOT_COUNT; i++) {
     const leftPct = 4 + seededUnit(seed, 100 + i * 7) * 92;
     const delay = seededUnit(seed, 200 + i * 11) * duration;
     const style: CSSProperties & Record<string, string> = {
@@ -83,20 +81,22 @@ function spikeDots(particle: Exclude<SpikeParticle, "none" | "orbit">, color: st
       style["--drift-mid"] = `${seededOffset(seed, 400 + i * 17, 0.3).toFixed(2)}em`;
       style["--drift-end"] = `${seededOffset(seed, 500 + i * 19, 0.5).toFixed(2)}em`;
     }
-    dots.push({ key: i, className: `${styles.spikeDot} ${dotClass}`, style });
+    dots.push({ key: i, className: `${styles.particleDot} ${dotClass}`, style });
   }
   return dots;
 }
 
 // 닉네임을 렌더링하는 모든 화면이 공통으로 쓰는 스타일 계산기. 레인보우/샤인/홀로그램/
 // Pulse/네온사인/크롬은 서로 배타적(닉네임의 "기본 색"을 정의하는 효과라 동시에 켤 수
-// 없음 — nicknameEffect가 이미 하나의 값만 가지므로 구조적으로 보장됨). 글로우는
-// 독립적으로 켤 수 있는 text-shadow이지만 Pulse/네온사인일 땐 예외(위 주석 참고).
+// 없음 — nicknameEffect가 이미 하나의 값만 가지므로 구조적으로 보장됨). 글로우와
+// 파티클은 효과와 독립적으로 켤 수 있다(파티클은 nicknameEffect/nicknameGlow와
+// 완전히 다른 세 번째 축).
 export function nicknameStyle(
   color: string | null | undefined,
   effect: NicknameEffect | undefined,
   glow: boolean | undefined,
-): { className: string; style: CSSProperties; particles: SpikeDot[] } {
+  particle: NicknameParticle | undefined,
+): { className: string; style: CSSProperties; particles: ParticleDot[] } {
   const style: CSSProperties = {};
 
   if (glow && !(effect && NO_INDEPENDENT_GLOW.has(effect))) {
@@ -117,21 +117,21 @@ export function nicknameStyle(
     (style as CSSProperties & Record<string, string>)["--nickname-base-color"] = color || fallback;
   }
 
-  let spikeClass = "";
-  let particles: SpikeDot[] = [];
-  if (SPIKE_PARTICLE === "orbit") {
-    spikeClass = `${styles.spikeWrap} ${styles.spikeOrbit}`;
-  } else if (SPIKE_PARTICLE !== "none") {
-    spikeClass = styles.spikeWrap;
-    particles = spikeDots(SPIKE_PARTICLE, color);
+  let particleClass = "";
+  let particles: ParticleDot[] = [];
+  if (particle === "orbit") {
+    particleClass = `${styles.particleWrap} ${styles.particleOrbit}`;
+  } else if (particle && particle !== "none") {
+    particleClass = styles.particleWrap;
+    particles = particleDots(particle, color);
   }
 
   if (effect && effect !== "none") {
-    return { className: `${EFFECT_CLASSNAME[effect]} ${spikeClass}`.trim(), style, particles };
+    return { className: `${EFFECT_CLASSNAME[effect]} ${particleClass}`.trim(), style, particles };
   }
 
   if (color) {
     style.color = color;
   }
-  return { className: spikeClass, style, particles };
+  return { className: particleClass, style, particles };
 }
