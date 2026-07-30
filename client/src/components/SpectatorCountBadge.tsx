@@ -24,7 +24,7 @@ export function SpectatorCountBadge({ room }: { room: Room<MatchState> }) {
             ) : (
               <ul className={styles.list}>
                 {spectators.map((s) => {
-                  const effect = nicknameStyle(s.nicknameColor, s.nicknameEffect, s.nicknameGlow);
+                  const effect = nicknameStyle(s.nicknameColor, s.nicknameEffect, s.nicknameGlow, s.nicknameParticle);
                   return (
                     <li key={s.sessionId}>
                       <button className={styles.row} onClick={() => setProfileNickname(s.nickname)}>

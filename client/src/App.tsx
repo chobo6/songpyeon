@@ -124,6 +124,7 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
         nicknameColor={me.nicknameColor}
         nicknameEffect={me.nicknameEffect}
         nicknameGlow={me.nicknameGlow}
+        nicknameParticle={me.nicknameParticle}
         maxRound={me.maxRound}
         pigPlayCount={me.pigPlayCount}
         rabbitPlayCount={me.rabbitPlayCount}

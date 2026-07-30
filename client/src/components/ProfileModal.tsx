@@ -10,7 +10,7 @@ export function ProfileModal({ nickname, onClose }: { nickname: string; onClose:
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const effect = profile
-    ? nicknameStyle(profile.nicknameColor, profile.nicknameEffect, profile.nicknameGlow)
+    ? nicknameStyle(profile.nicknameColor, profile.nicknameEffect, profile.nicknameGlow, profile.nicknameParticle)
     : { className: "", style: {}, particles: [] };
 
   useEffect(() => {

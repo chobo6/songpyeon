@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import type { Room } from "colyseus.js";
 import type { MatchState } from "../game/matchTypes";
 import type { Role } from "../game/colors";
-import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
+import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import { ChatBox } from "./ChatBox";
 import { InviteFriendsModal } from "./InviteFriendsModal";
 import { ProfileModal } from "./ProfileModal";
@@ -46,6 +46,10 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
     return sessionId ? (room.state.players.get(sessionId)?.nicknameGlow ?? false) : false;
   }
 
+  function nicknameParticleFor(sessionId: string): NicknameParticle {
+    return sessionId ? (room.state.players.get(sessionId)?.nicknameParticle ?? "none") : "none";
+  }
+
   return (
     <div className={styles.wrap}>
       <div className={styles.header}>
@@ -62,7 +66,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             <span className={styles.pendingLabel}>역할 선택 중</span>
             <div className={styles.pendingNames}>
               {unassignedPlayers.map((p) => {
-                const effect = nicknameStyle(p.nicknameColor, p.nicknameEffect, p.nicknameGlow);
+                const effect = nicknameStyle(p.nicknameColor, p.nicknameEffect, p.nicknameGlow, p.nicknameParticle);
                 return (
                   <button
                     key={p.sessionId}
@@ -113,11 +117,13 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             nicknameColorFor(team.pigSessionId),
             nicknameEffectFor(team.pigSessionId),
             nicknameGlowFor(team.pigSessionId),
+            nicknameParticleFor(team.pigSessionId),
           );
           const rabbitEffect = nicknameStyle(
             nicknameColorFor(team.rabbitSessionId),
             nicknameEffectFor(team.rabbitSessionId),
             nicknameGlowFor(team.rabbitSessionId),
+            nicknameParticleFor(team.rabbitSessionId),
           );
           return (
             <div key={team.id} className={styles.rosterTeam}>

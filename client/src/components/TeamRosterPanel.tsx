@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { PlayerState, TeamState } from "../game/matchTypes";
-import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
+import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import panelBg from "./bottomPanelBackground.module.css";
 import styles from "./TeamRosterPanel.module.css";
 
@@ -42,15 +42,17 @@ function Seat({
   nicknameColor,
   nicknameEffect,
   nicknameGlow,
+  nicknameParticle,
   roleIcon,
 }: {
   nickname: string | undefined;
   nicknameColor: string | undefined;
   nicknameEffect: NicknameEffect | undefined;
   nicknameGlow: boolean | undefined;
+  nicknameParticle: NicknameParticle | undefined;
   roleIcon: string;
 }) {
-  const effect = nicknameStyle(nicknameColor, nicknameEffect, nicknameGlow);
+  const effect = nicknameStyle(nicknameColor, nicknameEffect, nicknameGlow, nicknameParticle);
   return (
     <div className={styles.seat}>
       <img className={styles.seatIcon} src={roleIcon} alt="" />
@@ -75,6 +77,7 @@ export const TeamRosterPanel = memo(function TeamRosterPanel({ teams, players }:
               nicknameColor={players.get(team.pigSessionId)?.nicknameColor}
               nicknameEffect={players.get(team.pigSessionId)?.nicknameEffect}
               nicknameGlow={players.get(team.pigSessionId)?.nicknameGlow}
+              nicknameParticle={players.get(team.pigSessionId)?.nicknameParticle}
               roleIcon="/game-assets/ui/thanksgiving_room_start_player_pig.png"
             />
             <Seat
@@ -82,6 +85,7 @@ export const TeamRosterPanel = memo(function TeamRosterPanel({ teams, players }:
               nicknameColor={players.get(team.rabbitSessionId)?.nicknameColor}
               nicknameEffect={players.get(team.rabbitSessionId)?.nicknameEffect}
               nicknameGlow={players.get(team.rabbitSessionId)?.nicknameGlow}
+              nicknameParticle={players.get(team.rabbitSessionId)?.nicknameParticle}
               roleIcon="/game-assets/ui/thanksgiving_room_start_player_rabbit.png"
             />
             {team.eliminated ? (

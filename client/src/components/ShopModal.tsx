@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { equipEffect, getShop, purchaseEffect, type ShopState } from "../game/shop";
 import { rerollNicknameColor } from "../game/profile";
-import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
+import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import styles from "./ShopModal.module.css";
 
 const SHOP_EFFECTS: Exclude<NicknameEffect, "none">[] = ["rainbow", "shine", "hologram", "pulse", "neon", "chrome"];
@@ -18,12 +18,14 @@ export function ShopModal({
   nickname,
   nicknameColor,
   nicknameGlow,
+  nicknameParticle,
   onClose,
   onProfileChanged,
 }: {
   nickname: string;
   nicknameColor: string | null;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
   onClose: () => void;
   onProfileChanged: () => void;
 }) {
@@ -94,7 +96,7 @@ export function ShopModal({
               {[...SHOP_EFFECTS].sort((a, b) => shop.prices[a] - shop.prices[b]).map((effect) => {
                 const isOwned = shop.owned.includes(effect);
                 const isEquipped = shop.equipped === effect;
-                const preview = nicknameStyle(nicknameColor, effect, nicknameGlow);
+                const preview = nicknameStyle(nicknameColor, effect, nicknameGlow, nicknameParticle);
                 return (
                   <div key={effect} className={styles.card}>
                     <span className={`${styles.preview} ${preview.className}`} style={preview.style}>

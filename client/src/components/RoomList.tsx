@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { getReceivedRequests } from "../game/friends";
 import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/invites";
-import { nicknameStyle, type NicknameEffect } from "../game/nicknameStyle";
+import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
@@ -22,6 +22,7 @@ export function RoomList({
   nicknameColor,
   nicknameEffect,
   nicknameGlow,
+  nicknameParticle,
   maxRound,
   pigPlayCount,
   rabbitPlayCount,
@@ -35,6 +36,7 @@ export function RoomList({
   nicknameColor: string | null;
   nicknameEffect: NicknameEffect;
   nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
   maxRound: number;
   pigPlayCount: number;
   rabbitPlayCount: number;
@@ -54,7 +56,7 @@ export function RoomList({
   const [showOwnProfile, setShowOwnProfile] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
-  const effect = nicknameStyle(nicknameColor, nicknameEffect, nicknameGlow);
+  const effect = nicknameStyle(nicknameColor, nicknameEffect, nicknameGlow, nicknameParticle);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,6 +219,7 @@ export function RoomList({
           nickname={nickname}
           nicknameColor={nicknameColor}
           nicknameGlow={nicknameGlow}
+          nicknameParticle={nicknameParticle}
           onClose={() => setShowShopModal(false)}
           onProfileChanged={onProfileChanged}
         />
