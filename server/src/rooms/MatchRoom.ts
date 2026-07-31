@@ -907,10 +907,10 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   // 팀이 자기 차례(턴)를 성공적으로 완료할 때마다 호출 — 팀 소속 두 플레이어
-  // (돼지, 토끼) 각각에게 "10원 × 이 방의 팀 수"를 지급한다. creditRound와
+  // (돼지, 토끼) 각각에게 "20원 × 이 방의 팀 수"를 지급한다. creditRound와
   // 동일한 이유로 playerUserIds에 없으면(빈 슬롯) 조용히 건너뛴다.
   private creditTurnSuccess(team: TeamState) {
-    const reward = 10 * this.state.teams.length;
+    const reward = 20 * this.state.teams.length;
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) addGameMoney(userId, reward);

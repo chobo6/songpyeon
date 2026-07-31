@@ -939,13 +939,13 @@ describe("MatchRoom", () => {
 
       await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
 
-      // 2팀 방이므로 10 × 2 = 20원.
-      expect(gameMoneyOf(pigNickname)).toBe(20);
-      expect(gameMoneyOf(rabbitNickname)).toBe(20);
+      // 2팀 방이므로 20 × 2 = 40원.
+      expect(gameMoneyOf(pigNickname)).toBe(40);
+      expect(gameMoneyOf(rabbitNickname)).toBe(40);
     },
   );
 
-  test("a successful turn in a 1-team room pays no multiplier (10 won)", async () => {
+  test("a successful turn in a 1-team room pays no multiplier (20 won)", async () => {
     const room = await colyseus.createRoom<MatchState>("match", {
       teamCount: 1,
       turnDurationMs: PRESS_HEAVY_TURN_MS,
@@ -967,8 +967,8 @@ describe("MatchRoom", () => {
 
     await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
 
-    expect(gameMoneyOf("외팀0")).toBe(10);
-    expect(gameMoneyOf("외팀1")).toBe(10);
+    expect(gameMoneyOf("외팀0")).toBe(20);
+    expect(gameMoneyOf("외팀1")).toBe(20);
   });
 
   test(
