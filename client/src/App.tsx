@@ -11,6 +11,7 @@ import { SoloRoleSelect } from "./components/SoloRoleSelect";
 import { SoloPlayScreen } from "./components/SoloPlayScreen";
 import type { Role } from "./game/colors";
 import { AnnouncementBanner } from "./components/AnnouncementBanner";
+import { MegaphoneBanner } from "./components/MegaphoneBanner";
 import "./App.css";
 
 type Mode = "select" | "online" | "offline";
@@ -173,6 +174,7 @@ function App() {
   return (
     <>
       <AnnouncementBanner />
+      <MegaphoneBanner />
       {mode === "online" && <OnlineFlow onExit={() => setMode("select")} />}
       {mode === "offline" && <OfflineFlow onExit={() => setMode("select")} />}
       {mode === "select" && (

@@ -1,0 +1,26 @@
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: #92400e;
+  color: #fff7ed;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.banner button {
+  background: none;
+  border: none;
+  color: #fff7ed;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
