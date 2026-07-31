@@ -101,7 +101,7 @@ app.post("/api/shop/nickname-ticket", (req, res) => {
   통일). 성공하면 입력창을 닫고 `onProfileChanged()`를 호출해 화면 전체(로비, 게임 내
   닉네임 표시 등)의 닉네임을 갱신한다.
 
-## 3. 확성기 (2,500원)
+## 3. 확성기 (3,000원, 2026-08-01 2,500→3,000 조정)
 
 관리자 "전체 공지"(`server/src/admin/announcements.ts` + `AnnouncementBanner.tsx`)와 같은
 SSE 배너 방식을 재사용하되, **관리자 공지와 겹쳐쓰지 않도록 완전히 별도 채널**로 만든다.
@@ -177,7 +177,7 @@ export function _subscriberCountForTest(): number {
 ### `googleAuth.ts`에 추가
 
 ```ts
-export const MEGAPHONE_COST = 2500;
+export const MEGAPHONE_COST = 3000;
 
 export type UseMegaphoneResult = { ok: true; gameMoney: number } | { ok: false; reason: "insufficient_funds" };
 
@@ -283,7 +283,7 @@ res.json({
 
 - 확성기/닉네임변경권 모두 사용 내역 로그(누가 언제 얼마에 무엇을 보냈는지) — 필요해지면
   별도 스펙.
-- 확성기 메시지에 대한 욕설/도배 필터링 — 2,500원이라는 비용 자체가 약한 스팸 방지 역할을
+- 확성기 메시지에 대한 욕설/도배 필터링 — 3,000원이라는 비용 자체가 약한 스팸 방지 역할을
   하고, 40자 제한도 있어 이번 스코프에서는 별도 필터를 만들지 않음. 문제가 실제로 생기면
   관리자 페이지에 신고/차단 기능을 추가로 검토.
 - 관리자 공지 배너와 확성기 배너의 동시 노출 시 자동 스택(겹침 방지) — 위 "알려진 한계"

@@ -340,7 +340,7 @@ export function useNicknameTicket(userId: number, nickname: string): UseNickname
   return "ok";
 }
 
-export const MEGAPHONE_COST = 2500;
+export const MEGAPHONE_COST = 3000;
 
 export type UseMegaphoneResult = { ok: true; gameMoney: number } | { ok: false; reason: "insufficient_funds" };
 
