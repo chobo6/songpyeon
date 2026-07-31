@@ -8,6 +8,8 @@ export type ShopState = {
   owned: NicknameEffect[];
   equipped: NicknameEffect;
   rerollColorPrice: number;
+  nicknameTicketPrice: number;
+  megaphonePrice: number;
 };
 
 async function shopFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -34,5 +36,21 @@ export function equipEffect(effect: NicknameEffect): Promise<{ ok: true }> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ effect }),
+  });
+}
+
+export function useNicknameTicket(nickname: string): Promise<{ nickname: string; gameMoney: number }> {
+  return shopFetch("/api/shop/nickname-ticket", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nickname }),
+  });
+}
+
+export function sendMegaphone(message: string): Promise<{ gameMoney: number }> {
+  return shopFetch("/api/shop/megaphone", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
   });
 }

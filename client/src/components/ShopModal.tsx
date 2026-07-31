@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
-import { equipEffect, getShop, purchaseEffect, type ShopState } from "../game/shop";
+import {
+  equipEffect,
+  getShop,
+  purchaseEffect,
+  sendMegaphone,
+  useNicknameTicket,
+  type ShopState,
+} from "../game/shop";
 import { rerollNicknameColor } from "../game/profile";
 import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import styles from "./ShopModal.module.css";
+
+const MAX_NICKNAME_LENGTH = 10;
+const MAX_MEGAPHONE_LENGTH = 40;
 
 const SHOP_EFFECTS: Exclude<NicknameEffect, "none">[] = ["rainbow", "shine", "hologram", "pulse", "neon", "chrome"];
 const EFFECT_LABELS: Record<Exclude<NicknameEffect, "none">, string> = {
@@ -32,6 +42,11 @@ export function ShopModal({
   const [shop, setShop] = useState<ShopState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyEffect, setBusyEffect] = useState<string | null>(null);
+
+  const [nicknameTicketOpen, setNicknameTicketOpen] = useState(false);
+  const [nicknameTicketValue, setNicknameTicketValue] = useState("");
+  const [megaphoneOpen, setMegaphoneOpen] = useState(false);
+  const [megaphoneValue, setMegaphoneValue] = useState("");
 
   function refresh() {
     getShop()
@@ -78,6 +93,42 @@ export function ShopModal({
       onProfileChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "닉색 변경에 실패했어요.");
+    } finally {
+      setBusyEffect(null);
+    }
+  }
+
+  async function handleNicknameTicket() {
+    const trimmed = nicknameTicketValue.trim();
+    if (!trimmed) return;
+    setBusyEffect("nickname-ticket");
+    setError(null);
+    try {
+      await useNicknameTicket(trimmed);
+      setNicknameTicketOpen(false);
+      setNicknameTicketValue("");
+      refresh();
+      onProfileChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "닉네임 변경에 실패했어요.");
+    } finally {
+      setBusyEffect(null);
+    }
+  }
+
+  async function handleMegaphone() {
+    const trimmed = megaphoneValue.trim();
+    if (!trimmed) return;
+    setBusyEffect("megaphone");
+    setError(null);
+    try {
+      await sendMegaphone(trimmed);
+      setMegaphoneOpen(false);
+      setMegaphoneValue("");
+      refresh();
+      onProfileChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "확성기 전송에 실패했어요.");
     } finally {
       setBusyEffect(null);
     }
@@ -147,6 +198,58 @@ export function ShopModal({
               >
                 구매 ({shop.rerollColorPrice.toLocaleString("ko-KR")}원)
               </button>
+            </div>
+            <div className={styles.rerollCard}>
+              <span className={styles.effectName}>닉네임변경권</span>
+              {nicknameTicketOpen ? (
+                <div className={styles.inlineForm}>
+                  <input
+                    className={styles.inlineInput}
+                    value={nicknameTicketValue}
+                    onChange={(e) => setNicknameTicketValue(e.target.value)}
+                    maxLength={MAX_NICKNAME_LENGTH}
+                    placeholder="새 닉네임"
+                    autoFocus
+                  />
+                  <button
+                    className={styles.actionButton}
+                    disabled={busyEffect === "nickname-ticket" || !nicknameTicketValue.trim()}
+                    onClick={handleNicknameTicket}
+                  >
+                    변경
+                  </button>
+                </div>
+              ) : (
+                <button className={styles.actionButton} onClick={() => setNicknameTicketOpen(true)}>
+                  구매 ({shop.nicknameTicketPrice.toLocaleString("ko-KR")}원)
+                </button>
+              )}
+            </div>
+            <div className={styles.rerollCard}>
+              <span className={styles.effectName}>확성기</span>
+              {megaphoneOpen ? (
+                <div className={styles.inlineForm}>
+                  <input
+                    className={styles.inlineInput}
+                    value={megaphoneValue}
+                    onChange={(e) => setMegaphoneValue(e.target.value)}
+                    maxLength={MAX_MEGAPHONE_LENGTH}
+                    placeholder="전체에 보낼 메시지"
+                    autoFocus
+                  />
+                  <button
+                    className={styles.actionButton}
+                    disabled={busyEffect === "megaphone" || !megaphoneValue.trim()}
+                    onClick={handleMegaphone}
+                  >
+                    보내기
+                  </button>
+                </div>
+              ) : (
+                <button className={styles.actionButton} onClick={() => setMegaphoneOpen(true)}>
+                  구매 ({shop.megaphonePrice.toLocaleString("ko-KR")}원)
+                </button>
+              )}
             </div>
           </>
         )}

@@ -109,3 +109,20 @@
   font-weight: 700;
   background: #363861;
 }
+
+.inlineForm {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.inlineInput {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  width: 8rem;
+  box-sizing: border-box;
+}
