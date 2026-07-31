@@ -316,6 +316,45 @@ function randomHexColor(): string {
   return `#${n.toString(16).padStart(6, "0")}`;
 }
 
+export const NICKNAME_TICKET_COST = 30000;
+
+export type UseNicknameTicketResult = "ok" | "taken" | "insufficient_funds";
+
+// setNickname과 같은 유니크 체크를 쓰되, "이미 설정된 닉네임"이라는 이유로 막지 않는다
+// (그게 이 아이템의 존재 이유 — 최초 1회 제한을 유료로 우회). 유니크 확인 → 잔액 확인 →
+// 차감+변경 순서 — 유니크 확인이 공짜라 먼저 걸러서, 어차피 실패할 요청 때문에 돈부터
+// 빠지는 일이 없게 한다.
+export function useNicknameTicket(userId: number, nickname: string): UseNicknameTicketResult {
+  const clean = sanitizeNickname(nickname);
+  const taken = db.prepare(`SELECT 1 FROM users WHERE nickname = ? AND id != ?`).get(clean, userId);
+  if (taken) return "taken";
+  const row = db.prepare(`SELECT game_money AS gameMoney FROM users WHERE id = ?`).get(userId) as
+    | { gameMoney: number }
+    | undefined;
+  if (!row || row.gameMoney < NICKNAME_TICKET_COST) return "insufficient_funds";
+  db.prepare(`UPDATE users SET game_money = game_money - ?, nickname = ? WHERE id = ?`).run(
+    NICKNAME_TICKET_COST,
+    clean,
+    userId,
+  );
+  return "ok";
+}
+
+export const MEGAPHONE_COST = 2500;
+
+export type UseMegaphoneResult = { ok: true; gameMoney: number } | { ok: false; reason: "insufficient_funds" };
+
+// 방송 자체(누구에게 보여줄지)는 이 함수의 관심사가 아님 — 여기서는 잔액만 확인/차감하고,
+// 실제 SSE 방송은 라우트가 game/megaphone.ts의 broadcast()를 따로 호출한다.
+export function useMegaphone(userId: number): UseMegaphoneResult {
+  const row = db.prepare(`SELECT game_money AS gameMoney FROM users WHERE id = ?`).get(userId) as
+    | { gameMoney: number }
+    | undefined;
+  if (!row || row.gameMoney < MEGAPHONE_COST) return { ok: false, reason: "insufficient_funds" };
+  db.prepare(`UPDATE users SET game_money = game_money - ? WHERE id = ?`).run(MEGAPHONE_COST, userId);
+  return { ok: true, gameMoney: row.gameMoney - MEGAPHONE_COST };
+}
+
 export type ShopEffect = Exclude<NicknameEffect, "none">;
 
 // 임시 가격 — 나중에 이 숫자들만 바꾸면 됨.

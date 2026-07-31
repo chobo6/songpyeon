@@ -14,6 +14,11 @@ import { broadcast, subscribe } from "./admin/announcements";
 import { subscribe as subscribeToPressMonitor } from "./admin/pressMonitor";
 import { getOnlineUsers, isUserOnline, touchPresence } from "./admin/presence";
 import {
+  broadcast as broadcastMegaphone,
+  sanitizeMegaphoneMessage,
+  subscribe as subscribeMegaphone,
+} from "./game/megaphone";
+import {
   addGameMoney,
   adminSetNickname,
   equipEffect,
@@ -22,11 +27,13 @@ import {
   getTopRanking,
   getUserById,
   listUsers,
+  MEGAPHONE_COST,
   NICKNAME_EFFECTS,
   NICKNAME_PARTICLES,
   type NicknameEffect,
   type NicknameParticle,
   NICKNAME_REROLL_COST,
+  NICKNAME_TICKET_COST,
   purchaseEffect,
   rerollNicknameColor,
   setNickname,
@@ -36,6 +43,8 @@ import {
   type ShopEffect,
   setUserBanned,
   touchLastLogin,
+  useMegaphone,
+  useNicknameTicket,
   verifyGoogleIdToken,
 } from "./auth/googleAuth";
 import { SESSION_COOKIE_NAME, SESSION_MAX_AGE_MS, signSession, verifySession } from "./auth/session";
@@ -811,6 +820,62 @@ export function createGameServer(): Server {
     res.json({ nicknameColor: result.nicknameColor, gameMoney: result.gameMoney });
   });
 
+  app.post("/api/shop/nickname-ticket", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { nickname } = req.body as { nickname?: unknown };
+    if (typeof nickname !== "string" || !nickname.trim()) {
+      res.status(400).json({ error: "닉네임이 필요합니다." });
+      return;
+    }
+    const result = useNicknameTicket(userId, nickname);
+    if (result === "taken") {
+      res.status(409).json({ error: "이미 사용 중인 닉네임이에요." });
+      return;
+    }
+    if (result === "insufficient_funds") {
+      res.status(400).json({ error: "게임머니가 부족해요." });
+      return;
+    }
+    const user = getUserById(userId);
+    res.json({ nickname: user?.nickname ?? null, gameMoney: user?.gameMoney ?? 0 });
+  });
+
+  app.post("/api/shop/megaphone", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { message } = req.body as { message?: unknown };
+    const clean = sanitizeMegaphoneMessage(message);
+    if (!clean) {
+      res.status(400).json({ error: "메시지를 입력해주세요." });
+      return;
+    }
+    const user = getUserById(userId);
+    if (!user?.nickname) {
+      res.status(400).json({ error: "닉네임을 먼저 설정해주세요." });
+      return;
+    }
+    const result = useMegaphone(userId);
+    if (!result.ok) {
+      res.status(400).json({ error: "게임머니가 부족해요." });
+      return;
+    }
+    broadcastMegaphone(user.nickname, clean);
+    res.json({ gameMoney: result.gameMoney });
+  });
+
+  app.get("/api/megaphone/stream", (req, res) => {
+    subscribeMegaphone(req, res);
+  });
+
   app.get("/api/shop", (req, res) => {
     const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
     const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
@@ -829,6 +894,8 @@ export function createGameServer(): Server {
       owned: getOwnedEffects(userId),
       equipped: user.nicknameEffect,
       rerollColorPrice: NICKNAME_REROLL_COST,
+      nicknameTicketPrice: NICKNAME_TICKET_COST,
+      megaphonePrice: MEGAPHONE_COST,
     });
   });
 

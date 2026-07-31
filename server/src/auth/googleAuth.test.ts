@@ -9,7 +9,9 @@ import {
   getTopRanking,
   getUserById,
   listUsers,
+  MEGAPHONE_COST,
   NICKNAME_REROLL_COST,
+  NICKNAME_TICKET_COST,
   purchaseEffect,
   recordRolePlayed,
   recordRoundAchievement,
@@ -20,6 +22,8 @@ import {
   SHOP_PRICES,
   setUserBanned,
   touchLastLogin,
+  useMegaphone,
+  useNicknameTicket,
 } from "./googleAuth";
 
 describe("getOrCreateUser", () => {
@@ -561,5 +565,78 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
 
     expect(getUserById(user.id)?.nicknameEffect).toBe("none");
     expect(getOwnedEffects(user.id)).toEqual(["neon"]);
+  });
+});
+
+describe("useNicknameTicket", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("changes an already-set nickname and deducts NICKNAME_TICKET_COST when funds are sufficient", () => {
+    const user = getOrCreateUser("sub-ticket-1", {});
+    setNickname(user.id, "옛날닉네임");
+    addGameMoney(user.id, NICKNAME_TICKET_COST + 5000);
+
+    const result = useNicknameTicket(user.id, "새닉네임");
+
+    expect(result).toBe("ok");
+    expect(getUserById(user.id)).toMatchObject({ nickname: "새닉네임", gameMoney: 5000 });
+  });
+
+  test("refuses when funds are insufficient and changes nothing", () => {
+    const user = getOrCreateUser("sub-ticket-2", {});
+    setNickname(user.id, "그대로닉네임");
+    addGameMoney(user.id, NICKNAME_TICKET_COST - 1);
+
+    const result = useNicknameTicket(user.id, "바뀔뻔한닉네임");
+
+    expect(result).toBe("insufficient_funds");
+    expect(getUserById(user.id)).toMatchObject({
+      nickname: "그대로닉네임",
+      gameMoney: NICKNAME_TICKET_COST - 1,
+    });
+  });
+
+  test("refuses a nickname already taken by another user and does not deduct money", () => {
+    const first = getOrCreateUser("sub-ticket-3", {});
+    setNickname(first.id, "먼저찜한닉네임");
+    const second = getOrCreateUser("sub-ticket-4", {});
+    setNickname(second.id, "내닉네임");
+    addGameMoney(second.id, NICKNAME_TICKET_COST + 5000);
+
+    const result = useNicknameTicket(second.id, "먼저찜한닉네임");
+
+    expect(result).toBe("taken");
+    expect(getUserById(second.id)).toMatchObject({
+      nickname: "내닉네임",
+      gameMoney: NICKNAME_TICKET_COST + 5000,
+    });
+  });
+});
+
+describe("useMegaphone", () => {
+  beforeEach(() => {
+    db.exec("DELETE FROM users");
+  });
+
+  test("deducts exactly MEGAPHONE_COST when funds are sufficient", () => {
+    const user = getOrCreateUser("sub-megaphone-1", {});
+    addGameMoney(user.id, MEGAPHONE_COST + 1000);
+
+    const result = useMegaphone(user.id);
+
+    expect(result).toEqual({ ok: true, gameMoney: 1000 });
+    expect(getUserById(user.id)?.gameMoney).toBe(1000);
+  });
+
+  test("refuses when funds are insufficient and changes nothing", () => {
+    const user = getOrCreateUser("sub-megaphone-2", {});
+    addGameMoney(user.id, MEGAPHONE_COST - 1);
+
+    const result = useMegaphone(user.id);
+
+    expect(result).toEqual({ ok: false, reason: "insufficient_funds" });
+    expect(getUserById(user.id)?.gameMoney).toBe(MEGAPHONE_COST - 1);
   });
 });
