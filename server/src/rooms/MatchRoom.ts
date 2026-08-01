@@ -266,6 +266,15 @@ export class MatchRoom extends Room<MatchState> {
       throw new Error("방이 가득 찼습니다.");
     }
 
+    // 같은 계정이 탭 두 개(또는 기기 두 개)로 같은 방에 동시에 플레이어로 들어와
+    // creditTurnSuccess의 턴 성공 보상을 두 배로 받는 걸 막는다. 관전은 이 체크와
+    // 무관(관전자는 playerUserIds에 안 들어감)하고, 정상 재접속(allowReconnection)은
+    // onAuth/onJoin을 다시 안 거치는 별개 경로라 여기 걸리지 않는다.
+    const joiningUserId = client.auth?.userId;
+    if (joiningUserId !== undefined && [...this.playerUserIds.values()].includes(joiningUserId)) {
+      throw new Error("이미 이 방에 참가 중인 계정입니다.");
+    }
+
     // The first player to actually join (not the one who called client.create())
     // is the host, display-wise — onCreate runs before its own caller's
     // onAuth/onJoin, so hostNickname can't be set there anymore.

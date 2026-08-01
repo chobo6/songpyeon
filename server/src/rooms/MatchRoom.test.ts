@@ -1555,6 +1555,39 @@ describe("MatchRoom", () => {
     });
   });
 
+  describe("duplicate account join guard", () => {
+    test("a second connection from the same account is rejected while it would otherwise become a second player", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      testUserCounter += 1;
+      const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+      setNickname(user.id, "다중접속시도");
+      const token = signSession(user.id);
+      const port = (colyseus.server as unknown as { port: number }).port;
+
+      const firstClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${token}` },
+      });
+      await firstClient.joinById<MatchState>(room.roomId);
+
+      const secondClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${token}` },
+      });
+      await expect(secondClient.joinById<MatchState>(room.roomId)).rejects.toThrow(
+        "이미 이 방에 참가 중인 계정입니다",
+      );
+    });
+
+    test("two different accounts can both join as players normally", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
+      const firstClient = await connectAsUser(colyseus, room, "정상유저1");
+      const secondClient = await connectAsUser(colyseus, room, "정상유저2");
+      await flush();
+
+      expect(room.state.players.has(firstClient.sessionId)).toBe(true);
+      expect(room.state.players.has(secondClient.sessionId)).toBe(true);
+    });
+  });
+
   describe("user ban", () => {
     test("onAuth rejects a banned user's join attempt", async () => {
       const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
@@ -1598,36 +1631,61 @@ describe("MatchRoom", () => {
     });
 
     test("kickUserId disconnects every connection the user holds in this room, not just the first found", async () => {
-      const room = await colyseus.createRoom<MatchState>("match", { teamCount: 1 });
-      testUserCounter += 1;
-      const user = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
-      setNickname(user.id, "이중접속유저");
-      const token = signSession(user.id);
+      const room = await colyseus.createRoom<MatchState>("match", {
+        teamCount: 1,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+        reconnectGraceSeconds: 0.05,
+      });
       const port = (colyseus.server as unknown as { port: number }).port;
 
-      // 같은 계정으로 탭 두 개를 열어 같은 방에 두 번 입장하는 상황을 흉내낸다 —
-      // 로비가 아직 열려있는 동안(teamCount: 1은 플레이어 2명 필요)이라 두 연결
-      // 모두 플레이어로 등록된다. sessionId는 연결마다 다르지만 client.auth.userId는
-      // 둘 다 같다.
-      const firstClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
-        headers: { Cookie: `session=${token}` },
+      testUserCounter += 1;
+      const targetUser = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+      setNickname(targetUser.id, "이중접속유저");
+      const targetToken = signSession(targetUser.id);
+
+      testUserCounter += 1;
+      const otherUser = getOrCreateUser(`test-google-sub-${testUserCounter}`, {});
+      setNickname(otherUser.id, "상대유저");
+      const otherToken = signSession(otherUser.id);
+
+      // 첫 연결(플레이어)이 pig 역할을 맡고, 다른 계정이 rabbit을 맡아 매치를
+      // 시작시킨다 — 매치가 시작된 뒤(phase: "playing")라야 같은 계정의 두 번째
+      // 연결이 (플레이어 중복 참가 가드에 걸리지 않고) 관전자로 자연스럽게 앉는다.
+      const targetPlayerClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${targetToken}` },
       });
-      const firstJoined = await firstClient.joinById<MatchState>(room.roomId);
-      const secondClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
-        headers: { Cookie: `session=${token}` },
+      const targetPlayerJoined = await targetPlayerClient.joinById<MatchState>(room.roomId);
+      targetPlayerJoined.send("chooseRole", { role: "pig" });
+
+      const otherClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${otherToken}` },
       });
-      const secondJoined = await secondClient.joinById<MatchState>(room.roomId);
+      const otherJoined = await otherClient.joinById<MatchState>(room.roomId);
+      otherJoined.send("chooseRole", { role: "rabbit" });
+
+      await flush();
+      await waitForCountdown();
+
+      // 같은 계정(같은 세션 토큰)으로 세 번째 연결 — 매치가 이미 시작된 뒤라
+      // 관전자로 앉는다(플레이어 중복 참가 가드는 관전자 분기와 무관).
+      const targetSpectatorClient = new ColyseusJsClient(`ws://127.0.0.1:${port}`, {
+        headers: { Cookie: `session=${targetToken}` },
+      });
+      const targetSpectatorJoined = await targetSpectatorClient.joinById<MatchState>(room.roomId);
       await flush();
 
-      expect(room.state.players.has(firstJoined.sessionId)).toBe(true);
-      expect(room.state.players.has(secondJoined.sessionId)).toBe(true);
+      expect(room.state.players.has(targetPlayerJoined.sessionId)).toBe(true);
+      expect(room.state.spectators.has(targetSpectatorJoined.sessionId)).toBe(true);
 
-      const kicked = (room as unknown as MatchRoom).kickUserId(user.id);
+      const kicked = (room as unknown as MatchRoom).kickUserId(targetUser.id);
       await flush();
 
       expect(kicked).toBe(true);
-      expect(room.state.players.has(firstJoined.sessionId)).toBe(false);
-      expect(room.state.players.has(secondJoined.sessionId)).toBe(false);
+      // 관전자는 즉시 제거되지만, 플레이어는 매치 진행 중 강제 종료라 다른 비정상
+      // 접속 끊김과 동일하게 재접속 유예 경로를 탄다 — 유예시간이 끝나길 기다려야 한다.
+      expect(room.state.spectators.has(targetSpectatorJoined.sessionId)).toBe(false);
+      await waitUntil(() => !room.state.players.has(targetPlayerJoined.sessionId));
     });
 
     test(
