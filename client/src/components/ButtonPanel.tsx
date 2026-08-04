@@ -13,19 +13,7 @@ import styles from "./ButtonPanel.module.css";
 // preventDefault()-defeated) duplicate rather than a genuinely new press.
 const TOUCH_DEDUPE_WINDOW_MS = 800;
 
-// Memoized so a re-render caused by something else entirely (any colyseus
-// patch forces a full-tree re-render — see useMatchRoom.ts) doesn't also
-// re-render this and re-touch all 6 button elements' props/styles. Only
-// actually helps if `onPress` is a stable reference — callers must
-// useCallback it (see MyTurnScreen.tsx, useSoloMatch.ts), otherwise a fresh
-// function every render defeats this the same as not memoizing at all.
-export const ButtonPanel = memo(function ButtonPanel({
-  role,
-  disabled,
-  onPress,
-  inventory = [],
-  onUseItem,
-}: {
+interface ButtonPanelProps {
   role: Role;
   disabled: boolean;
   onPress: (color: Color) => void;
@@ -33,7 +21,43 @@ export const ButtonPanel = memo(function ButtonPanel({
   // SoloPlayScreen.tsx, which omits both these props entirely).
   inventory?: ItemId[];
   onUseItem?: (itemId: ItemId) => void;
-}) {
+}
+
+// inventory만 값으로 비교하고 나머지는 참조/원시값으로 비교 — role/disabled는
+// 원시값, onPress/onUseItem은 호출부(MyTurnScreen.tsx 등)가 이미 useCallback으로
+// 안정된 참조를 넘기고 있어 참조 비교로 충분하다. inventory는 매 렌더 새
+// 배열이라(MyTurnScreen.tsx의 Array.from(me.inventory) 참고, Colyseus
+// ArraySchema가 in-place로 변형되는 걸 우회하기 위한 의도적인 선택) 참조
+// 비교로는 항상 "다름"으로 판정되므로, 길이+원소 값으로 직접 비교한다 —
+// 인벤토리는 최대 몇 개뿐이라 매번 순회해도 비용이 무시할 만하다.
+function buttonPanelPropsEqual(prev: ButtonPanelProps, next: ButtonPanelProps) {
+  const prevInventory = prev.inventory ?? [];
+  const nextInventory = next.inventory ?? [];
+  return (
+    prev.role === next.role &&
+    prev.disabled === next.disabled &&
+    prev.onPress === next.onPress &&
+    prev.onUseItem === next.onUseItem &&
+    prevInventory.length === nextInventory.length &&
+    prevInventory.every((id, i) => id === nextInventory[i])
+  );
+}
+
+// Memoized so a re-render caused by something else entirely (any colyseus
+// patch forces a full-tree re-render — see useMatchRoom.ts) doesn't also
+// re-render this and re-touch all 6 button elements' props/styles. Only
+// actually helps if `onPress` is a stable reference — callers must
+// useCallback it (see MyTurnScreen.tsx, useSoloMatch.ts), otherwise a fresh
+// function every render defeats this the same as not memoizing at all.
+// `inventory`'s own reference is deliberately NOT part of that guarantee —
+// see buttonPanelPropsEqual above.
+export const ButtonPanel = memo(function ButtonPanel({
+  role,
+  disabled,
+  onPress,
+  inventory = [],
+  onUseItem,
+}: ButtonPanelProps) {
   const slots = buttonPanelSlots(role);
 
   // Touch input reacts on touchstart (fires the instant a finger lands,
@@ -200,4 +224,4 @@ export const ButtonPanel = memo(function ButtonPanel({
       </div>
     </div>
   );
-});
+}, buttonPanelPropsEqual);
