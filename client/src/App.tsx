@@ -171,6 +171,12 @@ function App() {
   // 위한 진입점 — 위 OnlineFlow의 joinSpec 초기값과 짝을 이룬다.
   const [mode, setMode] = useState<Mode>(() => (hasStoredReconnectToken() ? "online" : "select"));
 
+  // 로그인 여부와 무관하게 앱이 처음 뜰 때 한 번만 방문 집계 — 실패해도
+  // 무시(방문자 카운트가 실제 플레이를 막으면 안 됨).
+  useEffect(() => {
+    fetch("/api/visit", { method: "POST", credentials: "same-origin" }).catch(() => {});
+  }, []);
+
   return (
     <>
       <AnnouncementBanner />

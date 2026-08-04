@@ -21,6 +21,11 @@ type AdminEvent = {
   sessionId: string;
 };
 
+type DailyVisitStats = {
+  today: number;
+  recent: { date: string; count: number }[];
+};
+
 const POLL_INTERVAL_MS = 4000;
 
 async function fetchAdminJson<T>(
@@ -51,6 +56,7 @@ export function AdminDashboard({
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [onlineNicknames, setOnlineNicknames] = useState<string[]>([]);
+  const [visitStats, setVisitStats] = useState<DailyVisitStats | null>(null);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [announceError, setAnnounceError] = useState<string | null>(null);
@@ -89,6 +95,13 @@ export function AdminDashboard({
       cancelled = true;
       clearInterval(interval);
     };
+  }, [onUnauthorized]);
+
+  useEffect(() => {
+    fetchAdminJson<DailyVisitStats>("/api/admin/stats/daily-visitors").then((result) => {
+      if (result.ok) setVisitStats(result.data);
+      else if (result.unauthorized) onUnauthorized();
+    });
   }, [onUnauthorized]);
 
   async function handleAnnounce(e: FormEvent) {
@@ -191,6 +204,17 @@ export function AdminDashboard({
               ))
             : "(없음)"}
         </div>
+      </section>
+
+      <section>
+        <h2>오늘 방문 {visitStats?.today ?? 0}회</h2>
+        <ul className={styles.roomList}>
+          {visitStats?.recent.map((r) => (
+            <li key={r.date}>
+              {r.date}: {r.count}회
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section>
