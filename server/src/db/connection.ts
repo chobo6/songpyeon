@@ -172,6 +172,16 @@ export function createDb(filename: string): Database.Database {
     db.exec(`ALTER TABLE owned_nickname_effects ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'`);
   }
 
+  // 로그인 여부와 무관하게 사이트에 들어온 횟수 — 날짜별 카운터 하나뿐이라
+  // IP 등 개인정보를 전혀 저장하지 않는다. events 테이블과 달리 보관 기간
+  // 제한을 두지 않고 무기한 보관한다(관리자 대시보드의 "최근 추이" 조회용).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS daily_visits (
+      date TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
   return db;
 }
 

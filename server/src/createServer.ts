@@ -8,6 +8,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
 import { getEvents, searchEventsByNickname } from "./admin/eventLog";
+import { getDailyVisitStats, recordVisit } from "./admin/dailyVisits";
 import { getInquiries, recordInquiry } from "./admin/inquiries";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
@@ -139,6 +140,13 @@ export function createGameServer(): Server {
     res.json(getTopRanking(10));
   });
 
+  // 로그인 여부와 무관하게 사이트가 로드될 때마다 App.tsx가 한 번 호출 —
+  // 중복 제거 없이 로드 횟수를 그대로 센다(daily_visits 테이블 참고).
+  app.post("/api/visit", (_req, res) => {
+    recordVisit();
+    res.json({ ok: true });
+  });
+
   app.post("/api/admin/login", (req, res) => {
     if (isRateLimited(req.ip ?? "unknown")) {
       res.status(429).json({ error: "시도 횟수를 초과했어요. 15분 후 다시 시도해주세요." });
@@ -234,6 +242,10 @@ export function createGameServer(): Server {
       return;
     }
     res.json(searchEventsByNickname(nickname.trim()));
+  });
+
+  app.get("/api/admin/stats/daily-visitors", requireAdmin, (_req, res) => {
+    res.json(getDailyVisitStats());
   });
 
   app.get("/api/admin/users", requireAdmin, (_req, res) => {
