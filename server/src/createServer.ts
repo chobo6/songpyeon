@@ -9,6 +9,7 @@ import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
 import { getEvents, searchEventsByNickname } from "./admin/eventLog";
 import { getDailyVisitStats, recordVisit } from "./admin/dailyVisits";
+import { getIpsForUser, recordUserIp } from "./admin/userIps";
 import { getInquiries, recordInquiry } from "./admin/inquiries";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
@@ -324,6 +325,15 @@ export function createGameServer(): Server {
     res.json({ ok: true });
   });
 
+  app.get("/api/admin/users/:id/ips", requireAdmin, (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    res.json(getIpsForUser(userId));
+  });
+
   // 밴 즉시 강제 퇴장까지 처리한다 — DB만 갱신하고 끝내면 이미 접속 중인
   // 세션은 다음 방 입장 시도 전까지 계속 게임을 할 수 있어 "즉시 퇴장"
   // 요구사항을 못 지킨다. getLocalRoomById는 이 프로세스에 떠 있는 실제 룸
@@ -446,7 +456,10 @@ export function createGameServer(): Server {
       return;
     }
     const user = getUserById(userId);
-    if (user) touchLastLogin(userId);
+    if (user) {
+      touchLastLogin(userId);
+      recordUserIp(userId, req.ip ?? "unknown");
+    }
     res.json(
       user
         ? {
