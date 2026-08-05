@@ -141,9 +141,11 @@ export function createGameServer(): Server {
   });
 
   // 로그인 여부와 무관하게 사이트가 로드될 때마다 App.tsx가 한 번 호출 —
-  // 중복 제거 없이 로드 횟수를 그대로 센다(daily_visits 테이블 참고).
-  app.post("/api/visit", (_req, res) => {
-    recordVisit();
+  // 사용자 한 명당 하루 1회만 카운트된다(daily_visit_log 테이블 참고).
+  app.post("/api/visit", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    recordVisit(userId ?? undefined, req.ip ?? "unknown");
     res.json({ ok: true });
   });
 

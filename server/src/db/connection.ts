@@ -172,13 +172,23 @@ export function createDb(filename: string): Database.Database {
     db.exec(`ALTER TABLE owned_nickname_effects ADD COLUMN source TEXT NOT NULL DEFAULT 'admin'`);
   }
 
-  // 로그인 여부와 무관하게 사이트에 들어온 횟수 — 날짜별 카운터 하나뿐이라
-  // IP 등 개인정보를 전혀 저장하지 않는다. events 테이블과 달리 보관 기간
-  // 제한을 두지 않고 무기한 보관한다(관리자 대시보드의 "최근 추이" 조회용).
+  // daily_visits(집계 카운터)는 사용자당 하루 1회 중복 제거 방식으로
+  // 바뀌면서 폐기됐다 — 기존에 쌓인 값을 초기화하려는 의도도 겸해서
+  // DROP한다. 매 시작마다 실행해도 안전(두 번째 시작부턴 이미 없어서 no-op).
+  db.exec(`DROP TABLE IF EXISTS daily_visits`);
+
+  // 로그인 여부와 무관하게 사이트에 들어온 방문자를 "하루에 한 명당 1회"로
+  // 집계한다 — visitor_key가 PRIMARY KEY의 일부라 INSERT OR IGNORE 한 번으로
+  // 중복 제거가 끝난다(dailyVisits.ts 참고). user_id 대신 문자열 키를 쓰는
+  // 이유: 로그인 유저는 "user:<id>", 비로그인 유저는 "ip:<IP>"로 서로 다른
+  // 식별 방식을 한 컬럼에 같이 담기 위함. IP가 들어갈 수 있으므로 events
+  // 테이블과 동일하게 90일 보관 후 자동 삭제(dailyVisits.ts의
+  // recordVisitForDate 참고).
   db.exec(`
-    CREATE TABLE IF NOT EXISTS daily_visits (
-      date TEXT PRIMARY KEY,
-      count INTEGER NOT NULL DEFAULT 0
+    CREATE TABLE IF NOT EXISTS daily_visit_log (
+      date TEXT NOT NULL,
+      visitor_key TEXT NOT NULL,
+      PRIMARY KEY (date, visitor_key)
     )
   `);
 
