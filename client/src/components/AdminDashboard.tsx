@@ -207,17 +207,6 @@ export function AdminDashboard({
       </section>
 
       <section>
-        <h2>오늘 방문 {visitStats?.today ?? 0}회</h2>
-        <ul className={styles.roomList}>
-          {visitStats?.recent.map((r) => (
-            <li key={r.date}>
-              {r.date}: {r.count}회
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
         <h2>활성 방 ({rooms.length})</h2>
         <ul className={styles.roomList}>
           {rooms.map((room) => (
@@ -310,6 +299,17 @@ export function AdminDashboard({
             )}
           </div>
         )}
+      </section>
+
+      <section>
+        <h2>오늘 방문 {visitStats?.today ?? 0}회</h2>
+        <ul className={styles.roomList}>
+          {visitStats?.recent.map((r) => (
+            <li key={r.date}>
+              {r.date}: {r.count}회
+            </li>
+          ))}
+        </ul>
       </section>
     </main>
   );
