@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { NicknameEffect, NicknameParticle } from "../game/nicknameStyle";
 import styles from "./AdminEditUserModal.module.css";
 
@@ -49,6 +49,35 @@ export function AdminEditUserModal({
   const [moneyDelta, setMoneyDelta] = useState("");
   const [moneySaving, setMoneySaving] = useState(false);
   const [currentMoney, setCurrentMoney] = useState(user.gameMoney);
+
+  const [ipHistory, setIpHistory] = useState<{ ip: string; firstSeen: string; lastSeen: string }[] | null>(
+    null,
+  );
+
+  // 모달이 열릴 때(user.id 확정 시) 한 번만 불러온다 — AdminDashboard.tsx의
+  // 방문자 통계와 같은 패턴(폴링 없이 mount 시 1회 fetch). 수정 기능은
+  // 없으므로 저장 관련 상태(saving 등)가 필요 없다.
+  useEffect(() => {
+    let cancelled = false;
+    setIpHistory(null);
+    fetch(`/api/admin/users/${user.id}/ips`, { credentials: "same-origin" })
+      .then((res) => {
+        if (res.status === 401) {
+          onUnauthorized();
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled && data) setIpHistory(data as { ip: string; firstSeen: string; lastSeen: string }[]);
+      })
+      .catch(() => {
+        if (!cancelled) setIpHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, onUnauthorized]);
 
   async function saveNickname() {
     const trimmed = nicknameValue.trim();
@@ -268,6 +297,26 @@ export function AdminEditUserModal({
               적용
             </button>
           </div>
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>IP 이력</h3>
+          {ipHistory === null ? (
+            <p className={styles.moneyDisplay}>불러오는 중...</p>
+          ) : ipHistory.length === 0 ? (
+            <p className={styles.moneyDisplay}>기록된 IP가 없습니다.</p>
+          ) : (
+            <ul className={styles.ipList}>
+              {ipHistory.map((entry) => (
+                <li key={entry.ip} className={styles.ipEntry}>
+                  <span>{entry.ip}</span>
+                  <span>
+                    최초 {entry.firstSeen} · 최근 {entry.lastSeen}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <button className={styles.closeButton} onClick={onClose}>

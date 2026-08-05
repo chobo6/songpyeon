@@ -108,6 +108,24 @@
   opacity: 0.5;
 }
 
+.ipList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.ipEntry {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  color: #4b5563;
+}
+
 .closeButton {
   margin-top: 0.5rem;
   padding: 0.6rem 1rem;
