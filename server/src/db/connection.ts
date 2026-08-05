@@ -192,6 +192,22 @@ export function createDb(filename: string): Database.Database {
     )
   `);
 
+  // 계정이 온라인 모드에 진입할 때마다(GET /api/auth/me) 그 계정이 쓴 IP를
+  // 누적 기록한다 — events 테이블과 달리 매치룸에 안 들어가도(로그인만
+  // 해도) 기록된다. PRIMARY KEY (user_id, ip)라 같은 IP로 다시 들어오면
+  // last_seen만 갱신되고(중복 행 없음), 새 IP면 새 행이 추가된다.
+  // 보관 기간: 무기한(이 테이블의 존재 이유 자체가 장기 조사 목적이라
+  // events/daily_visit_log의 90일 자동 삭제를 의도적으로 적용하지 않는다).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_ips (
+      user_id INTEGER NOT NULL,
+      ip TEXT NOT NULL,
+      first_seen TEXT NOT NULL DEFAULT (datetime('now', '+9 hours')),
+      last_seen TEXT NOT NULL DEFAULT (datetime('now', '+9 hours')),
+      PRIMARY KEY (user_id, ip)
+    )
+  `);
+
   return db;
 }
 
