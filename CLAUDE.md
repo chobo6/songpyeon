@@ -55,10 +55,37 @@ npm run lint   # oxlint
 - **로비 하단 프로필바 + 게임머니** (2026-07-28~): 로비(`RoomList.tsx`) 화면 하단 20%에 닉네임/역할별
   플레이횟수(`pig_play_count`/`rabbit_play_count`, 매치가 실제로 시작될 때 `MatchRoom.beginPlaying()`이
   1회 카운트)/최고라운드/게임머니(`🪙`, 천단위 쉼표)를 세로로 보여줌. 게임머니는 팀이 자기 차례(턴)를
-  성공적으로 완료할 때마다 팀원 둘 다 각각 "10원 × 그 방의 팀 수"를 적립(`MatchRoom.ts`의
-  `creditTurnSuccess`, `googleAuth.ts`의 `addGameMoney`) — 상점/차감 기능은 아직 없음(적립만).
-  매치/방에서 나갈 때마다 `fetchMe()`를 다시 불러 최신 값으로 갱신함(`App.tsx`) — 안 그러면 방금
-  딴 돈이 로비로 돌아와도 안 보이고 다음 새로고침 전까지 예전 스냅샷이 남음.
+  성공적으로 완료할 때마다 팀원 둘 다 각각 "20원(최초 10원에서 인상) × 그 방의 팀 수"를 적립(`MatchRoom.ts`의
+  `creditTurnSuccess`, `googleAuth.ts`의 `addGameMoney`). 이후 닉네임 상점(아래 항목)이 추가되며 차감 경로도
+  생김 — 더 이상 "적립만" 아님. 관리자가 `/admin` → 유저 정보에서 `/api/admin/users/:id/game-money`로 직접
+  가감도 가능(게임머니는 0 미만으로 내려가지 않게 서버에서 클램프). 매치/방에서 나갈 때마다 `fetchMe()`를
+  다시 불러 최신 값으로 갱신함(`App.tsx`) — 안 그러면 방금 딴 돈이 로비로 돌아와도 안 보이고 다음
+  새로고침 전까지 예전 스냅샷이 남음.
+- **닉네임 상점 + 확장 아이템** (2026-07-30~): `ShopModal.tsx`(로비 상점 버튼으로 진입)에서 닉네임 색/효과를
+  게임머니로 구매·장착(`server/src/*` 상점 라우트 `/api/shop`, `/api/shop/purchase`, `/api/shop/equip`,
+  `client/src/game/shop.ts`). 이후 게임 자체와 무관한 소비 아이템 두 종류가 추가됨: **닉네임변경권**
+  (30,000원, `NICKNAME_TICKET_COST` — 원래 최초 1회만 무료로 바꿀 수 있던 닉네임을 유료로 우회),
+  **확성기**(3,000원, `MEGAPHONE_COST`, `2,500원에서 인상됨` — 관리자 공지 배너와 별개의 SSE 채널로 전체
+  유저에게 배너 메시지를 보냄, `MegaphoneBanner.tsx`). 관리자가 회수한 효과가 상점에서 "보유중"으로
+  잘못 남던 버그는 수정됨.
+- **아이템전(보너스 토큰 + 개인 인벤토리)** (2026-07 중순~): 방 생성 모달에 "아이템전" 체크박스(기본 켬,
+  끄면 보너스 토큰이 아예 등장 안 함 — `MatchRoom.ts`의 `itemsEnabled`). 턴마다 일정 확률(현재 10% —
+  절구회복만 있던 초기 0.8%에서 상향)로 시퀀스의 한 슬롯이 보너스 토큰으로 지정되고, 그 토큰을 성공
+  처리한 플레이어의 개인 인벤토리(`PlayerState.inventory`, `MatchState`로 동기화)에 아이템 하나가 쌓임.
+  5종(`server/src/game/items.ts`의 `ItemId`): `timeAdd`(다음 턴 제한시간 +3초, 실제 턴 타이머까지
+  재예약), `timeReduce`(상대 팀 없음 — 자기 팀 다음 턴 제한시간 최소 1초 보장하며 차감),
+  `doughAttack`(다음 턴 시퀀스 앞에 민트 6개 한 줄 추가), `superMortar`, `mortarRestore`(절구 1개 회복 —
+  유일하게 인벤토리를 거치지 않고 즉시 적용됨). 인벤토리 아이템은 `ButtonPanel`의 빈 슬롯에 아이콘으로
+  표시되고 클릭하면 `useItem` 메시지 전송, 사용 시 화면 우측 상단에 토스트 애니메이션(`ItemUseToast.tsx`).
+  아이템은 턴 결과(성공/실패)가 이미 정해진 뒤 남는 시간에도 사용 가능(색깔 버튼은 계속 잠김).
+- **관리자 유저 페이지 개편 + 계정별 IP 이력 + 일일 방문자수** (2026-08~): 관리자 유저 목록이 페이지네이션 +
+  `AdminEditUserModal.tsx`(닉네임/색/효과/파티클/밴/게임머니를 한 모달에서 수정) 구조로 리모델링됨.
+  같은 모달에 읽기 전용 IP 이력 섹션 추가 — `GET /api/auth/me` 호출마다 IP를 기록해두고
+  (`server/src/admin/userIps.ts`) 관리자가 계정별로 조회. 관리자 대시보드 맨 아래에 "오늘 방문" 섹션도
+  추가됨 — `daily_visit_log`로 사용자당 하루 1회만 집계(중복 방문 제거), `/api/visit` ping +
+  `/api/admin/stats/daily-visitors`(`server/src/admin/dailyVisits.ts`).
+- **한 계정 동시 다중 참가 방지** (2026-08~): 같은 계정(같은 `userId`)이 여러 탭/기기로 동시에 같은 매치에
+  들어가 턴 성공 보상을 이중으로 받는 부정 이용을 `MatchRoom.ts`에서 차단.
 - **닉네임 특수효과 — 레인보우/글로우** (2026-07-29~, `/admin` → 유저 정보 → 효과 체크박스로 관리자가
   수동 지급, `setNicknameEffects`): 레인보우는 움직이는 그라데이션으로 지정된 단색(`nicknameColor`)을
   덮어쓰고, 글로우는 닉네임 자기 색 기준 `text-shadow`(색 없거나 레인보우와 같이 켜져 있으면 흰색
@@ -87,6 +114,14 @@ npm run lint   # oxlint
   `docs/superpowers/plans/2026-07-30-nickname-particle-effects.md`.
 - **로비 안내 버튼** (2026-07-28~): 메인 로비 화면(`RoomList.tsx`) 좌측 하단의 "안내" 버튼 →
   `WelcomeModal.tsx`. 표시 문구는 `WELCOME_MESSAGE` 상수를 직접 수정(자유 텍스트, 줄바꿈 그대로 반영).
+- **관전 모드 / 랭킹 / 콤보·평균속도 HUD / 문의하기** (친구·닉네임효과 시스템보다 이전에 구현된 기존
+  기능들 — 아래처럼 요약만 남김, 자세한 배경은 각 `docs/superpowers/specs/`의 동명 설계 문서 참고):
+  진행 중인 매치에 관전자로 입장 가능(`SpectatorScreen.tsx`, 방 생성 시 관전 허용 여부 선택, 관리자
+  닉네임은 관전 잠긴 방도 예외 입장), 유저별 최고 라운드 TOP 10 랭킹(`RankingModal.tsx`), 팀별 연속
+  성공 프레스 수 콤보 배지 + 개인 평균 속도 배지(`TeamComboBadge.tsx`, 재대결 시 리셋됨), 로비에서
+  관리자에게 문의를 보내는 기능(`AdminInquiries.tsx`가 `/admin`에서 수신). 관리자 로그인 자체도
+  이후 강화됨: 로그인 시도 횟수 제한(`server/src/admin/loginRateLimit.ts`), 세션 만료(`SESSION_TTL_MS`,
+  12시간), 타이밍세이프 비밀번호 비교(`timingSafeEqual`), secure 쿠키(`server/src/admin/auth.ts`).
 - **관리자 모니터링 페이지** (`/admin`, 고정 비밀번호 인증 — `ADMIN_PASSWORD` 환경변수): 현재
   활성 방/인원, 최근 입장·퇴장 로그, 전체 공지 배너(SSE)를 제공. `server/src/admin/`
   (`eventLog.ts`=입장·퇴장 로그(IP 포함), `auth.ts`=비밀번호+세션, `announcements.ts`=SSE 방송),

@@ -1,5 +1,8 @@
 # React + TypeScript + Vite
 
+> 이 파일은 Vite 스캐폴딩 기본 템플릿 그대로입니다. 실제 프로젝트 설명(게임 소개, 설치/실행, 배포)은
+> 루트 [README.md](../README.md)를 참고하세요.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
