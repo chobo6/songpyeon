@@ -26,6 +26,12 @@ type DailyVisitStats = {
   recent: { date: string; count: number }[];
 };
 
+type ChatLogEntry = {
+  nickname: string;
+  text: string;
+  createdAt: string;
+};
+
 const POLL_INTERVAL_MS = 4000;
 
 async function fetchAdminJson<T>(
@@ -55,6 +61,7 @@ export function AdminDashboard({
 }) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [chatLogs, setChatLogs] = useState<ChatLogEntry[]>([]);
   const [onlineNicknames, setOnlineNicknames] = useState<string[]>([]);
   const [visitStats, setVisitStats] = useState<DailyVisitStats | null>(null);
   const [message, setMessage] = useState("");
@@ -70,23 +77,26 @@ export function AdminDashboard({
     let cancelled = false;
 
     async function poll() {
-      const [roomsResult, eventsResult, onlineResult] = await Promise.all([
+      const [roomsResult, eventsResult, onlineResult, chatLogsResult] = await Promise.all([
         fetchAdminJson<RoomInfo[]>("/api/admin/rooms"),
         fetchAdminJson<AdminEvent[]>("/api/admin/events"),
         fetchAdminJson<string[]>("/api/admin/online"),
+        fetchAdminJson<ChatLogEntry[]>("/api/admin/chat-logs"),
       ]);
       if (cancelled) return;
 
-      if (!roomsResult.ok || !eventsResult.ok || !onlineResult.ok) {
+      if (!roomsResult.ok || !eventsResult.ok || !onlineResult.ok || !chatLogsResult.ok) {
         if (!roomsResult.ok && roomsResult.unauthorized) onUnauthorized();
         if (!eventsResult.ok && eventsResult.unauthorized) onUnauthorized();
         if (!onlineResult.ok && onlineResult.unauthorized) onUnauthorized();
+        if (!chatLogsResult.ok && chatLogsResult.unauthorized) onUnauthorized();
         return;
       }
 
       setRooms(roomsResult.data);
       setEvents(eventsResult.data);
       setOnlineNicknames(onlineResult.data);
+      setChatLogs(chatLogsResult.data);
     }
 
     poll();
@@ -243,6 +253,30 @@ export function AdminDashboard({
                   <td>{event.nickname}</td>
                   <td>{event.roomTitle}</td>
                   <td>{event.ip}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>최근 채팅 로그 (최대 200개)</h2>
+        <div className={styles.eventTableScroll}>
+          <table className={styles.eventTable}>
+            <thead>
+              <tr>
+                <th>시각</th>
+                <th>닉네임</th>
+                <th>내용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chatLogs.map((log, i) => (
+                <tr key={`${log.createdAt}-${i}`}>
+                  <td>{log.createdAt}</td>
+                  <td>{log.nickname}</td>
+                  <td>{log.text}</td>
                 </tr>
               ))}
             </tbody>

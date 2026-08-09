@@ -8,6 +8,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
 import { getEvents, searchEventsByNickname } from "./admin/eventLog";
+import { getChatLogs } from "./admin/chatLog";
 import { getDailyVisitStats, recordVisit } from "./admin/dailyVisits";
 import { getIpsForUser, recordUserIp } from "./admin/userIps";
 import { getInquiries, recordInquiry } from "./admin/inquiries";
@@ -249,6 +250,10 @@ export function createGameServer(): Server {
 
   app.get("/api/admin/stats/daily-visitors", requireAdmin, (_req, res) => {
     res.json(getDailyVisitStats());
+  });
+
+  app.get("/api/admin/chat-logs", requireAdmin, (_req, res) => {
+    res.json(getChatLogs(200));
   });
 
   app.get("/api/admin/users", requireAdmin, (_req, res) => {

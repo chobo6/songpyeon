@@ -208,6 +208,17 @@ export function createDb(filename: string): Database.Database {
     )
   `);
 
+  // 대기실/인게임 채팅 로그 — MatchRoom.pushChat이 실제 유저 발화(닉네임이 있는
+  // 메시지, 입장/퇴장 같은 시스템 안내 제외)마다 기록한다.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nickname TEXT NOT NULL,
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
+    )
+  `);
+
   return db;
 }
 

@@ -15,6 +15,7 @@ import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
+import { recordChatLog } from "../admin/chatLog";
 import { notifyPress } from "../admin/pressMonitor";
 import { addGameMoney, getUserById, recordRolePlayed, recordRoundAchievement } from "../auth/googleAuth";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
@@ -499,6 +500,9 @@ export class MatchRoom extends Room<MatchState> {
     message.sentAt = Date.now();
     list.push(message);
     if (list.length > MAX_CHAT_MESSAGES) list.shift();
+
+    // 빈 닉네임은 입장/퇴장 같은 시스템 안내라 채팅 로그 대상이 아니다.
+    if (nickname) recordChatLog(nickname, text);
   }
 
   private handleChooseRole(client: Client, role: "pig" | "rabbit") {
