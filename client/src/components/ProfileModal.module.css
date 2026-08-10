@@ -28,6 +28,7 @@
   margin: 0;
   font-size: 1.3rem;
   font-weight: 800;
+  color: #fff;
 }
 
 .stats {
@@ -91,6 +92,24 @@
 .removeButton:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.inlineInput {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  width: 8rem;
+  box-sizing: border-box;
 }
 
 .closeButton {
