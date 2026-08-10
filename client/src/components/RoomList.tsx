@@ -6,6 +6,7 @@ import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../ga
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
 import { InquiryModal } from "./InquiryModal";
+import { DuoBoardModal } from "./DuoBoardModal";
 import { FriendsModal } from "./FriendsModal";
 import { ProfileModal } from "./ProfileModal";
 import { ShopModal } from "./ShopModal";
@@ -51,6 +52,8 @@ export function RoomList({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [showDuoBoardModal, setShowDuoBoardModal] = useState(false);
+  const [showInquiryMenu, setShowInquiryMenu] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
   const [showOwnProfile, setShowOwnProfile] = useState(false);
@@ -177,9 +180,37 @@ export function RoomList({
         <button className={styles.shopButton} onClick={() => setShowShopModal(true)}>
           상점
         </button>
-        <button className={styles.inquiryButton} onClick={() => setShowInquiryModal(true)}>
-          문의하기
-        </button>
+        <div className={styles.inquiryMenuWrap}>
+          {showInquiryMenu && (
+            <div className={styles.inquiryMenu}>
+              <button
+                className={styles.inquiryMenuItem}
+                onClick={() => {
+                  setShowInquiryMenu(false);
+                  setShowInquiryModal(true);
+                }}
+              >
+                문의하기
+              </button>
+              <button
+                className={styles.inquiryMenuItem}
+                onClick={() => {
+                  setShowInquiryMenu(false);
+                  setShowDuoBoardModal(true);
+                }}
+              >
+                듀오구인
+              </button>
+            </div>
+          )}
+          <button
+            className={styles.inquiryButton}
+            onClick={() => setShowInquiryMenu((v) => !v)}
+            aria-label="메뉴"
+          >
+            ☰
+          </button>
+        </div>
       </div>
       <div className={styles.profileBar}>
         <button
@@ -210,6 +241,7 @@ export function RoomList({
       )}
       {showRankingModal && <RankingModal onClose={() => setShowRankingModal(false)} />}
       {showInquiryModal && <InquiryModal onClose={() => setShowInquiryModal(false)} />}
+      {showDuoBoardModal && <DuoBoardModal myNickname={nickname} onClose={() => setShowDuoBoardModal(false)} />}
       {showOwnProfile && <ProfileModal nickname={nickname} onClose={() => setShowOwnProfile(false)} />}
       {showFriendsModal && (
         <FriendsModal

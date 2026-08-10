@@ -284,6 +284,36 @@ export function getTopRanking(limit: number): RankingEntry[] {
   }));
 }
 
+export type PlayCountRankingEntry = {
+  nickname: string;
+  nicknameColor: string | null;
+  pigPlayCount: number;
+  rabbitPlayCount: number;
+  nicknameEffect: NicknameEffect;
+  nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
+};
+
+// getTopRanking과 같은 계약(닉네임 없는 계정 제외, 기록 없는 계정으로 순위를 채우지
+// 않음) — 여기서는 "기록"이 두 판수의 합이 0보다 큰 것.
+export function getTopPlayCountRanking(limit: number): PlayCountRankingEntry[] {
+  const rows = db
+    .prepare(
+      `SELECT nickname, nickname_color AS nicknameColor, pig_play_count AS pigPlayCount,
+              rabbit_play_count AS rabbitPlayCount, nickname_effect AS nicknameEffect,
+              nickname_glow AS nicknameGlow, nickname_particle AS nicknameParticle
+       FROM users
+       WHERE nickname IS NOT NULL AND (pig_play_count + rabbit_play_count) > 0
+       ORDER BY (pig_play_count + rabbit_play_count) DESC, id ASC
+       LIMIT ?`,
+    )
+    .all(limit) as (Omit<PlayCountRankingEntry, "nicknameGlow"> & { nicknameGlow: number })[];
+  return rows.map((row) => ({
+    ...row,
+    nicknameGlow: sqliteBool(row.nicknameGlow),
+  }));
+}
+
 export const NICKNAME_REROLL_COST = 6000;
 
 export type RerollNicknameColorResult =

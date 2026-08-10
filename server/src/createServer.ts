@@ -27,6 +27,7 @@ import {
   equipEffect,
   getOrCreateUser,
   getOwnedEffects,
+  getTopPlayCountRanking,
   getTopRanking,
   getUserById,
   listUsers,
@@ -65,6 +66,14 @@ import {
 } from "./friends/friendships";
 import { dismissInvite, getPendingInvite, sendInvite } from "./friends/invites";
 import { getMessages, getUnreadCount, markRead, sendMessage } from "./chat/directMessages";
+import {
+  listDuoListings,
+  removeDuoListing,
+  sanitizeDuoDescription,
+  sanitizeDuoPosition,
+  sanitizeDuoTimeSlot,
+  upsertDuoListing,
+} from "./duo/duoListings";
 import { sanitizeChatText } from "./game/chat";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -140,6 +149,11 @@ export function createGameServer(): Server {
   app.get("/api/ranking", (_req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.json(getTopRanking(10));
+  });
+
+  app.get("/api/ranking/play-count", (_req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.json(getTopPlayCountRanking(10));
   });
 
   // 로그인 여부와 무관하게 사이트가 로드될 때마다 App.tsx가 한 번 호출 —
@@ -700,6 +714,46 @@ export function createGameServer(): Server {
       return;
     }
     res.json(listSentRequests(userId));
+  });
+
+  app.get("/api/duo", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    res.json(listDuoListings());
+  });
+
+  app.post("/api/duo", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const body = req.body as { position?: unknown; timeSlot?: unknown; description?: unknown };
+    const position = sanitizeDuoPosition(body?.position);
+    const timeSlot = sanitizeDuoTimeSlot(body?.timeSlot);
+    const description = sanitizeDuoDescription(body?.description);
+    if (!position || !timeSlot || !description) {
+      res.status(400).json({ error: "포지션, 접속 시간대, 설명을 모두 입력해주세요." });
+      return;
+    }
+    upsertDuoListing(userId, position, timeSlot, description);
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/duo", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    if (!userId) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    removeDuoListing(userId);
+    res.json({ ok: true });
   });
 
   app.post("/api/invites/send", (req, res) => {

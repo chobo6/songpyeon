@@ -219,6 +219,20 @@ export function createDb(filename: string): Database.Database {
     )
   `);
 
+  // 듀오 구인 게시판 — 유저당 게시글 하나(user_id가 PK)만 유지, 다시 올리면
+  // 내용/시각을 덮어써서 "수정 + 최신순 재정렬"을 한 번에 처리한다. 최고라운드는
+  // 여기 저장하지 않는다 — 매번 users.max_round를 조인해서 항상 최신값을 보여준다
+  // (닉네임 스타일을 절대 스냅샷으로 안 굳히고 매번 다시 계산하는 것과 같은 이유).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS duo_listings (
+      user_id INTEGER PRIMARY KEY,
+      position TEXT NOT NULL,
+      time_slot TEXT NOT NULL,
+      description TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
+    )
+  `);
+
   return db;
 }
 

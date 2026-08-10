@@ -29,6 +29,30 @@
   font-size: 1.3rem;
   font-weight: 800;
   text-align: center;
+  color: #fff;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tabButton {
+  flex: 1;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.tabButtonSelected {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
 .loading,
@@ -81,6 +105,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .round {

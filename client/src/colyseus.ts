@@ -48,6 +48,21 @@ export async function getRanking(): Promise<RankingEntry[]> {
   return res.json();
 }
 
+export interface PlayCountRankingEntry {
+  nickname: string;
+  nicknameColor: string | null;
+  nicknameEffect: NicknameEffect;
+  nicknameGlow: boolean;
+  nicknameParticle: NicknameParticle;
+  pigPlayCount: number;
+  rabbitPlayCount: number;
+}
+
+export async function getPlayCountRanking(): Promise<PlayCountRankingEntry[]> {
+  const res = await fetch(`${apiBase}/api/ranking/play-count`);
+  return res.json();
+}
+
 export type JoinSpec =
   | { type: "create"; teamCount: number; roomTitle: string; allowSpectators: boolean; itemsEnabled: boolean }
   | { type: "joinById"; roomId: string }

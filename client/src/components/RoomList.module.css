@@ -28,6 +28,7 @@
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+  color: #fff;
 }
 
 .inviteBanner {
@@ -194,15 +195,51 @@
   background: linear-gradient(135deg, #ffd76e, #f7a541);
 }
 
+.inquiryMenuWrap {
+  position: relative;
+}
+
 .inquiryButton {
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  font-size: 1.2rem;
+  line-height: 1;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 999px;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.12);
+}
+
+.inquiryMenu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border-radius: 0.6rem;
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.35);
+  z-index: 5;
+}
+
+.inquiryMenuItem {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .profileBar {
