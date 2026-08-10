@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
-import { getReceivedRequests } from "../game/friends";
+import { getFriends, getReceivedRequests } from "../game/friends";
 import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/invites";
 import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import { CreateRoomModal } from "./CreateRoomModal";
@@ -55,6 +55,7 @@ export function RoomList({
   const [showShopModal, setShowShopModal] = useState(false);
   const [showOwnProfile, setShowOwnProfile] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite>(null);
   const effect = nicknameStyle(nicknameColor, nicknameEffect, nicknameGlow, nicknameParticle);
 
@@ -81,11 +82,16 @@ export function RoomList({
     };
   }, []);
 
-  useEffect(() => {
+  function refreshFriendBadges() {
     getReceivedRequests()
       .then((requests) => setPendingRequestCount(requests.length))
       .catch(() => {});
-  }, []);
+    getFriends()
+      .then((friends) => setUnreadMessageCount(friends.reduce((sum, f) => sum + f.unreadCount, 0)))
+      .catch(() => {});
+  }
+
+  useEffect(refreshFriendBadges, []);
 
   async function handleAcceptInvite() {
     if (!pendingInvite) return;
@@ -128,7 +134,9 @@ export function RoomList({
           </button>
           <button className={styles.friendsButton} onClick={() => setShowFriendsModal(true)}>
             친구
-            {pendingRequestCount > 0 && <span className={styles.badge}>{pendingRequestCount}</span>}
+            {pendingRequestCount + unreadMessageCount > 0 && (
+              <span className={styles.badge}>{pendingRequestCount + unreadMessageCount}</span>
+            )}
           </button>
         </div>
         <div className={styles.list}>
@@ -208,9 +216,7 @@ export function RoomList({
           onJoinRoom={onJoinRoom}
           onClose={() => {
             setShowFriendsModal(false);
-            getReceivedRequests()
-              .then((requests) => setPendingRequestCount(requests.length))
-              .catch(() => {});
+            refreshFriendBadges();
           }}
         />
       )}

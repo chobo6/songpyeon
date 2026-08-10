@@ -25,6 +25,7 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
   const [nickname, setNickname] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [view, setView] = useState<"friends" | "requests">("friends");
+  const unreadMessageCount = friends?.reduce((sum, f) => sum + f.unreadCount, 0) ?? 0;
   const [chatWith, setChatWith] = useState<{ userId: number; nickname: string } | null>(null);
   const [profileNickname, setProfileNickname] = useState<string | null>(null);
 
@@ -123,7 +124,10 @@ export function FriendsModal({ onClose, onJoinRoom }: { onClose: () => void; onJ
               {received !== null && received.length > 0 && <span className={styles.toggleBadge}>{received.length}</span>}
             </>
           ) : (
-            "친구 목록"
+            <>
+              친구 목록
+              {unreadMessageCount > 0 && <span className={styles.toggleBadge}>{unreadMessageCount}</span>}
+            </>
           )}
         </button>
 
