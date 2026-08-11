@@ -208,6 +208,21 @@ export function createDb(filename: string): Database.Database {
     )
   `);
 
+  // 닉네임 변경 이력 — setNickname(최초 무료 설정)/adminSetNickname(관리자 수정)/
+  // useNicknameTicket(유료 변경권) 세 경로 모두 여기 기록한다. old_nickname은 최초
+  // 설정 시엔 원래 닉네임이 없었으므로 NULL.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS nickname_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      old_nickname TEXT,
+      new_nickname TEXT NOT NULL,
+      source TEXT NOT NULL,
+      changed_at TEXT NOT NULL DEFAULT (datetime('now', '+9 hours'))
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_nickname_history_user ON nickname_history(user_id, id)`);
+
   // 대기실/인게임 채팅 로그 — MatchRoom.pushChat이 실제 유저 발화(닉네임이 있는
   // 메시지, 입장/퇴장 같은 시스템 안내 제외)마다 기록한다.
   db.exec(`

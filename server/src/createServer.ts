@@ -11,6 +11,7 @@ import { getEvents, searchEventsByNickname } from "./admin/eventLog";
 import { getChatLogs } from "./admin/chatLog";
 import { getDailyVisitStats, recordVisit } from "./admin/dailyVisits";
 import { getIpsForUser, recordUserIp } from "./admin/userIps";
+import { getNicknameHistory } from "./auth/nicknameHistory";
 import { getInquiries, recordInquiry } from "./admin/inquiries";
 import { isRateLimited, recordFailedAttempt, recordSuccessfulLogin } from "./admin/loginRateLimit";
 import { broadcast, subscribe } from "./admin/announcements";
@@ -351,6 +352,15 @@ export function createGameServer(): Server {
       return;
     }
     res.json(getIpsForUser(userId));
+  });
+
+  app.get("/api/admin/users/:id/nickname-history", requireAdmin, (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      res.status(400).json({ error: "invalid id" });
+      return;
+    }
+    res.json(getNicknameHistory(userId));
   });
 
   // 밴 즉시 강제 퇴장까지 처리한다 — DB만 갱신하고 끝내면 이미 접속 중인

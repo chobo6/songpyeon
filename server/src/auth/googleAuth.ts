@@ -1,6 +1,7 @@
 import { OAuth2Client } from "google-auth-library";
 import { db, sqliteBool } from "../db/connection";
 import { sanitizeNickname } from "../game/nickname";
+import { recordNicknameChange } from "./nicknameHistory";
 
 export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
 export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
@@ -102,6 +103,7 @@ export function setNickname(userId: number, nickname: string): SetNicknameResult
   const taken = db.prepare(`SELECT 1 FROM users WHERE nickname = ? AND id != ?`).get(clean, userId);
   if (taken) return "taken";
   const result = db.prepare(`UPDATE users SET nickname = ? WHERE id = ? AND nickname IS NULL`).run(clean, userId);
+  if (result.changes > 0) recordNicknameChange(userId, null, clean, "initial");
   return result.changes > 0 ? "ok" : "already_set";
 }
 
@@ -169,7 +171,9 @@ export function adminSetNickname(userId: number, nickname: string): AdminSetNick
   const clean = sanitizeNickname(nickname);
   const taken = db.prepare(`SELECT 1 FROM users WHERE nickname = ? AND id != ?`).get(clean, userId);
   if (taken) return "taken";
+  const before = db.prepare(`SELECT nickname FROM users WHERE id = ?`).get(userId) as { nickname: string | null } | undefined;
   db.prepare(`UPDATE users SET nickname = ? WHERE id = ?`).run(clean, userId);
+  recordNicknameChange(userId, before?.nickname ?? null, clean, "admin");
   return "ok";
 }
 
@@ -358,8 +362,8 @@ export function useNicknameTicket(userId: number, nickname: string): UseNickname
   const clean = sanitizeNickname(nickname);
   const taken = db.prepare(`SELECT 1 FROM users WHERE nickname = ? AND id != ?`).get(clean, userId);
   if (taken) return "taken";
-  const row = db.prepare(`SELECT game_money AS gameMoney FROM users WHERE id = ?`).get(userId) as
-    | { gameMoney: number }
+  const row = db.prepare(`SELECT game_money AS gameMoney, nickname FROM users WHERE id = ?`).get(userId) as
+    | { gameMoney: number; nickname: string | null }
     | undefined;
   if (!row || row.gameMoney < NICKNAME_TICKET_COST) return "insufficient_funds";
   db.prepare(`UPDATE users SET game_money = game_money - ?, nickname = ? WHERE id = ?`).run(
@@ -367,6 +371,7 @@ export function useNicknameTicket(userId: number, nickname: string): UseNickname
     clean,
     userId,
   );
+  recordNicknameChange(userId, row.nickname, clean, "ticket");
   return "ok";
 }
 

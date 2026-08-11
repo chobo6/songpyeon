@@ -5,6 +5,20 @@ import styles from "./AdminEditUserModal.module.css";
 const MAX_NICKNAME_LENGTH = 10;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
+type NicknameChangeSource = "initial" | "ticket" | "admin";
+const SOURCE_LABEL: Record<NicknameChangeSource, string> = {
+  initial: "최초 설정",
+  ticket: "변경권 사용",
+  admin: "관리자 수정",
+};
+
+type NicknameHistoryEntry = {
+  oldNickname: string | null;
+  newNickname: string;
+  source: NicknameChangeSource;
+  changedAt: string;
+};
+
 export type UserRow = {
   id: number;
   email: string | null;
@@ -53,6 +67,7 @@ export function AdminEditUserModal({
   const [ipHistory, setIpHistory] = useState<{ ip: string; firstSeen: string; lastSeen: string }[] | null>(
     null,
   );
+  const [nicknameHistory, setNicknameHistory] = useState<NicknameHistoryEntry[] | null>(null);
 
   // 모달이 열릴 때(user.id 확정 시) 한 번만 불러온다 — AdminDashboard.tsx의
   // 방문자 통계와 같은 패턴(폴링 없이 mount 시 1회 fetch). 수정 기능은
@@ -73,6 +88,28 @@ export function AdminEditUserModal({
       })
       .catch(() => {
         if (!cancelled) setIpHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, onUnauthorized]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNicknameHistory(null);
+    fetch(`/api/admin/users/${user.id}/nickname-history`, { credentials: "same-origin" })
+      .then((res) => {
+        if (res.status === 401) {
+          onUnauthorized();
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled && data) setNicknameHistory(data as NicknameHistoryEntry[]);
+      })
+      .catch(() => {
+        if (!cancelled) setNicknameHistory([]);
       });
     return () => {
       cancelled = true;
@@ -313,6 +350,26 @@ export function AdminEditUserModal({
                   <span>
                     최초 {entry.firstSeen} · 최근 {entry.lastSeen}
                   </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>닉네임 변경 이력</h3>
+          {nicknameHistory === null ? (
+            <p className={styles.moneyDisplay}>불러오는 중...</p>
+          ) : nicknameHistory.length === 0 ? (
+            <p className={styles.moneyDisplay}>변경 기록이 없습니다.</p>
+          ) : (
+            <ul className={styles.ipList}>
+              {nicknameHistory.map((entry, i) => (
+                <li key={i} className={styles.ipEntry}>
+                  <span>
+                    {entry.oldNickname ?? "(없음)"} → {entry.newNickname} ({SOURCE_LABEL[entry.source]})
+                  </span>
+                  <span>{entry.changedAt}</span>
                 </li>
               ))}
             </ul>
