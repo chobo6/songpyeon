@@ -1,7 +1,7 @@
 import { db } from "../db/connection";
 
 export type AdminEvent = {
-  type: "join" | "leave";
+  type: "join" | "leave" | "spectate_join" | "spectate_leave";
   timestamp: number;
   nickname: string;
   roomId: string;

@@ -256,6 +256,15 @@ export class MatchRoom extends Room<MatchState> {
       spectator.nicknameParticle = client.auth?.nicknameParticle ?? "none";
       this.state.spectators.set(client.sessionId, spectator);
       await this.setMetadata({ spectators: this.spectatorsForMetadata() });
+      recordEvent({
+        type: "spectate_join",
+        timestamp: Date.now(),
+        nickname: spectator.nickname,
+        roomId: this.roomId,
+        roomTitle: this.roomTitle,
+        ip: String(client.auth?.ip ?? "unknown"),
+        sessionId: client.sessionId,
+      });
       return;
     }
 
@@ -311,11 +320,22 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   async onLeave(client: Client, consented: boolean) {
-    // 관전자는 재접속 유예도, 이벤트 로그도, 퇴장 채팅 안내도 없이 즉시 제거한다 —
-    // 그냥 다시 관전 입장하면 되므로 플레이어 쪽 onLeave 로직과 완전히 분리해둔다.
-    if (this.state.spectators.has(client.sessionId)) {
+    // 관전자는 재접속 유예도, 퇴장 채팅 안내도 없이 즉시 제거한다 — 그냥 다시 관전
+    // 입장하면 되므로 플레이어 쪽 onLeave 로직과 완전히 분리해둔다. 입장/퇴장
+    // 이벤트 로그(spectate_join/spectate_leave)는 남긴다.
+    const spectator = this.state.spectators.get(client.sessionId);
+    if (spectator) {
       this.state.spectators.delete(client.sessionId);
       await this.setMetadata({ spectators: this.spectatorsForMetadata() });
+      recordEvent({
+        type: "spectate_leave",
+        timestamp: Date.now(),
+        nickname: spectator.nickname,
+        roomId: this.roomId,
+        roomTitle: this.roomTitle,
+        ip: String(client.auth?.ip ?? "unknown"),
+        sessionId: client.sessionId,
+      });
       return;
     }
 

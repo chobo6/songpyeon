@@ -12,7 +12,7 @@ type RoomInfo = {
 };
 
 type AdminEvent = {
-  type: "join" | "leave";
+  type: "join" | "leave" | "spectate_join" | "spectate_leave";
   timestamp: number;
   nickname: string;
   roomId: string;
@@ -24,6 +24,13 @@ type AdminEvent = {
 type DailyVisitStats = {
   today: number;
   recent: { date: string; count: number }[];
+};
+
+const EVENT_TYPE_LABEL: Record<AdminEvent["type"], string> = {
+  join: "입장",
+  leave: "퇴장",
+  spectate_join: "관전 입장",
+  spectate_leave: "관전 퇴장",
 };
 
 type ChatLogEntry = {
@@ -249,7 +256,7 @@ export function AdminDashboard({
               {[...events].reverse().map((event) => (
                 <tr key={`${event.sessionId}-${event.timestamp}-${event.type}`}>
                   <td>{new Date(event.timestamp).toLocaleTimeString()}</td>
-                  <td>{event.type === "join" ? "입장" : "퇴장"}</td>
+                  <td>{EVENT_TYPE_LABEL[event.type]}</td>
                   <td>{event.nickname}</td>
                   <td>{event.roomTitle}</td>
                   <td>{event.ip}</td>
@@ -322,7 +329,7 @@ export function AdminDashboard({
                   {searchResults.map((event) => (
                     <tr key={`${event.sessionId}-${event.timestamp}-${event.type}`}>
                       <td>{new Date(event.timestamp).toLocaleString()}</td>
-                      <td>{event.type === "join" ? "입장" : "퇴장"}</td>
+                      <td>{EVENT_TYPE_LABEL[event.type]}</td>
                       <td>{event.nickname}</td>
                       <td>{event.roomTitle}</td>
                       <td>{event.ip}</td>
