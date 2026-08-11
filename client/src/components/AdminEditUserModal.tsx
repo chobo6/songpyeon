@@ -5,11 +5,12 @@ import styles from "./AdminEditUserModal.module.css";
 const MAX_NICKNAME_LENGTH = 10;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
-type NicknameChangeSource = "initial" | "ticket" | "admin";
+type NicknameChangeSource = "initial" | "ticket" | "admin" | "inferred";
 const SOURCE_LABEL: Record<NicknameChangeSource, string> = {
   initial: "최초 설정",
   ticket: "변경권 사용",
   admin: "관리자 수정",
+  inferred: "정황상 추정(소급)",
 };
 
 type NicknameHistoryEntry = {

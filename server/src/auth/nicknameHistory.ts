@@ -1,6 +1,8 @@
 import { db } from "../db/connection";
 
-export type NicknameChangeSource = "initial" | "ticket" | "admin";
+// "inferred"는 코드에 로그가 없던 시절의 변경을 events/user_ips 대조로 정황상
+// 추정해 소급 기록한 것 — 실시간 기록이 아니므로 다른 source들과 구분해둔다.
+export type NicknameChangeSource = "initial" | "ticket" | "admin" | "inferred";
 
 export type NicknameHistoryEntry = {
   oldNickname: string | null;
