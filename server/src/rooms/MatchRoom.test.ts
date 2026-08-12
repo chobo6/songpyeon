@@ -1156,6 +1156,49 @@ describe("MatchRoom", () => {
     await expect(connectAsUser(colyseus, room, "끼어들려는유저")).rejects.toThrow();
   });
 
+  test("aiPracticeMode fills the opposite role with a bot the instant a player picks a role", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    const client = await connectAsUser(colyseus, room, "혼자연습유저");
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+
+    const team = room.state.teams[0];
+    expect(team.pigSessionId).toBe(client.sessionId);
+    expect(team.rabbitSessionId).toBe("bot-rabbit");
+    const bot = room.state.players.get("bot-rabbit");
+    expect(bot?.nickname).toBe("토끼 봇");
+    expect(bot?.role).toBe("rabbit");
+    expect(bot?.teamId).toBe(team.id);
+
+    await waitForCountdown();
+    expect(room.state.phase).toBe("playing");
+  });
+
+  test("switching roles mid-lobby moves the bot to the newly-empty slot", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    const client = await connectAsUser(colyseus, room, "혼자연습유저");
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+
+    client.send("chooseRole", { role: "rabbit" });
+    await flush();
+
+    const team = room.state.teams[0];
+    expect(team.rabbitSessionId).toBe(client.sessionId);
+    expect(team.pigSessionId).toBe("bot-pig");
+    expect(room.state.players.has("bot-rabbit")).toBe(false);
+    const bot = room.state.players.get("bot-pig");
+    expect(bot?.nickname).toBe("돼지 봇");
+  });
+
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {
     const { room, clients } = await fillRolesAndStart();
 

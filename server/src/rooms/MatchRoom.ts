@@ -38,6 +38,8 @@ const ADMIN_NICKNAME = "홍바들";
 // joinById; the real player-seat limit is enforced by playerCapacity
 // instead (see onJoin).
 const MAX_CLIENTS_WITH_SPECTATORS = 1000;
+// 봇의 sessionId 접두사 — 실제 Colyseus가 발급하는 sessionId와 절대 겹치지 않는다.
+const BOT_SESSION_PREFIX = "bot-";
 
 interface MatchRoomOptions {
   turnDurationMs?: number;
@@ -538,8 +540,11 @@ export class MatchRoom extends Room<MatchState> {
   private handleChooseRole(client: Client, role: "pig" | "rabbit") {
     // Once the pre-game countdown starts every slot is already full (that's
     // what triggers it) — block further swaps so the roster shown for "3...
-    // 2... 1..." is the one that actually plays.
-    if (this.state.phase !== "lobby" || this.state.countdownSecondsLeft > 0) return;
+    // 2... 1..." is the one that actually plays. Exception: in aiPracticeMode,
+    // allow role switching even with countdown active (since the bot will reseat
+    // itself) to let the player switch roles before the game actually starts.
+    if (this.state.phase !== "lobby") return;
+    if (this.state.countdownSecondsLeft > 0 && !this.aiPracticeMode) return;
 
     const player = this.state.players.get(client.sessionId);
     // Re-picking the role you already have is a no-op — without this guard
@@ -548,9 +553,17 @@ export class MatchRoom extends Room<MatchState> {
     // onto a different team's matching slot instead of doing nothing.
     if (!player || player.role === role) return;
 
-    const team = this.state.teams.find((t) =>
+    let team = this.state.teams.find((t) =>
       role === "pig" ? t.pigSessionId === "" : t.rabbitSessionId === "",
     );
+
+    // If no empty slot but player is already in a team, allow switching within that team
+    // (in aiPracticeMode, the opposite slot will be occupied by a bot and syncBotForTeam
+    // will reseat it)
+    if (!team && player.teamId) {
+      team = this.state.teams.find((t) => t.id === player.teamId);
+    }
+
     if (!team) return;
 
     // Switching roles/teams mid-lobby (allowed any time before the match
@@ -570,7 +583,38 @@ export class MatchRoom extends Room<MatchState> {
       team.rabbitSessionId = client.sessionId;
     }
 
+    this.syncBotForTeam(team);
     this.maybeStartGame();
+  }
+
+  // 역할을 바꿔 탄 경우까지 한 번에 처리하기 위해, 이 팀에 남아있던 예전 봇을
+  // 먼저 전부 지우고 현재 빈 자리 기준으로 다시 채운다. aiPracticeMode가 아니면 no-op.
+  private syncBotForTeam(team: TeamState) {
+    if (!this.aiPracticeMode) return;
+
+    for (const [sessionId, player] of this.state.players.entries()) {
+      if (sessionId.startsWith(BOT_SESSION_PREFIX) && player.teamId === team.id) {
+        this.state.players.delete(sessionId);
+      }
+    }
+
+    if (team.pigSessionId === "" && team.rabbitSessionId !== "") {
+      this.addBot(team, "pig");
+    } else if (team.rabbitSessionId === "" && team.pigSessionId !== "") {
+      this.addBot(team, "rabbit");
+    }
+  }
+
+  private addBot(team: TeamState, role: "pig" | "rabbit") {
+    const sessionId = `${BOT_SESSION_PREFIX}${role}`;
+    const bot = new PlayerState();
+    bot.sessionId = sessionId;
+    bot.nickname = role === "pig" ? "돼지 봇" : "토끼 봇";
+    bot.role = role;
+    bot.teamId = team.id;
+    this.state.players.set(sessionId, bot);
+    if (role === "pig") team.pigSessionId = sessionId;
+    else team.rabbitSessionId = sessionId;
   }
 
   private async maybeStartGame() {
