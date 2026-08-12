@@ -27,6 +27,7 @@ export interface RoomListEntry {
   hostNickname: string;
   roomTitle: string;
   allowSpectators: boolean;
+  aiPracticeMode: boolean;
 }
 
 export async function listRooms(): Promise<RoomListEntry[]> {

@@ -162,6 +162,9 @@ export function RoomList({
             // room can look joinable here for a couple seconds after it's
             // actually full) — that residual race is handled by
             // ConnectedOnlineFlow's error screen, not predicted here.
+            // AI 연습모드 방은 아직 안 잠겨있어도(아직 역할을 안 골라서 봇이 안
+            // 채워진 순간) 다른 사람은 절대 플레이어로 못 들어간다(서버가 거부함,
+            // MatchRoom.ts의 onJoin 참고) — 그 에러 화면을 아예 안 겪게 미리 막는다.
             return (
               <div key={room.roomId} className={styles.card}>
                 <span className={styles.cardName}>
@@ -169,10 +172,19 @@ export function RoomList({
                 </span>
                 <button
                   className={styles.joinButton}
-                  disabled={room.locked && !room.allowSpectators && !isAdmin}
+                  disabled={
+                    (room.locked && !room.allowSpectators && !isAdmin) ||
+                    (!room.locked && room.aiPracticeMode)
+                  }
                   onClick={() => onJoinRoom(room.roomId)}
                 >
-                  {room.locked ? (room.allowSpectators || isAdmin ? "관전하기" : "게임 중") : "입장"}
+                  {room.locked
+                    ? room.allowSpectators || isAdmin
+                      ? "관전하기"
+                      : "게임 중"
+                    : room.aiPracticeMode
+                      ? "연습 중"
+                      : "입장"}
                 </button>
               </div>
             );

@@ -122,6 +122,7 @@ export function createGameServer(): Server {
               players?: { sessionId: string; nickname: string }[];
               playerCapacity?: number;
               allowSpectators?: boolean;
+              aiPracticeMode?: boolean;
               phase?: "lobby" | "playing";
             }
           | undefined;
@@ -140,6 +141,7 @@ export function createGameServer(): Server {
           hostNickname: metadata?.hostNickname ?? "?",
           roomTitle: metadata?.roomTitle ?? "이름 없는 방",
           allowSpectators: metadata?.allowSpectators ?? true,
+          aiPracticeMode: metadata?.aiPracticeMode ?? false,
         };
       }),
     );

@@ -1247,7 +1247,7 @@ describe("MatchRoom", () => {
   test("the bot's presses are not subject to the anti-macro spam guard", async () => {
     // 토끼 봇이 담당하는 민트런은 같은 버튼을 연달아 눌러야 하는 유일한 패턴이라,
     // 안티스팸 가드가 봇 입력에 걸리면 이 시퀀스가 절대 안 끝난다 — 하지만
-    // BOT_PRESS_DELAY_MS(30ms)는 MINT_SPAM_THRESHOLD_MS(20ms)보다 이미 넉넉히
+    // BOT_PRESS_DELAY_MS.rabbit(75ms)는 MINT_SPAM_THRESHOLD_MS(20ms)보다 이미 넉넉히
     // 크기 때문에, 턴이 그냥 성공하는 것만으로는 handleBotPress가 정말 isSpammedPress/
     // lastPressAt 갱신을 건너뛰는지 증명하지 못한다(설령 그 우회 로직이 실수로
     // 없어져도 이 정도 여유로는 타임아웃이나 차단이 안 일어날 수 있음). 그래서 매

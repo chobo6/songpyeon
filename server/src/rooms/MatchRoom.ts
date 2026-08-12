@@ -21,9 +21,8 @@ import { addGameMoney, getUserById, recordRolePlayed, recordRoundAchievement } f
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
-// 봇이 자기 색을 "누르기"까지의 지연 — 0ms 동시성 문제(같은 틱에서 재귀적으로 여러 턴/커서가
-// 갱신되는 것)를 피하기 위한 최소값이지 사람처럼 보이려는 의도된 딜레이가 아니다.
-const BOT_PRESS_DELAY_MS = 30;
+// 봇이 자기 색을 "누르기"까지의 지연 — 역할별 평균 반응속도를 맞추기 위한 값.
+const BOT_PRESS_DELAY_MS: Record<Role, number> = { pig: 50, rabbit: 75 };
 const DEFAULT_COUNTDOWN_TICK_MS = 1000;
 const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
@@ -182,11 +181,13 @@ export class MatchRoom extends Room<MatchState> {
     // anyone has joined. onJoin's later setMetadata calls (players,
     // hostNickname) shallow-merge on top of this, not over it.
     const roomTitle = sanitizeRoomTitle(options.roomTitle);
-    this.roomTitle = roomTitle || "이름 없는 방";
+    // AI 연습모드 방은 로비 목록에서 한눈에 구분되도록 제목 앞에 표시를 붙인다.
+    this.roomTitle = (this.aiPracticeMode ? "(연습모드) " : "") + (roomTitle || "이름 없는 방");
     await this.setMetadata({
       roomTitle: this.roomTitle,
       playerCapacity: this.playerCapacity,
       allowSpectators: this.allowSpectators,
+      aiPracticeMode: this.aiPracticeMode,
       phase: "lobby",
     });
 
@@ -1031,7 +1032,7 @@ export class MatchRoom extends Room<MatchState> {
     this.clock.setTimeout(() => {
       if (token !== this.turnToken || this.turnDecided) return;
       this.handleBotPress(botSessionId, dueColor);
-    }, BOT_PRESS_DELAY_MS);
+    }, BOT_PRESS_DELAY_MS[dueRole]);
   }
 
   private onTurnTimerExpired() {
