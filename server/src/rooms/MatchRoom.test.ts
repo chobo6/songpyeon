@@ -1133,6 +1133,29 @@ describe("MatchRoom", () => {
     await expect(connectAsUser(colyseus, room, "플레이어3")).rejects.toThrow();
   });
 
+  test("aiPracticeMode forces the room to exactly 1 team regardless of the requested teamCount", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      teamCount: 4,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+
+    expect(room.state.teams).toHaveLength(1);
+  });
+
+  test("aiPracticeMode rejects a second player joining once the first player is in", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    await connectAsUser(colyseus, room, "혼자연습유저");
+    await flush();
+
+    await expect(connectAsUser(colyseus, room, "끼어들려는유저")).rejects.toThrow();
+  });
+
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {
     const { room, clients } = await fillRolesAndStart();
 

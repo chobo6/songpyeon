@@ -61,6 +61,10 @@ interface MatchRoomOptions {
   // 이 방에서 아이템(보너스 토큰 포함)이 아예 등장할지 여부 — false를 명시해야만
   // 꺼짐, 그 외(undefined 등)는 기본 켜짐. allowSpectators와 같은 패턴.
   itemsEnabled?: unknown;
+  // 체크 시 팀 수가 항상 1로 강제되고, 대기실에서 역할을 고른 사람의 반대 역할
+  // 자리를 서버가 봇으로 즉시 채운다. true여야만 켜짐(그 외는 기본 꺼짐) —
+  // itemsEnabled/allowSpectators와 같은 패턴.
+  aiPracticeMode?: unknown;
   // 테스트 전용 — 0.8%라는 낮은 확률을 실제 rng로 재현하지 않고 강제 지정하기
   // 위함. production에서는 항상 undefined(정상적인 확률 롤 사용).
   forcedBonusItem?: BonusItemRoll;
@@ -79,6 +83,7 @@ export class MatchRoom extends Room<MatchState> {
   private reconnectGraceSeconds = DEFAULT_RECONNECT_GRACE_SECONDS;
   private allowSpectators = true;
   private itemsEnabled = true;
+  private aiPracticeMode = false;
   // Real player-seat cap (teamCount * 2) — replaces maxClients for that
   // purpose now that maxClients itself is inflated to admit spectators
   // (see MAX_CLIENTS_WITH_SPECTATORS). Set once in onCreate.
@@ -121,6 +126,7 @@ export class MatchRoom extends Room<MatchState> {
     if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
     this.allowSpectators = options.allowSpectators !== false;
     this.itemsEnabled = options.itemsEnabled !== false;
+    this.aiPracticeMode = options.aiPracticeMode === true;
     if (options.forcedBonusItem !== undefined) {
       this.forcedBonusItem = options.forcedBonusItem;
     }
@@ -137,7 +143,7 @@ export class MatchRoom extends Room<MatchState> {
     // room — the bandwidth/CPU cost of a much faster tick is negligible.
     this.patchRate = 16;
 
-    const teamCount = sanitizeTeamCount(options.teamCount);
+    const teamCount = this.aiPracticeMode ? 1 : sanitizeTeamCount(options.teamCount);
     // 2 players (pig + rabbit) per team — must stay in sync with
     // maybeStartGame()'s readiness check and handleChooseRole()'s slot
     // search, both of which assume every team has exactly one pig and one
@@ -266,6 +272,10 @@ export class MatchRoom extends Room<MatchState> {
         sessionId: client.sessionId,
       });
       return;
+    }
+
+    if (this.aiPracticeMode && this.state.players.size >= 1) {
+      throw new Error("이 방은 AI 연습 전용 방입니다.");
     }
 
     // maxClients is now inflated to admit spectators (see
