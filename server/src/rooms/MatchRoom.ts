@@ -1039,6 +1039,7 @@ export class MatchRoom extends Room<MatchState> {
   // doesn't apply mid-match, but a slot freed by a drop and not yet
   // refilled still shouldn't crash this).
   private creditRound(team: TeamState, round: number) {
+    if (this.aiPracticeMode) return;
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) recordRoundAchievement(userId, round);
@@ -1049,6 +1050,7 @@ export class MatchRoom extends Room<MatchState> {
   // (돼지, 토끼) 각각에게 "20원 × 이 방의 팀 수"를 지급한다. creditRound와
   // 동일한 이유로 playerUserIds에 없으면(빈 슬롯) 조용히 건너뛴다.
   private creditTurnSuccess(team: TeamState) {
+    if (this.aiPracticeMode) return;
     const reward = 20 * this.state.teams.length;
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
@@ -1060,6 +1062,7 @@ export class MatchRoom extends Room<MatchState> {
   // 센다. 관전자는 이 roster에 아예 없으니 자동으로 제외됨. creditRound와 달리
   // 라운드 진행/팀 탈락과 무관하게 게임이 시작되는 시점에 모든 팀에 대해 실행.
   private recordRolePlaysStarted() {
+    if (this.aiPracticeMode) return;
     for (const team of this.state.teams) {
       const pigUserId = this.playerUserIds.get(team.pigSessionId);
       if (pigUserId) recordRolePlayed(pigUserId, "pig");

@@ -1317,6 +1317,35 @@ describe("MatchRoom", () => {
     expect(room.state.turnOutcome).toBe("success");
   });
 
+  test("aiPracticeMode matches award no game money, round credit, or play count", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      turnDurationMs: PRESS_HEAVY_TURN_MS,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    const client = await connectAsUser(colyseus, room, "혼자연습유저");
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+    await waitForCountdown();
+
+    await completeActiveTurnWithBot(room, client, "pig");
+    expect(room.state.turnOutcome).toBe("success");
+
+    const row = db
+      .prepare(`SELECT game_money, max_round, pig_play_count, rabbit_play_count FROM users WHERE nickname = ?`)
+      .get("혼자연습유저") as {
+      game_money: number;
+      max_round: number;
+      pig_play_count: number;
+      rabbit_play_count: number;
+    };
+    expect(row.game_money).toBe(0);
+    expect(row.max_round).toBe(0);
+    expect(row.pig_play_count).toBe(0);
+    expect(row.rabbit_play_count).toBe(0);
+  });
+
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {
     const { room, clients } = await fillRolesAndStart();
 
