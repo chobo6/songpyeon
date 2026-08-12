@@ -220,7 +220,7 @@ describe("MatchRoom", () => {
     humanClient: ClientRoom<MatchState>,
     humanRole: "pig" | "rabbit",
   ) {
-    while (room.state.cursor < room.state.sequence.length && !room.state.turnDecided) {
+    while (room.state.cursor < room.state.sequence.length && room.state.turnOutcome === "pending") {
       const dueColor = room.state.sequence[room.state.cursor] as Color;
       const dueRole = colorRole(dueColor);
       const cursorBefore = room.state.cursor;
@@ -228,7 +228,7 @@ describe("MatchRoom", () => {
         humanClient.send("pressButton", { color: dueColor });
         await wait(70); // 안티스팸 임계값(민트 20ms/돼지 0ms, server/src/game/inputSpamGuard.ts)보다 넉넉히 띄움
       }
-      await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnDecided);
+      await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnOutcome !== "pending");
     }
     await wait(100);
   }
@@ -1279,7 +1279,7 @@ describe("MatchRoom", () => {
     // 세팅한 값과 다르면 실패"라는 불변식은 몇 개가 몰리든 그대로 유지된다.
     let lastPressAtBaseline = internalRoom.lastPressAt;
 
-    while (room.state.cursor < room.state.sequence.length && !room.state.turnDecided) {
+    while (room.state.cursor < room.state.sequence.length && room.state.turnOutcome === "pending") {
       const dueColor = room.state.sequence[room.state.cursor] as Color;
       const dueRole = colorRole(dueColor);
       const cursorBefore = room.state.cursor;
@@ -1295,7 +1295,7 @@ describe("MatchRoom", () => {
       // 프레스가 같은 대기 구간에 섞여 들어가 개별적으로 검증받지 못하고
       // 넘어가는 창을 최대한 좁히기 위함(PIG_SPAM_THRESHOLD_MS가 0이라 사람
       // 프레스 자체엔 간격 규제가 필요 없다).
-      await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnDecided);
+      await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnOutcome !== "pending");
 
       if (dueRole === "pig") {
         // 방금 사람이 누른 게 반영됐다 — handlePressButton은 lastPressAt을
