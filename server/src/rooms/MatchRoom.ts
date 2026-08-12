@@ -22,7 +22,7 @@ import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/sess
 
 const DEFAULT_TURN_DURATION_MS = 4000;
 // 봇이 자기 색을 "누르기"까지의 지연 — 역할별 평균 반응속도를 맞추기 위한 값.
-const BOT_PRESS_DELAY_MS: Record<Role, number> = { pig: 50, rabbit: 75 };
+const BOT_PRESS_DELAY_MS: Record<Role, number> = { pig: 60, rabbit: 75 };
 const DEFAULT_COUNTDOWN_TICK_MS = 1000;
 const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
