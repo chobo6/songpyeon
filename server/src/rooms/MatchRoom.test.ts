@@ -226,7 +226,7 @@ describe("MatchRoom", () => {
       const cursorBefore = room.state.cursor;
       if (dueRole === humanRole) {
         humanClient.send("pressButton", { color: dueColor });
-        await wait(70); // 안티스팸 임계값(민트 35ms/돼지 5ms)보다 넉넉히 띄움
+        await wait(70); // 안티스팸 임계값(민트 20ms/돼지 0ms, server/src/game/inputSpamGuard.ts)보다 넉넉히 띄움
       }
       await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnDecided);
     }
@@ -1246,7 +1246,14 @@ describe("MatchRoom", () => {
 
   test("the bot's presses are not subject to the anti-macro spam guard", async () => {
     // 토끼 봇이 담당하는 민트런은 같은 버튼을 연달아 눌러야 하는 유일한 패턴이라,
-    // 안티스팸 가드가 봇 입력에 걸리면 이 시퀀스가 절대 안 끝난다.
+    // 안티스팸 가드가 봇 입력에 걸리면 이 시퀀스가 절대 안 끝난다 — 하지만
+    // BOT_PRESS_DELAY_MS(30ms)는 MINT_SPAM_THRESHOLD_MS(20ms)보다 이미 넉넉히
+    // 크기 때문에, 턴이 그냥 성공하는 것만으로는 handleBotPress가 정말 isSpammedPress/
+    // lastPressAt 갱신을 건너뛰는지 증명하지 못한다(설령 그 우회 로직이 실수로
+    // 없어져도 이 정도 여유로는 타임아웃이나 차단이 안 일어날 수 있음). 그래서 매
+    // 봇 프레스 전후로 MatchRoom의 private lastPressAt 필드를 직접 읽어, 그 값이
+    // 그대로인지(=handleBotPress가 손대지 않았는지) 확인한다 — handleBotPress에
+    // isSpammedPress/lastPressAt 갱신이 다시 들어가면 이 assertion이 그 즉시 깨진다.
     const room = await colyseus.createRoom<MatchState>("match", {
       aiPracticeMode: true,
       turnDurationMs: PRESS_HEAVY_TURN_MS,
@@ -1258,8 +1265,55 @@ describe("MatchRoom", () => {
     await flush();
     await waitForCountdown();
 
-    await completeActiveTurnWithBot(room, client, "pig");
+    // MatchRoom.lastPressAt은 private — 이 방 인스턴스에 직접 접근하기 위한 좁은
+    // 타입 단언. (kickUserId 등 다른 테스트가 이미 이 파일 안에서 room을
+    // MatchRoom으로 캐스팅하는 것과 같은 패턴이지만, private 필드는 그 캐스팅으로도
+    // 못 뚫으므로 구조적으로 별개인 익명 타입으로 캐스팅한다 — 아래쪽 bonusItem
+    // 캐스팅 사례와 동일한 패턴.)
+    const internalRoom = room as unknown as { lastPressAt: number | null };
+    let sawBotPress = false;
+    // handlePressButton(사람 경로)이 마지막으로 세팅한 lastPressAt 값 — 턴 시작
+    // 직후엔 아직 아무도 안 눌렀으므로 null. 사람이 누를 때마다 최신값으로
+    // 다시 맞추고, 봇 전용 구간에서는 이 값이 그대로인지 계속 확인한다. 한 번의
+    // 폴링 사이클 안에 봇 프레스가 여러 개(민트런) 몰려도 무관 — "사람이 마지막으로
+    // 세팅한 값과 다르면 실패"라는 불변식은 몇 개가 몰리든 그대로 유지된다.
+    let lastPressAtBaseline = internalRoom.lastPressAt;
 
+    while (room.state.cursor < room.state.sequence.length && !room.state.turnDecided) {
+      const dueColor = room.state.sequence[room.state.cursor] as Color;
+      const dueRole = colorRole(dueColor);
+      const cursorBefore = room.state.cursor;
+
+      if (dueRole === "pig") {
+        client.send("pressButton", { color: dueColor });
+      } else {
+        // 토끼(봇) 담당 색 — 아무도 send하지 않고, handleBotPress가 알아서 누를
+        // 때까지 기다린다.
+        sawBotPress = true;
+      }
+      // 고정 wait(70) 대신 즉시 폴링 — 사람 프레스 뒤에 바로 이어지는 봇
+      // 프레스가 같은 대기 구간에 섞여 들어가 개별적으로 검증받지 못하고
+      // 넘어가는 창을 최대한 좁히기 위함(PIG_SPAM_THRESHOLD_MS가 0이라 사람
+      // 프레스 자체엔 간격 규제가 필요 없다).
+      await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnDecided);
+
+      if (dueRole === "pig") {
+        // 방금 사람이 누른 게 반영됐다 — handlePressButton은 lastPressAt을
+        // 갱신하는 게 정상이므로, 그 최신값을 새 기준선으로 삼는다.
+        lastPressAtBaseline = internalRoom.lastPressAt;
+      } else {
+        // 이 색(그리고 같은 폴링 구간에 함께 몰렸을 수도 있는 뒤이은 봇 색들)은
+        // 전부 봇이 처리했다 — lastPressAt은 방금 사람이 세팅한 기준선 그대로여야
+        // 한다. 바뀌었다면 handleBotPress가 (다시) isSpammedPress/lastPressAt
+        // 경로를 타고 있다는 뜻.
+        expect(internalRoom.lastPressAt).toBe(lastPressAtBaseline);
+      }
+    }
+
+    // 이 방은 사람이 "pig"이므로 민트(토끼 담당) 색은 전부 봇이 눌렀어야 한다 —
+    // 위 루프의 "토끼(봇) 담당" 분기가 최소 한 번은 실행돼야 이 테스트가 실제로
+    // 뭔가를 검증한 것이다.
+    expect(sawBotPress).toBe(true);
     expect(room.state.turnOutcome).toBe("success");
   });
 
