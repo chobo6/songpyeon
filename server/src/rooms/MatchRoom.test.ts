@@ -205,6 +205,34 @@ describe("MatchRoom", () => {
     await wait(turnDurationMs + 200);
   }
 
+  // NOTE: unlike completeActiveTurn (which waits out the full deferred
+  // hand-off so the NEXT turn has already started by the time it returns),
+  // this helper deliberately does NOT add a trailing turnDurationMs+200
+  // wait after the press loop. This room only has 1 team (aiPracticeMode),
+  // so a successful turn's own already-armed timer starts a fresh turn the
+  // instant it fires (advanceToNextTurn only skips restarting when the sole
+  // team is eliminated) — waiting out a full extra turnDurationMs here would
+  // reliably cross that boundary and reset state.turnOutcome back to
+  // "pending" before the caller ever gets to assert "success". A short fixed
+  // buffer is enough to let the last press's state change settle.
+  async function completeActiveTurnWithBot(
+    room: ServerRoom<MatchState>,
+    humanClient: ClientRoom<MatchState>,
+    humanRole: "pig" | "rabbit",
+  ) {
+    while (room.state.cursor < room.state.sequence.length && !room.state.turnDecided) {
+      const dueColor = room.state.sequence[room.state.cursor] as Color;
+      const dueRole = colorRole(dueColor);
+      const cursorBefore = room.state.cursor;
+      if (dueRole === humanRole) {
+        humanClient.send("pressButton", { color: dueColor });
+        await wait(70); // 안티스팸 임계값(민트 35ms/돼지 5ms)보다 넉넉히 띄움
+      }
+      await waitUntil(() => room.state.cursor > cursorBefore || room.state.turnDecided);
+    }
+    await wait(100);
+  }
+
   test("game starts once both teams have a pig and a rabbit", async () => {
     const { room } = await fillRolesAndStart();
 
@@ -1197,6 +1225,42 @@ describe("MatchRoom", () => {
     expect(room.state.players.has("bot-rabbit")).toBe(false);
     const bot = room.state.players.get("bot-pig");
     expect(bot?.nickname).toBe("돼지 봇");
+  });
+
+  test("the bot presses its own colors automatically and completes the turn with the human", async () => {
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      turnDurationMs: PRESS_HEAVY_TURN_MS,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    const client = await connectAsUser(colyseus, room, "혼자연습유저");
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+    await waitForCountdown();
+
+    await completeActiveTurnWithBot(room, client, "pig");
+
+    expect(room.state.turnOutcome).toBe("success");
+  });
+
+  test("the bot's presses are not subject to the anti-macro spam guard", async () => {
+    // 토끼 봇이 담당하는 민트런은 같은 버튼을 연달아 눌러야 하는 유일한 패턴이라,
+    // 안티스팸 가드가 봇 입력에 걸리면 이 시퀀스가 절대 안 끝난다.
+    const room = await colyseus.createRoom<MatchState>("match", {
+      aiPracticeMode: true,
+      turnDurationMs: PRESS_HEAVY_TURN_MS,
+      countdownTickMs: COUNTDOWN_TICK_MS,
+      bonusItemRng: NEVER_BONUS_RNG,
+    });
+    const client = await connectAsUser(colyseus, room, "혼자연습유저");
+    client.send("chooseRole", { role: "pig" });
+    await flush();
+    await waitForCountdown();
+
+    await completeActiveTurnWithBot(room, client, "pig");
+
+    expect(room.state.turnOutcome).toBe("success");
   });
 
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {

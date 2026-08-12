@@ -10,7 +10,7 @@ import { rollBonusItemIndex, type BonusItemRoll } from "../game/bonusItemToken";
 import type { Rng } from "../game/rng";
 import { isSpammedPress } from "../game/inputSpamGuard";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
-import type { Color, Role } from "../game/colors";
+import { colorRole, type Color, type Role } from "../game/colors";
 import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
@@ -21,6 +21,9 @@ import { addGameMoney, getUserById, recordRolePlayed, recordRoundAchievement } f
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
+// 봇이 자기 색을 "누르기"까지의 지연 — 0ms 동시성 문제(같은 틱에서 재귀적으로 여러 턴/커서가
+// 갱신되는 것)를 피하기 위한 최소값이지 사람처럼 보이려는 의도된 딜레이가 아니다.
+const BOT_PRESS_DELAY_MS = 30;
 const DEFAULT_COUNTDOWN_TICK_MS = 1000;
 const COUNTDOWN_START_SECONDS = 3;
 const MAX_CHAT_MESSAGES = 50;
@@ -824,6 +827,8 @@ export class MatchRoom extends Room<MatchState> {
     this.turnTimer = this.clock.setTimeout(() => {
       if (token === this.turnToken) this.onTurnTimerExpired();
     }, duration);
+
+    this.maybeTriggerBotPress();
   }
 
   private handleUseItem(client: Client, itemId: ItemId) {
@@ -910,6 +915,27 @@ export class MatchRoom extends Room<MatchState> {
       return;
     }
 
+    this.resolvePress(player, activeTeam, color);
+  }
+
+  // 봇 전용 진입점 — 안티스팸 체크(isSpammedPress)와 lastPressAt 갱신을 의도적으로
+  // 건너뛴다. 봇은 사람 옆에서 거의 즉시 누르므로 그 체크를 태우면 봇 입력 자체가
+  // 막히거나, 봇 직후의 사람 정당 입력이 오인될 수 있다(maybeTriggerBotPress 참고).
+  private handleBotPress(sessionId: string, color: Color) {
+    if (this.state.phase !== "playing") return;
+    if (this.turnDecided) return;
+
+    const player = this.state.players.get(sessionId);
+    if (!player) return;
+
+    const activeTeam = this.state.teams[this.state.activeTeamIndex];
+    if (player.teamId !== activeTeam.id) return;
+
+    this.resolvePress(player, activeTeam, color);
+  }
+
+  // handlePressButton/handleBotPress 공통 판정 로직 — 안티스팸 체크가 끝난 뒤부터.
+  private resolvePress(player: PlayerState, activeTeam: TeamState, color: Color) {
     const result = this.superMortarActiveThisTurn
       ? {
           correct: true,
@@ -958,7 +984,30 @@ export class MatchRoom extends Room<MatchState> {
       // on screen for the rest of the turn instead of the next turn's fresh
       // state overwriting it on the very next tick.
       this.creditTurnSuccess(activeTeam);
+    } else {
+      this.maybeTriggerBotPress();
     }
+  }
+
+  // 매 턴 시작 직후(첫 색), 그리고 매 정답 처리로 커서가 이동한 직후(resolvePress
+  // 끝)마다 호출된다 — 지금 커서가 가리키는 색이 봇 담당이면 거의 즉시 누른다.
+  // 민트런처럼 같은 담당자가 연속으로 눌러야 하는 구간도, 매 정답 처리마다 다시
+  // 호출되는 구조라 자연스럽게 이어진다.
+  private maybeTriggerBotPress() {
+    if (!this.aiPracticeMode) return;
+    if (this.state.cursor >= this.state.sequence.length) return;
+
+    const activeTeam = this.state.teams[this.state.activeTeamIndex];
+    const dueColor = this.state.sequence[this.state.cursor] as Color;
+    const dueRole = colorRole(dueColor);
+    const botSessionId = dueRole === "pig" ? activeTeam.pigSessionId : activeTeam.rabbitSessionId;
+    if (!botSessionId.startsWith(BOT_SESSION_PREFIX)) return;
+
+    const token = this.turnToken;
+    this.clock.setTimeout(() => {
+      if (token !== this.turnToken || this.turnDecided) return;
+      this.handleBotPress(botSessionId, dueColor);
+    }, BOT_PRESS_DELAY_MS);
   }
 
   private onTurnTimerExpired() {
