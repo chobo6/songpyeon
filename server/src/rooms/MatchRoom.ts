@@ -544,6 +544,8 @@ export class MatchRoom extends Room<MatchState> {
     // allow role switching even with countdown active (since the bot will reseat
     // itself) to let the player switch roles before the game actually starts.
     if (this.state.phase !== "lobby") return;
+    // In aiPracticeMode, allow role switching even with countdown active—human may
+    // immediately swap roles right after the bot fills the last slot.
     if (this.state.countdownSecondsLeft > 0 && !this.aiPracticeMode) return;
 
     const player = this.state.players.get(client.sessionId);
