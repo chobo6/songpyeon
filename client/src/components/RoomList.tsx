@@ -42,7 +42,13 @@ export function RoomList({
   pigPlayCount: number;
   rabbitPlayCount: number;
   gameMoney: number;
-  onCreateRoom: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
+  onCreateRoom: (
+    title: string,
+    teamCount: number,
+    allowSpectators: boolean,
+    itemsEnabled: boolean,
+    aiPracticeMode: boolean,
+  ) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
   onProfileChanged: () => void;
@@ -233,9 +239,9 @@ export function RoomList({
       {showCreateModal && (
         <CreateRoomModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(title, teamCount, allowSpectators, itemsEnabled) => {
+          onCreate={(title, teamCount, allowSpectators, itemsEnabled, aiPracticeMode) => {
             setShowCreateModal(false);
-            onCreateRoom(title, teamCount, allowSpectators, itemsEnabled);
+            onCreateRoom(title, teamCount, allowSpectators, itemsEnabled, aiPracticeMode);
           }}
         />
       )}

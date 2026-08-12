@@ -130,8 +130,8 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
         pigPlayCount={me.pigPlayCount}
         rabbitPlayCount={me.rabbitPlayCount}
         gameMoney={me.gameMoney}
-        onCreateRoom={(roomTitle, teamCount, allowSpectators, itemsEnabled) =>
-          setJoinSpec({ type: "create", teamCount, roomTitle, allowSpectators, itemsEnabled })
+        onCreateRoom={(roomTitle, teamCount, allowSpectators, itemsEnabled, aiPracticeMode) =>
+          setJoinSpec({ type: "create", teamCount, roomTitle, allowSpectators, itemsEnabled, aiPracticeMode })
         }
         onJoinRoom={(roomId) => setJoinSpec({ type: "joinById", roomId })}
         onExit={onExit}

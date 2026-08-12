@@ -9,13 +9,20 @@ export function CreateRoomModal({
   onCreate,
   onClose,
 }: {
-  onCreate: (title: string, teamCount: number, allowSpectators: boolean, itemsEnabled: boolean) => void;
+  onCreate: (
+    title: string,
+    teamCount: number,
+    allowSpectators: boolean,
+    itemsEnabled: boolean,
+    aiPracticeMode: boolean,
+  ) => void;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [teamCount, setTeamCount] = useState(2);
   const [allowSpectators, setAllowSpectators] = useState(true);
   const [itemsEnabled, setItemsEnabled] = useState(true);
+  const [aiPracticeMode, setAiPracticeMode] = useState(false);
 
   // Digits only, then clamp to the valid range — 5+ becomes 4, 0 (or an
   // emptied field) becomes 1. The field always displays an existing digit
@@ -38,7 +45,7 @@ export function CreateRoomModal({
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    onCreate(trimmed, teamCount, allowSpectators, itemsEnabled);
+    onCreate(trimmed, teamCount, allowSpectators, itemsEnabled, aiPracticeMode);
   }
 
   return (
@@ -66,6 +73,7 @@ export function CreateRoomModal({
             value={teamCount}
             onChange={(e) => handleTeamCountChange(e.target.value)}
             onFocus={(e) => e.target.select()}
+            disabled={aiPracticeMode}
           />
         </label>
         <label className={styles.checkboxField}>
@@ -79,6 +87,17 @@ export function CreateRoomModal({
         <label className={styles.checkboxField}>
           <input type="checkbox" checked={itemsEnabled} onChange={(e) => setItemsEnabled(e.target.checked)} />
           <span>아이템전</span>
+        </label>
+        <label className={styles.checkboxField}>
+          <input
+            type="checkbox"
+            checked={aiPracticeMode}
+            onChange={(e) => {
+              setAiPracticeMode(e.target.checked);
+              if (e.target.checked) setTeamCount(1);
+            }}
+          />
+          <span>AI 연습모드</span>
         </label>
         <div className={styles.actions}>
           <button type="button" className={styles.cancelButton} onClick={onClose}>

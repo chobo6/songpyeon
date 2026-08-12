@@ -64,7 +64,14 @@ export async function getPlayCountRanking(): Promise<PlayCountRankingEntry[]> {
 }
 
 export type JoinSpec =
-  | { type: "create"; teamCount: number; roomTitle: string; allowSpectators: boolean; itemsEnabled: boolean }
+  | {
+      type: "create";
+      teamCount: number;
+      roomTitle: string;
+      allowSpectators: boolean;
+      itemsEnabled: boolean;
+      aiPracticeMode: boolean;
+    }
   | { type: "joinById"; roomId: string }
   | { type: "reconnect" };
 
@@ -105,6 +112,7 @@ async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
       roomTitle: spec.roomTitle,
       allowSpectators: spec.allowSpectators,
       itemsEnabled: spec.itemsEnabled,
+      aiPracticeMode: spec.aiPracticeMode,
     });
     storeReconnectToken(room);
     return room;
