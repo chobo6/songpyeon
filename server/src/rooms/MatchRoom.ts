@@ -558,9 +558,10 @@ export class MatchRoom extends Room<MatchState> {
     );
 
     // If no empty slot but player is already in a team, allow switching within that team
-    // (in aiPracticeMode, the opposite slot will be occupied by a bot and syncBotForTeam
-    // will reseat it)
-    if (!team && player.teamId) {
+    // in aiPracticeMode only (where the opposite slot will be occupied by a bot and
+    // syncBotForTeam will reseat it). In normal mode, the first search already found all
+    // available slots, so this fallback must not fire to avoid corrupting team state.
+    if (!team && this.aiPracticeMode && player.teamId) {
       team = this.state.teams.find((t) => t.id === player.teamId);
     }
 
