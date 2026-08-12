@@ -211,6 +211,21 @@ export function createGameServer(): Server {
               phase?: "lobby" | "playing";
             }
           | undefined;
+        // 팀/역할/라운드는 metadata에 없다(입장·퇴장 시점에만 갱신되므로 라운드
+        // 진행마다 매번 refresh하긴 번거롭다) — 대신 getLocalRoomById로 이
+        // 프로세스에 떠 있는 실제 룸 인스턴스의 state를 직접 읽어 항상 최신값을
+        // 돌려준다(단일 프로세스 배포 전제, /api/admin/users/:id/ban과 같은 패턴).
+        const room = matchMaker.getLocalRoomById(r.roomId) as MatchRoom | undefined;
+        const state = room?.state;
+        const teams = state
+          ? state.teams.map((t) => ({
+              id: t.id,
+              mortars: t.mortars,
+              eliminated: t.eliminated,
+              pigNickname: t.pigSessionId ? (state.players.get(t.pigSessionId)?.nickname ?? null) : null,
+              rabbitNickname: t.rabbitSessionId ? (state.players.get(t.rabbitSessionId)?.nickname ?? null) : null,
+            }))
+          : [];
         return {
           roomId: r.roomId,
           roomTitle: metadata?.roomTitle ?? "이름 없는 방",
@@ -226,6 +241,9 @@ export function createGameServer(): Server {
           locked: metadata?.phase === "playing",
           hostNickname: metadata?.hostNickname ?? "?",
           players: metadata?.players ?? [],
+          round: state?.round ?? null,
+          teams,
+          spectators: state ? [...state.spectators.values()].map((s) => s.nickname) : [],
         };
       }),
     );

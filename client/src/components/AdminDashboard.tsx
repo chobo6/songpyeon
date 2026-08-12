@@ -1,6 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import styles from "./AdminDashboard.module.css";
 
+type RoomTeam = {
+  id: string;
+  mortars: number;
+  eliminated: boolean;
+  pigNickname: string | null;
+  rabbitNickname: string | null;
+};
+
 type RoomInfo = {
   roomId: string;
   roomTitle: string;
@@ -9,6 +17,9 @@ type RoomInfo = {
   locked: boolean;
   hostNickname: string;
   players: { sessionId: string; nickname: string }[];
+  round: number | null;
+  teams: RoomTeam[];
+  spectators: string[];
 };
 
 type AdminEvent = {
@@ -230,10 +241,25 @@ export function AdminDashboard({
             <li key={room.roomId}>
               <strong>{room.roomTitle}</strong> — {room.clients}/{room.maxClients}
               {room.locked ? " (진행 중)" : " (대기 중)"}
+              {room.round !== null && ` · 라운드 ${room.round}`}
               <div className={styles.hostLine}>{room.hostNickname}님의 방</div>
-              <div className={styles.playerNames}>
-                {room.players.map((p) => p.nickname).join(", ") || "(없음)"}
-              </div>
+              {room.teams.length > 0 ? (
+                <ul className={styles.teamList}>
+                  {room.teams.map((team, i) => (
+                    <li key={team.id} className={team.eliminated ? styles.teamEliminated : undefined}>
+                      {i + 1}팀{team.eliminated ? " (탈락)" : ""} · 절구 {team.mortars}개 · 🐷{" "}
+                      {team.pigNickname ?? "(미정)"} · 🐰 {team.rabbitNickname ?? "(미정)"}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className={styles.playerNames}>
+                  {room.players.map((p) => p.nickname).join(", ") || "(없음)"}
+                </div>
+              )}
+              {room.spectators.length > 0 && (
+                <div className={styles.playerNames}>관전: {room.spectators.join(", ")}</div>
+              )}
             </li>
           ))}
         </ul>

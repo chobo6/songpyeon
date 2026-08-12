@@ -88,6 +88,21 @@
   color: #6b7280;
 }
 
+.teamList {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.teamEliminated {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
 .onlineList {
   display: flex;
   flex-wrap: wrap;
