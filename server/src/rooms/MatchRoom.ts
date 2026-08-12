@@ -41,7 +41,12 @@ const ADMIN_NICKNAME = "홍바들";
 // joinById; the real player-seat limit is enforced by playerCapacity
 // instead (see onJoin).
 const MAX_CLIENTS_WITH_SPECTATORS = 1000;
-// 봇의 sessionId 접두사 — 실제 Colyseus가 발급하는 sessionId와 절대 겹치지 않는다.
+// 봇의 sessionId를 만들 때 쓰는 접두사 — 가독성/디버깅용 문자열일 뿐, 봇 여부
+// 판정에는 더 이상 쓰지 않는다(this.botSessionIds 참고). Colyseus의 실제
+// sessionId는 9자리 nanoid라 "bot-pig"/"bot-rabbit"과 길이가 달라 정확히
+// 겹치는 일은 없지만, 그 nanoid의 알파벳에 "-"가 포함돼 있어서 우연히 "bot-"로
+// *시작하는* sessionId가 나올 수는 있다(약 1/16,700,000) — 그래서 접두사
+// 검사(startsWith)는 신원 판정 근거로 쓰면 안 된다.
 const BOT_SESSION_PREFIX = "bot-";
 
 interface MatchRoomOptions {
@@ -124,6 +129,12 @@ export class MatchRoom extends Room<MatchState> {
   private forcedBonusItem?: BonusItemRoll;
   private bonusItem: BonusItemRoll | null = null;
   private bonusItemRng: Rng = Math.random;
+  // 실제 봇 신원의 유일한 판정 근거 — addBot()에서 채워지고, 봇 PlayerState를
+  // 지울 때(syncBotForTeam, handleRematch)마다 같이 지운다. BOT_SESSION_PREFIX에
+  // 대한 startsWith 검사는 우연히 "bot-"로 시작하는 진짜 sessionId를 봇으로
+  // 오인해 그 사람의 PlayerState를 지워버릴 수 있어(자기 자신의 주석 참고)
+  // 여기서는 쓰지 않는다.
+  private botSessionIds = new Set<string>();
 
   async onCreate(options: MatchRoomOptions = {}) {
     if (options.turnDurationMs) this.turnDurationMs = options.turnDurationMs;
@@ -599,8 +610,9 @@ export class MatchRoom extends Room<MatchState> {
     if (!this.aiPracticeMode) return;
 
     for (const [sessionId, player] of this.state.players.entries()) {
-      if (sessionId.startsWith(BOT_SESSION_PREFIX) && player.teamId === team.id) {
+      if (this.botSessionIds.has(sessionId) && player.teamId === team.id) {
         this.state.players.delete(sessionId);
+        this.botSessionIds.delete(sessionId);
       }
     }
 
@@ -619,6 +631,7 @@ export class MatchRoom extends Room<MatchState> {
     bot.role = role;
     bot.teamId = team.id;
     this.state.players.set(sessionId, bot);
+    this.botSessionIds.add(sessionId);
     if (role === "pig") team.pigSessionId = sessionId;
     else team.rabbitSessionId = sessionId;
   }
@@ -773,7 +786,18 @@ export class MatchRoom extends Room<MatchState> {
       // 있음. 그 가정에 기대지 않도록 여기서 명시적으로 리셋.
       team.combo = 0;
     }
-    for (const player of this.state.players.values()) {
+    // 봇 자리는 리셋이 아니라 삭제 — 리매치 직후의 방은 아직 아무도 역할을 고르지
+    // 않은 상태라 봇이 있을 이유가 없다. role/teamId만 비우고 남겨두면(사람
+    // 엔트리처럼) syncBotForTeam의 "이 팀 소속 봇만 지우는" 정리 스윕이 teamId가
+    // 이미 ""로 바뀐 이 엔트리를 찾지 못해 orphan PlayerState로 영원히 남는다 —
+    // 특히 사람이 리매치 후 이전과 다른 역할을 고르면, 빈 슬롯을 새 봇이 채우면서
+    // 이 orphan과 별개로 두 번째 봇까지 생겨 state.players에 유령 엔트리가 남는다.
+    for (const [sessionId, player] of this.state.players.entries()) {
+      if (this.botSessionIds.has(sessionId)) {
+        this.state.players.delete(sessionId);
+        this.botSessionIds.delete(sessionId);
+        continue;
+      }
       player.role = "";
       player.teamId = "";
       player.inventory.clear();
@@ -1001,7 +1025,7 @@ export class MatchRoom extends Room<MatchState> {
     const dueColor = this.state.sequence[this.state.cursor] as Color;
     const dueRole = colorRole(dueColor);
     const botSessionId = dueRole === "pig" ? activeTeam.pigSessionId : activeTeam.rabbitSessionId;
-    if (!botSessionId.startsWith(BOT_SESSION_PREFIX)) return;
+    if (!this.botSessionIds.has(botSessionId)) return;
 
     const token = this.turnToken;
     this.clock.setTimeout(() => {

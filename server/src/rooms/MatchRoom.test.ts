@@ -1346,6 +1346,50 @@ describe("MatchRoom", () => {
     expect(row.rabbit_play_count).toBe(0);
   });
 
+  test(
+    "a rematch in aiPracticeMode deletes the orphaned bot instead of leaving a ghost PlayerState behind",
+    async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        aiPracticeMode: true,
+        turnDurationMs: SHORT_TURN_MS,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      const client = await connectAsUser(colyseus, room, "혼자연습유저");
+      client.send("chooseRole", { role: "pig" });
+      await flush();
+      await waitForCountdown();
+      expect(room.state.players.size).toBe(2); // human(pig) + bot-rabbit
+
+      // Let every turn time out (no pig presses from the human) until the
+      // single team is eliminated. The bot presses its own (rabbit) colors
+      // automatically, but a turn can never complete without the human's
+      // pig presses, so every turn eventually fails on its own timer.
+      while (room.state.teams.some((t) => !t.eliminated)) {
+        await wait(SHORT_TURN_MS + 200);
+      }
+
+      client.send("rematch");
+      await flush();
+      expect(room.state.phase).toBe("lobby");
+
+      // Pick the OPPOSITE role from before — this is exactly the scenario
+      // that used to orphan the old bot: handleRematch reset (instead of
+      // deleting) bot entries, so the stale bot-rabbit (now role: "",
+      // teamId: "") never got cleaned up, and syncBotForTeam would add a
+      // brand-new bot-pig alongside it instead of replacing it, leaving 3
+      // entries in state.players instead of 2.
+      client.send("chooseRole", { role: "rabbit" });
+      await flush();
+
+      expect(room.state.players.size).toBe(2);
+      for (const player of room.state.players.values()) {
+        expect(player.role).not.toBe("");
+      }
+    },
+    15000,
+  );
+
   test("joinOrCreate matchmaking does not route a fresh client into a room an eliminated player just left", async () => {
     const { room, clients } = await fillRolesAndStart();
 
