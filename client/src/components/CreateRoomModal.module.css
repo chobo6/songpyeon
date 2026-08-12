@@ -55,6 +55,11 @@
   box-sizing: border-box;
 }
 
+.input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .actions {
   display: flex;
   gap: 0.6rem;
