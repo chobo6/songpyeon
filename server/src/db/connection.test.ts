@@ -106,4 +106,34 @@ describe("createDb", () => {
     };
     expect(row.banned_at).toBeNull();
   });
+
+  // 정리는 admin/eventLog.ts의 recordEvent()가 아니라 여기(DB 오픈 시점)에서 한다 — 매
+  // 입장/퇴장마다 동기 디스크 쓰기를 하나 더 만들지 않기 위해 옮겨졌음(그 이유는
+  // createDb()의 주석 참고). 그래서 "쌓인 뒤 다음 오픈에서 정리되는지"를 검증하려면
+  // 실제 파일 DB를 두 번 열어야 한다 — 위 "UTC created_at이 KST로 옮겨지는지" 테스트와
+  // 같은 패턴.
+  test("prunes events older than the 90-day retention window when the DB is (re)opened", () => {
+    const tmpPath = path.join(os.tmpdir(), `songpyeon-test-events-${Date.now()}-${Math.random()}.db`);
+    try {
+      const db = createDb(tmpPath);
+      const ninetyOneDaysAgo = Date.now() - 91 * 24 * 60 * 60 * 1000;
+      const insertEvent = db.prepare(
+        `INSERT INTO events (type, timestamp, nickname, room_id, room_title, ip, session_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      );
+      insertEvent.run("join", ninetyOneDaysAgo, "old", "room1", "방", "127.0.0.1", "sess-old");
+      insertEvent.run("join", Date.now(), "new", "room1", "방", "127.0.0.1", "sess-new");
+      db.close();
+
+      // Re-opening is what actually triggers the cleanup — the first
+      // createDb() above ran against an empty events table, so it had
+      // nothing to prune yet.
+      const reopened = createDb(tmpPath);
+      const rows = reopened.prepare(`SELECT session_id AS sessionId FROM events`).all() as { sessionId: string }[];
+      expect(rows.map((r) => r.sessionId)).toEqual(["sess-new"]);
+      reopened.close();
+    } finally {
+      for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(tmpPath + suffix, { force: true });
+    }
+  });
 });

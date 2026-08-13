@@ -3,6 +3,12 @@ import Database from "better-sqlite3";
 export function createDb(filename: string): Database.Database {
   const db = new Database(filename);
   db.pragma("journal_mode = WAL");
+  // WAL 모드의 기본 synchronous(FULL)는 트랜잭션마다 실제 디스크 fsync를 기다린다 — 이
+  // 프로세스는 모든 방의 버튼 입력을 처리하는 단일 스레드라, 그 fsync 몇 ms 동안 다른
+  // 방의 입력 처리도 같이 멎는다. NORMAL은 WAL 모드에서 손상 없음이 보장되는 조합이고,
+  // EC2가 그 찰나에 정전처럼 완전히 전원이 나가는 극단적 상황에서만 가장 최근 트랜잭션
+  // 유실 가능성이 생긴다(일반적인 재시작/재배포는 해당 없음) — SQLite+WAL의 표준 권장값.
+  db.pragma("synchronous = NORMAL");
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +49,14 @@ export function createDb(filename: string): Database.Database {
     )
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`);
+  // 보관기한 지난 로그 정리 — 예전엔 admin/eventLog.ts의 recordEvent()가 입장/퇴장마다
+  // 매번 DELETE를 같이 실행했음(INSERT+DELETE로 매 이벤트가 동기 디스크 쓰기 두 번). 여기
+  // DB 오픈 시점(서버 시작 시 1회) 한 번으로 옮겨서, 실제 플레이 중에는 이 비용이 전혀
+  // 없게 함 — 대신 정확히 90일이 지나는 순간이 아니라 다음 재시작/재배포 시점에 지워짐
+  // (개인정보 무기한 보관 방지가 목적이라 90일+α는 문제 없음). 90일은
+  // admin/eventLog.ts의 RETENTION_DAYS와 동일한 값 — 바꾸면 여기도 같이 바꿀 것.
+  const eventsRetentionCutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  db.prepare(`DELETE FROM events WHERE timestamp < ?`).run(eventsRetentionCutoff);
 
   // 관리자에게 보내는 1회성 문의(답장 없음) — 누가 보냈는지 추적할 수 있게
   // user_id/nickname을 같이 저장한다. events와 달리 개인정보(IP) 보관 목적이

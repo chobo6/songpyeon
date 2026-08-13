@@ -37,13 +37,6 @@ describe("eventLog", () => {
     expect(events[events.length - 1].sessionId).toBe("s509");
   });
 
-  test("prunes events older than the 90-day retention window on write", () => {
-    const ninetyOneDaysAgo = Date.now() - 91 * 24 * 60 * 60 * 1000;
-    recordEvent(makeEvent({ sessionId: "old", timestamp: ninetyOneDaysAgo }));
-    recordEvent(makeEvent({ sessionId: "new" }));
-
-    expect(getEvents().map((e) => e.sessionId)).toEqual(["new"]);
-  });
 });
 
 describe("searchEventsByNickname", () => {

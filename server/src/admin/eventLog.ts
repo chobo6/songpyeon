@@ -11,24 +11,20 @@ export type AdminEvent = {
 };
 
 // 관리자 대시보드의 "최근 입장/퇴장" 목록이 한 번에 돌려주는 최대 개수 — DB 자체는
-// RETENTION_DAYS만큼 더 오래 보관하므로, 이 개수를 넘는 과거 기록은 이 함수가 아니라
-// DB를 직접 조회해서 찾아야 한다.
+// 훨씬 오래(db/connection.ts의 90일 보관기한만큼) 보관하므로, 이 개수를 넘는 과거 기록은
+// 이 함수가 아니라 DB를 직접 조회해서 찾아야 한다.
 const MAX_EVENTS = 500;
 
-// IP가 포함된 로그를 얼마나 보관할지. 예전엔 서버 메모리에만 있어서 재시작(재배포)
-// 때마다 사라졌음 — 특정 유저의 과거 IP를 나중에 찾으려 했더니 이미 날아가 있던 사고로
-// DB 저장으로 옮김. 용량은 하루 수천 건이 쌓여도 한 달에 수십MB 수준이라 문제가 아니고,
-// 그보다는 개인 데이터(IP)를 무기한 쌓아두지 않기 위한 선택.
-const RETENTION_DAYS = 90;
+// IP가 포함된 로그를 얼마나 보관할지는 db/connection.ts의 createDb()가 DB 오픈 시점
+// (서버 시작 시 1회)에 정리한다 — 예전엔 여기 recordEvent()가 호출될 때마다 같이
+// DELETE했는데, 그러면 입장/퇴장마다 동기 디스크 쓰기가 하나 더 늘어 다른 방의 버튼 입력
+// 처리까지 순간적으로 지연시킬 수 있었음(단일 프로세스가 모든 방을 처리하므로).
 
 export function recordEvent(event: AdminEvent): void {
   db.prepare(
     `INSERT INTO events (type, timestamp, nickname, room_id, room_title, ip, session_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(event.type, event.timestamp, event.nickname, event.roomId, event.roomTitle, event.ip, event.sessionId);
-
-  const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  db.prepare(`DELETE FROM events WHERE timestamp < ?`).run(cutoff);
 }
 
 // 시간순(오래된 것 먼저) — 기존 인메모리 버전과 같은 순서 계약을 유지해서 호출부
