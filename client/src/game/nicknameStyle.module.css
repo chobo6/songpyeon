@@ -162,6 +162,52 @@
   }
 }
 
+/* 글리치 — 텍스트를 attr(data-text)로 복제해 겹치는 첫 시도는 유령 레이어 위치가 어긋나며
+   깨져 보였음. 복제 없이 글자 하나에 색수차(text-shadow)+흔들림(transform)+순간 절단
+   (clip-path)만 스텝식으로 얹는 방식이 훨씬 안정적. transform은 표준상 일반 inline
+   엘리먼트에 안 먹을 수 있어(브라우저마다 다름) inline-block으로 강제해둔다. */
+.glitch.glitch {
+  display: inline-block;
+  color: #eef0ff;
+  animation: glitch-jolt 3.6s infinite;
+}
+
+@keyframes glitch-jolt {
+  0%,
+  90%,
+  100% {
+    transform: translate(0, 0);
+    text-shadow: none;
+    clip-path: none;
+  }
+  91% {
+    transform: translate(-2px, 0);
+    text-shadow:
+      -2px 0 #5ef6ff,
+      2px 0 #ff5ea8;
+    clip-path: inset(0 0 45% 0);
+  }
+  92% {
+    transform: translate(2px, 0);
+    text-shadow:
+      2px 0 #5ef6ff,
+      -2px 0 #ff5ea8;
+    clip-path: inset(55% 0 0 0);
+  }
+  93% {
+    transform: translate(-1px, 0);
+    text-shadow:
+      -1px 0 #5ef6ff,
+      1px 0 #ff5ea8;
+    clip-path: inset(0 0 60% 0);
+  }
+  94% {
+    transform: translate(0, 0);
+    text-shadow: none;
+    clip-path: none;
+  }
+}
+
 /* ============================================================
    닉네임 파티클 효과 — 반짝임/상승/궤도/눈
    ============================================================ */
@@ -180,21 +226,41 @@
   pointer-events: none;
 }
 
-/* 반짝임 — 이동이 없어서 폭 전체(가로+세로)에 자유롭게 흩뿌린다. */
+/* 반짝임 — 원래는 단순한 점이었는데 별 모양(정오각별)으로 교체함. 이동이 없어서
+   폭 전체(가로+세로)에 자유롭게 흩뿌린다. clip-path로 자른 모양은 box-shadow가 그
+   모양을 따라가지 않고 원래 사각형 기준으로 번져서(둥근 후광 대신 각진 후광) filter:
+   drop-shadow를 대신 쓴다 — 이건 실제 렌더링된(잘린) 알파 모양을 따라간다. 별
+   윤곽이 회전까지 하면 반짝임보다 "빙글빙글 도는 별"처럼 보여서 회전은 빼고
+   scale+opacity 펄스만 남김. */
 .twinkleDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 0;
   background: #ffd76e;
-  box-shadow: 0 0 3px 1px #ffd76e;
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+  filter: drop-shadow(0 0 2px #ffd76e);
   animation: particle-twinkle 2.6s ease-in-out infinite;
 }
 @keyframes particle-twinkle {
   0%,
   100% {
     opacity: 0;
-    transform: scale(0.5);
+    transform: scale(0.4);
   }
   50% {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.05);
   }
 }
 
@@ -289,6 +355,86 @@
     transform: translateY(1.2em) translateX(var(--drift-end, 0));
   }
 }
+
+/* 하트 — rising과 뼈대가 동일(위로 떠오르며 좌우 drift 후 소멸), 모양만 클래식 CSS 하트
+   트릭(정사각형 45도 회전 + 위/오른쪽에 원 두 개)으로 교체. 점(3px)보다 하트가 읽히려면
+   한 칸 더 커야 해서 4px로 잡음. */
+.heartDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 0;
+  background: #ff8fd0;
+  box-shadow: 0 0 3px 1px #ff8fd0;
+  transform: rotate(-45deg);
+  bottom: -8%;
+  animation: particle-heart 2.6s ease-in infinite;
+}
+.heartDot::before,
+.heartDot::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: inherit;
+  border-radius: 50%;
+}
+.heartDot::before {
+  top: -2px;
+  left: 0;
+}
+.heartDot::after {
+  top: 0;
+  left: 2px;
+}
+@keyframes particle-heart {
+  0% {
+    opacity: 0;
+    transform: rotate(-45deg) translateY(0) translateX(0);
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(-45deg) translateY(-0.6em) translateX(var(--drift-mid, 0));
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(-45deg) translateY(-1.2em) translateX(var(--drift-end, 0));
+  }
+}
+
+/* 별똥별 — 점이 아니라 대각선 궤적. twinkle처럼 폭+높이 전체에 무작위로 스폰되고, 왼쪽
+   위에서 오른쪽 아래로 천천히 흘러가는 느낌(snow처럼 느린 linear 속도, 우상단으로 짧게
+   스치던 이전 버전보다 방향도 반대·속도도 느림). transform을 0%/100% 딱 두 지점에서만
+   정의해 그 사이 전체가 매끄럽게 단조 보간되게 하고, opacity는 별도로 15%~80%에서만
+   1을 유지하도록 얹는다 — transform에 중간 "정지" 지점을 하나라도 더 넣으면 그 지점
+   전후로 역보간이 생겨 위아래로 튀어 보이는 버그가 났었다(수정 전 버전). */
+.shootingStarDot {
+  width: 14px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, #cfe8ff 55%, #fff);
+  animation: particle-shooting-star 4.2s linear infinite;
+}
+@keyframes particle-shooting-star {
+  0% {
+    opacity: 0;
+    transform: rotate(30deg) translate(-9px, -9px) scaleX(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(30deg) translate(9px, 9px) scaleX(1);
+  }
+}
 /* ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -306,13 +452,16 @@
   .hologram.hologram,
   .pulse.pulse,
   .neon.neon,
-  .chrome.chrome {
+  .chrome.chrome,
+  .glitch.glitch {
     animation-duration: 40s;
   }
 
   .twinkleDot,
   .risingDot,
   .snowDot,
+  .heartDot,
+  .shootingStarDot,
   .particleWrap.particleOrbit::before,
   .particleWrap.particleOrbit::after {
     animation-duration: 40s !important;

@@ -481,6 +481,17 @@ describe("purchaseEffect / equipEffect / getOwnedEffects", () => {
     expect(getOwnedEffects(user.id)).toEqual([]);
   });
 
+  test("refuses to sell an effect that isn't in SHOP_SALE_EFFECTS (glitch, admin-grant only for now)", () => {
+    const user = getOrCreateUser("sub-shop-not-for-sale", {});
+    addGameMoney(user.id, SHOP_PRICES.glitch + 3000);
+
+    const result = purchaseEffect(user.id, "glitch");
+
+    expect(result).toBe("not_for_sale");
+    expect(getUserById(user.id)?.gameMoney).toBe(SHOP_PRICES.glitch + 3000);
+    expect(getOwnedEffects(user.id)).toEqual([]);
+  });
+
   test("refuses a duplicate purchase and doesn't charge twice", () => {
     const user = getOrCreateUser("sub-shop-3", {});
     const startMoney = SHOP_PRICES.chrome * 10;

@@ -22,6 +22,7 @@ const EFFECT_LABELS: Record<UserRow["nicknameEffect"], string> = {
   pulse: "Pulse",
   neon: "네온사인",
   chrome: "크롬",
+  glitch: "글리치",
 };
 
 const PARTICLE_LABELS: Record<UserRow["nicknameParticle"], string> = {
@@ -30,6 +31,8 @@ const PARTICLE_LABELS: Record<UserRow["nicknameParticle"], string> = {
   rising: "상승",
   orbit: "궤도",
   snow: "눈",
+  heart: "하트",
+  shootingStar: "별똥별",
 };
 
 export function AdminUsers({

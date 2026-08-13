@@ -297,12 +297,13 @@ export function AdminEditUserModal({
               <option value="pulse">Pulse</option>
               <option value="neon">네온사인</option>
               <option value="chrome">크롬</option>
+              <option value="glitch">글리치</option>
             </select>
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={glow}
-                disabled={effectSaving || effect === "pulse" || effect === "neon"}
+                disabled={effectSaving || effect === "pulse" || effect === "neon" || effect === "glitch"}
                 onChange={(e) => saveEffect(effect, e.target.checked, particle)}
               />
               글로우
@@ -317,6 +318,8 @@ export function AdminEditUserModal({
               <option value="rising">상승</option>
               <option value="orbit">궤도</option>
               <option value="snow">눈</option>
+              <option value="heart">하트</option>
+              <option value="shootingStar">별똥별</option>
             </select>
           </div>
         </section>

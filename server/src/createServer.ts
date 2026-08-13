@@ -1028,6 +1028,10 @@ export function createGameServer(): Server {
       return;
     }
     const result = purchaseEffect(userId, effect as ShopEffect);
+    if (result === "not_for_sale") {
+      res.status(400).json({ error: "아직 판매하지 않는 효과예요." });
+      return;
+    }
     if (result === "insufficient_funds") {
       res.status(400).json({ error: "게임머니가 부족해요." });
       return;

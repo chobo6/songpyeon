@@ -3,7 +3,7 @@ import { db, sqliteBool } from "../db/connection";
 import { sanitizeNickname } from "../game/nickname";
 import { recordNicknameChange } from "./nicknameHistory";
 
-export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome" | "glitch";
 export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
   "none",
   "rainbow",
@@ -12,10 +12,19 @@ export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
   "pulse",
   "neon",
   "chrome",
+  "glitch",
 ];
 
-export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
-export const NICKNAME_PARTICLES: readonly NicknameParticle[] = ["none", "twinkle", "rising", "orbit", "snow"];
+export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow" | "heart" | "shootingStar";
+export const NICKNAME_PARTICLES: readonly NicknameParticle[] = [
+  "none",
+  "twinkle",
+  "rising",
+  "orbit",
+  "snow",
+  "heart",
+  "shootingStar",
+];
 
 let oauthClient: OAuth2Client | null = null;
 function getOAuthClient(): OAuth2Client {
@@ -392,7 +401,9 @@ export function useMegaphone(userId: number): UseMegaphoneResult {
 
 export type ShopEffect = Exclude<NicknameEffect, "none">;
 
-// 임시 가격 — 나중에 이 숫자들만 바꾸면 됨.
+// 임시 가격 — 나중에 이 숫자들만 바꾸면 됨. glitch는 SHOP_SALE_EFFECTS에 아직 없어서 상점에서
+// 실제로 팔리진 않지만(관리자 지급 전용, 당분간), 나중에 상점에 올릴 때 가격만 바로 쓸 수
+// 있게 미리 넣어둔다.
 export const SHOP_PRICES: Record<ShopEffect, number> = {
   rainbow: 1500000,
   shine: 500000,
@@ -400,7 +411,12 @@ export const SHOP_PRICES: Record<ShopEffect, number> = {
   pulse: 500000,
   neon: 500000,
   chrome: 600000,
+  glitch: 600000,
 };
+
+// 상점에서 실제로 판매 중인 효과 — purchaseEffect가 이 목록으로 막아야 클라이언트가 상점
+// UI에서 안 보여주는 것만으로 끝나지 않고 /api/shop/purchase 직접 호출도 막힌다.
+export const SHOP_SALE_EFFECTS: readonly ShopEffect[] = ["rainbow", "shine", "hologram", "pulse", "neon", "chrome"];
 
 export function getOwnedEffects(userId: number): NicknameEffect[] {
   const rows = db.prepare(`SELECT effect FROM owned_nickname_effects WHERE user_id = ?`).all(userId) as {
@@ -409,11 +425,13 @@ export function getOwnedEffects(userId: number): NicknameEffect[] {
   return rows.map((row) => row.effect);
 }
 
-export type PurchaseEffectResult = "ok" | "insufficient_funds" | "already_owned";
+export type PurchaseEffectResult = "ok" | "insufficient_funds" | "already_owned" | "not_for_sale";
 
 // 이미 소유했는지부터 확인(중복 결제 방지) — 그다음 잔액 확인 후 차감+INSERT.
 // better-sqlite3는 완전히 동기적이라 이 세 문장 사이에 다른 요청이 끼어들 수 없다.
 export function purchaseEffect(userId: number, effect: ShopEffect): PurchaseEffectResult {
+  if (!SHOP_SALE_EFFECTS.includes(effect)) return "not_for_sale";
+
   const alreadyOwned = db
     .prepare(`SELECT 1 FROM owned_nickname_effects WHERE user_id = ? AND effect = ?`)
     .get(userId, effect);

@@ -14,6 +14,8 @@ import styles from "./ShopModal.module.css";
 const MAX_NICKNAME_LENGTH = 10;
 const MAX_MEGAPHONE_LENGTH = 40;
 
+// 글리치는 당분간 상점 판매 없이 관리자 지급 전용(서버도 /api/shop/purchase에서 별도로
+// 막음 — SHOP_SALE_EFFECTS 참고) — 여기서 목록에만 빼면 UI에 안 뜬다.
 const SHOP_EFFECTS: Exclude<NicknameEffect, "none">[] = ["rainbow", "shine", "hologram", "pulse", "neon", "chrome"];
 const EFFECT_LABELS: Record<Exclude<NicknameEffect, "none">, string> = {
   rainbow: "레인보우",
@@ -22,6 +24,7 @@ const EFFECT_LABELS: Record<Exclude<NicknameEffect, "none">, string> = {
   pulse: "Pulse",
   neon: "네온사인",
   chrome: "크롬",
+  glitch: "글리치",
 };
 
 export function ShopModal({
