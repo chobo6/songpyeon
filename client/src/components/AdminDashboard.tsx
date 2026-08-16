@@ -32,6 +32,14 @@ type AdminEvent = {
   sessionId: string;
 };
 
+type AdminAction = {
+  timestamp: number;
+  nickname: string;
+  action: string;
+  detail: string;
+  ip: string;
+};
+
 type DailyVisitStats = {
   today: number;
   recent: { date: string; count: number }[];
@@ -79,6 +87,7 @@ export function AdminDashboard({
 }) {
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [actions, setActions] = useState<AdminAction[]>([]);
   const [chatLogs, setChatLogs] = useState<ChatLogEntry[]>([]);
   const [onlineNicknames, setOnlineNicknames] = useState<string[]>([]);
   const [visitStats, setVisitStats] = useState<DailyVisitStats | null>(null);
@@ -95,17 +104,19 @@ export function AdminDashboard({
     let cancelled = false;
 
     async function poll() {
-      const [roomsResult, eventsResult, onlineResult, chatLogsResult] = await Promise.all([
+      const [roomsResult, eventsResult, actionsResult, onlineResult, chatLogsResult] = await Promise.all([
         fetchAdminJson<RoomInfo[]>("/api/admin/rooms"),
         fetchAdminJson<AdminEvent[]>("/api/admin/events"),
+        fetchAdminJson<AdminAction[]>("/api/admin/actions"),
         fetchAdminJson<string[]>("/api/admin/online"),
         fetchAdminJson<ChatLogEntry[]>("/api/admin/chat-logs"),
       ]);
       if (cancelled) return;
 
-      if (!roomsResult.ok || !eventsResult.ok || !onlineResult.ok || !chatLogsResult.ok) {
+      if (!roomsResult.ok || !eventsResult.ok || !actionsResult.ok || !onlineResult.ok || !chatLogsResult.ok) {
         if (!roomsResult.ok && roomsResult.unauthorized) onUnauthorized();
         if (!eventsResult.ok && eventsResult.unauthorized) onUnauthorized();
+        if (!actionsResult.ok && actionsResult.unauthorized) onUnauthorized();
         if (!onlineResult.ok && onlineResult.unauthorized) onUnauthorized();
         if (!chatLogsResult.ok && chatLogsResult.unauthorized) onUnauthorized();
         return;
@@ -113,6 +124,7 @@ export function AdminDashboard({
 
       setRooms(roomsResult.data);
       setEvents(eventsResult.data);
+      setActions(actionsResult.data);
       setOnlineNicknames(onlineResult.data);
       setChatLogs(chatLogsResult.data);
     }
@@ -292,6 +304,36 @@ export function AdminDashboard({
           </table>
         </div>
       </section>
+
+      {actions.length > 0 && (
+        <section>
+          <h2>행동 로그 (조사 대상 계정 전용)</h2>
+          <div className={styles.eventTableScroll}>
+            <table className={styles.eventTable}>
+              <thead>
+                <tr>
+                  <th>시각</th>
+                  <th>닉네임</th>
+                  <th>행동</th>
+                  <th>상세</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...actions].reverse().map((a, i) => (
+                  <tr key={`${a.timestamp}-${i}`}>
+                    <td>{new Date(a.timestamp).toLocaleTimeString()}</td>
+                    <td>{a.nickname}</td>
+                    <td>{a.action}</td>
+                    <td>{a.detail}</td>
+                    <td>{a.ip}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2>최근 채팅 로그 (최대 200개)</h2>

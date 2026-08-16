@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMatchRoom } from "./game/useMatchRoom";
 import { hasStoredReconnectToken, type JoinSpec } from "./colyseus";
 import { fetchMe, loginWithGoogle, type Profile } from "./game/auth";
+import { useActionLogging } from "./game/actionLogging";
 import { Game } from "./components/Game";
 import { GoogleLoginScreen } from "./components/GoogleLoginScreen";
 import { ModeSelect } from "./components/ModeSelect";
@@ -77,6 +78,8 @@ function OnlineFlow({ onExit }: { onExit: () => void }) {
       .then(setMe)
       .catch(() => setMe(null));
   }, []);
+
+  useActionLogging(me?.trackActions ?? false);
 
   if (me === undefined) {
     return (

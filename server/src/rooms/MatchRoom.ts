@@ -15,6 +15,7 @@ import { sanitizeTeamCount } from "../game/teamCount";
 import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
+import { recordAction } from "../admin/actionLog";
 import { recordChatLog } from "../admin/chatLog";
 import { notifyPress } from "../admin/pressMonitor";
 import { addGameMoney, getUserById, recordRolePlayed, recordRoundAchievement } from "../auth/googleAuth";
@@ -192,22 +193,27 @@ export class MatchRoom extends Room<MatchState> {
     });
 
     this.onMessage("chooseRole", (client, message: { role: "pig" | "rabbit" }) => {
+      this.logAction(client, "chooseRole", message.role);
       this.handleChooseRole(client, message.role);
     });
 
     this.onMessage("pressButton", (client, message: { color: Color }) => {
+      this.logAction(client, "pressButton", message.color);
       this.handlePressButton(client, message.color);
     });
 
     this.onMessage("useItem", (client, message: { itemId: ItemId }) => {
+      this.logAction(client, "useItem", message.itemId);
       this.handleUseItem(client, message.itemId);
     });
 
     this.onMessage("sendChat", (client, message: { text?: unknown }) => {
+      this.logAction(client, "sendChat", typeof message.text === "string" ? message.text : "");
       this.handleSendChat(client, message.text);
     });
 
-    this.onMessage("rematch", () => {
+    this.onMessage("rematch", (client) => {
+      this.logAction(client, "rematch", "");
       this.handleRematch();
     });
 
@@ -218,6 +224,20 @@ export class MatchRoom extends Room<MatchState> {
     this.onMessage("ping", (client, clientSentAt: unknown) => {
       if (typeof clientSentAt !== "number") return;
       client.send("pong", { clientSentAt, serverTime: Date.now() });
+    });
+  }
+
+  // recordAction() itself no-ops for every nickname except the one investigation
+  // target hardcoded in admin/actionLog.ts, so every onMessage handler can call
+  // this unconditionally without checking who's calling first.
+  private logAction(client: Client, action: string, detail: string) {
+    if (!client.auth?.nickname) return;
+    recordAction({
+      timestamp: Date.now(),
+      nickname: client.auth.nickname,
+      action,
+      detail,
+      ip: String(client.auth.ip ?? "unknown"),
     });
   }
 

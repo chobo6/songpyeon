@@ -8,6 +8,7 @@ import { WebSocketTransport } from "@colyseus/ws-transport";
 import { MatchRoom } from "./rooms/MatchRoom";
 import { checkPassword, createSession, destroySession, requireAdmin, SESSION_TTL_MS } from "./admin/auth";
 import { getEvents, searchEventsByNickname } from "./admin/eventLog";
+import { getActionLog, isTrackedNickname, recordAction } from "./admin/actionLog";
 import { getChatLogs } from "./admin/chatLog";
 import { getDailyVisitStats, recordVisit } from "./admin/dailyVisits";
 import { getIpsForUser, recordUserIp } from "./admin/userIps";
@@ -272,6 +273,12 @@ export function createGameServer(): Server {
     res.json(getEvents().slice(-100));
   });
 
+  // 대상이 아닌 닉네임의 행동은 애초에 저장이 안 되므로, 이 엔드포인트는 항상
+  // admin/actionLog.ts의 조사 대상 계정 것만 돌려준다.
+  app.get("/api/admin/actions", requireAdmin, (_req, res) => {
+    res.json(getActionLog());
+  });
+
   // getEvents()는 최근 500건까지만 보므로, 그보다 오래된 특정 유저의 접속 기록(IP
   // 등)을 찾을 땐 DB를 직접(부분 일치로) 검색한다.
   app.get("/api/admin/events/search", requireAdmin, (req, res) => {
@@ -522,9 +529,39 @@ export function createGameServer(): Server {
             pigPlayCount: user.pigPlayCount,
             rabbitPlayCount: user.rabbitPlayCount,
             gameMoney: user.gameMoney,
+            trackActions: isTrackedNickname(user.nickname ?? ""),
           }
         : null,
     );
+  });
+
+  // 클라이언트는 트래킹 대상 닉네임 문자열을 절대 모른다 — /api/auth/me가 내려준
+  // trackActions 플래그가 true일 때만 이 엔드포인트를 호출한다. 그래도 서버는
+  // req.body가 보낸 nickname을 신뢰하지 않고 세션으로 본인 확인한 실제 닉네임으로
+  // recordAction을 호출한다 — recordAction 자체도 대상이 아니면 조용히 버리므로,
+  // 이 라우트를 직접 호출해도(devtools 등으로) 대상이 아닌 계정으로는 아무것도
+  // 기록되지 않는다.
+  app.post("/api/auth/action-log", (req, res) => {
+    const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
+    const userId = verifySession(cookies?.[SESSION_COOKIE_NAME]);
+    const user = userId ? getUserById(userId) : undefined;
+    if (!user || !user.nickname) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    const { action, detail } = req.body as { action?: unknown; detail?: unknown };
+    if (typeof action !== "string" || !action.trim()) {
+      res.status(400).json({ error: "action이 필요합니다." });
+      return;
+    }
+    recordAction({
+      timestamp: Date.now(),
+      nickname: user.nickname,
+      action,
+      detail: typeof detail === "string" ? detail : "",
+      ip: req.ip ?? "unknown",
+    });
+    res.status(204).end();
   });
 
   app.post("/api/auth/nickname", (req, res) => {

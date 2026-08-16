@@ -67,6 +67,7 @@ export type Profile = {
   pigPlayCount: number;
   rabbitPlayCount: number;
   gameMoney: number;
+  trackActions: boolean;
 };
 
 export async function loginWithGoogle(credential: string): Promise<Profile> {

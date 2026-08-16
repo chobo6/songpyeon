@@ -252,6 +252,21 @@ export function createDb(filename: string): Database.Database {
   // 내용/시각을 덮어써서 "수정 + 최신순 재정렬"을 한 번에 처리한다. 최고라운드는
   // 여기 저장하지 않는다 — 매번 users.max_round를 조인해서 항상 최신값을 보여준다
   // (닉네임 스타일을 절대 스냅샷으로 안 굳히고 매번 다시 계산하는 것과 같은 이유).
+  // 특정 계정(admin/actionLog.ts의 TRACKED_NICKNAME) 한 명의 행동을 조사 목적으로
+  // 기록한다 — user_ips와 같은 이유로 무기한 보관(events의 90일 자동 삭제 없음).
+  // recordAction()이 대상 닉네임이 아니면 애초에 INSERT를 안 하므로, 이 테이블에는
+  // 항상 그 한 계정의 행만 쌓인다.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp INTEGER NOT NULL,
+      nickname TEXT NOT NULL,
+      action TEXT NOT NULL,
+      detail TEXT NOT NULL,
+      ip TEXT NOT NULL
+    )
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS duo_listings (
       user_id INTEGER PRIMARY KEY,
