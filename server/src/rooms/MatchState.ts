@@ -1,5 +1,6 @@
 import { Schema, type, ArraySchema, MapSchema } from "@colyseus/schema";
 import { STARTING_MORTARS } from "../game/mortar";
+import type { GameMode } from "../game/gameMode";
 
 export type Phase = "lobby" | "playing";
 export type RoleChoice = "pig" | "rabbit" | "";
@@ -49,6 +50,7 @@ export class SpectatorState extends Schema {
 
 export class MatchState extends Schema {
   @type("string") phase: Phase = "lobby";
+  @type("string") gameMode: GameMode = "normal";
   // 0 = no countdown running. Counts down 3→2→1 once every team has a pig
   // and a rabbit, then the room flips to "playing" (see MatchRoom.ts's
   // maybeStartGame/scheduleCountdownTick).

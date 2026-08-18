@@ -2838,4 +2838,72 @@ describe("MatchRoom", () => {
       expect(Array.from(room.state.players.get(actingClient.sessionId)!.inventory)).toEqual([]);
     });
   });
+
+  describe("game modes", () => {
+    test("gameMode defaults to normal and matches the requested mode otherwise", async () => {
+      const normalRoom = await colyseus.createRoom<MatchState>("match");
+      expect(normalRoom.state.gameMode).toBe("normal");
+
+      const beginnerRoom = await colyseus.createRoom<MatchState>("match", { gameMode: "beginner" });
+      expect(beginnerRoom.state.gameMode).toBe("beginner");
+    });
+
+    test("an invalid gameMode falls back to normal", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", { gameMode: "banana" });
+      expect(room.state.gameMode).toBe("normal");
+    });
+
+    test("pigOnly/rabbitOnly rooms treat teamCount as headcount, clamped to a minimum of 2", async () => {
+      const oneRequested = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "pigOnly",
+        teamCount: 1,
+      });
+      expect(oneRequested.state.teams).toHaveLength(2);
+      expect((oneRequested.metadata as { playerCapacity?: number })?.playerCapacity).toBe(2);
+
+      const threeRequested = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "rabbitOnly",
+        teamCount: 3,
+      });
+      expect(threeRequested.state.teams).toHaveLength(3);
+      expect((threeRequested.metadata as { playerCapacity?: number })?.playerCapacity).toBe(3);
+    });
+
+    test("pigOnly/rabbitOnly ignore aiPracticeMode entirely", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "pigOnly",
+        aiPracticeMode: true,
+        teamCount: 2,
+      });
+      expect(room.state.teams).toHaveLength(2);
+      expect((room.metadata as { aiPracticeMode?: boolean })?.aiPracticeMode).toBe(false);
+    });
+
+    test("room title is prefixed per mode", async () => {
+      const beginner = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "beginner",
+        roomTitle: "제목",
+      });
+      expect((beginner.metadata as { roomTitle?: string })?.roomTitle).toBe("(초보모드) 제목");
+
+      const pigOnly = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "pigOnly",
+        roomTitle: "제목",
+      });
+      expect((pigOnly.metadata as { roomTitle?: string })?.roomTitle).toBe("(돼지전) 제목");
+
+      const rabbitOnly = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "rabbitOnly",
+        roomTitle: "제목",
+      });
+      expect((rabbitOnly.metadata as { roomTitle?: string })?.roomTitle).toBe("(토끼전) 제목");
+
+      const both = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "beginner",
+        aiPracticeMode: true,
+        roomTitle: "제목",
+      });
+      expect((both.metadata as { roomTitle?: string })?.roomTitle).toBe("(연습모드) (초보모드) 제목");
+    });
+  });
 });

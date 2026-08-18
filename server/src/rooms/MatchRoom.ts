@@ -12,6 +12,7 @@ import { isSpammedPress } from "../game/inputSpamGuard";
 import { nextActiveTeamIndex, type TeamStatus } from "../game/rotation";
 import { colorRole, type Color, type Role } from "../game/colors";
 import { sanitizeTeamCount } from "../game/teamCount";
+import { sanitizeGameMode, type GameMode } from "../game/gameMode";
 import { sanitizeRoomTitle } from "../game/roomTitle";
 import { sanitizeChatText } from "../game/chat";
 import { recordEvent } from "../admin/eventLog";
@@ -57,6 +58,7 @@ interface MatchRoomOptions {
   // it starts at. See maybeStartGame's countdown methods.
   countdownTickMs?: number;
   teamCount?: unknown;
+  gameMode?: unknown;
   roomTitle?: unknown;
   // Seconds to hold a disconnected player's seat open before freeing it for
   // good — only consulted for a non-consented disconnect during "playing"
@@ -94,6 +96,7 @@ export class MatchRoom extends Room<MatchState> {
   private allowSpectators = true;
   private itemsEnabled = true;
   private aiPracticeMode = false;
+  private gameMode: GameMode = "normal";
   // Real player-seat cap (teamCount * 2) — replaces maxClients for that
   // purpose now that maxClients itself is inflated to admit spectators
   // (see MAX_CLIENTS_WITH_SPECTATORS). Set once in onCreate.
@@ -142,7 +145,11 @@ export class MatchRoom extends Room<MatchState> {
     if (options.reconnectGraceSeconds) this.reconnectGraceSeconds = options.reconnectGraceSeconds;
     this.allowSpectators = options.allowSpectators !== false;
     this.itemsEnabled = options.itemsEnabled !== false;
-    this.aiPracticeMode = options.aiPracticeMode === true;
+    this.gameMode = sanitizeGameMode(options.gameMode);
+    // pigOnly/rabbitOnly는 "봇이 반대 역할을 채운다"는 aiPracticeMode의 전제 자체가 성립하지
+    // 않는다(방 전체가 같은 역할) — 무조건 꺼서 무시한다.
+    this.aiPracticeMode =
+      options.aiPracticeMode === true && this.gameMode !== "pigOnly" && this.gameMode !== "rabbitOnly";
     if (options.forcedBonusItem !== undefined) {
       this.forcedBonusItem = options.forcedBonusItem;
     }
@@ -159,15 +166,22 @@ export class MatchRoom extends Room<MatchState> {
     // room — the bandwidth/CPU cost of a much faster tick is negligible.
     this.patchRate = 16;
 
-    const teamCount = this.aiPracticeMode ? 1 : sanitizeTeamCount(options.teamCount);
+    const isSingleRoleMode = this.gameMode === "pigOnly" || this.gameMode === "rabbitOnly";
+    const rawTeamCount = this.aiPracticeMode ? 1 : sanitizeTeamCount(options.teamCount);
+    // pigOnly/rabbitOnly는 "팀 = 참가자 1명"이라, 정상모드의 최소 1팀(=2명)이 아니라
+    // 최소 2명(=2팀)을 보장해야 한다 — 1명짜리는 이미 있는 혼자연습 모드와 겹친다.
+    const teamCount = isSingleRoleMode ? Math.max(2, rawTeamCount) : rawTeamCount;
     // 2 players (pig + rabbit) per team — must stay in sync with
     // maybeStartGame()'s readiness check and handleChooseRole()'s slot
     // search, both of which assume every team has exactly one pig and one
     // rabbit slot.
-    this.playerCapacity = teamCount * 2;
+    // 정상/초보모드는 팀당 2명(돼지+토끼)이라 인원 상한이 teamCount*2, pigOnly/rabbitOnly는
+    // 팀당 1명이라 teamCount 그대로가 인원 상한.
+    this.playerCapacity = isSingleRoleMode ? teamCount : teamCount * 2;
     this.maxClients = MAX_CLIENTS_WITH_SPECTATORS;
 
     const state = new MatchState();
+    state.gameMode = this.gameMode;
     for (let i = 0; i < teamCount; i++) {
       const team = new TeamState();
       team.id = `team-${i + 1}`;
@@ -182,8 +196,12 @@ export class MatchRoom extends Room<MatchState> {
     // anyone has joined. onJoin's later setMetadata calls (players,
     // hostNickname) shallow-merge on top of this, not over it.
     const roomTitle = sanitizeRoomTitle(options.roomTitle);
-    // AI 연습모드 방은 로비 목록에서 한눈에 구분되도록 제목 앞에 표시를 붙인다.
-    this.roomTitle = (this.aiPracticeMode ? "(연습모드) " : "") + (roomTitle || "이름 없는 방");
+    const gameModePrefix =
+      this.gameMode === "beginner" ? "(초보모드) " :
+      this.gameMode === "pigOnly" ? "(돼지전) " :
+      this.gameMode === "rabbitOnly" ? "(토끼전) " : "";
+    // AI 연습모드/게임모드 방은 로비 목록에서 한눈에 구분되도록 제목 앞에 표시를 붙인다.
+    this.roomTitle = (this.aiPracticeMode ? "(연습모드) " : "") + gameModePrefix + (roomTitle || "이름 없는 방");
     await this.setMetadata({
       roomTitle: this.roomTitle,
       playerCapacity: this.playerCapacity,
