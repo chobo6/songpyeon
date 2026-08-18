@@ -25,9 +25,10 @@ describe("recordAction / getActionLog", () => {
   });
 
   test("records an action for the tracked nickname", () => {
-    recordAction(makeAction());
+    const action = makeAction();
+    recordAction(action);
 
-    expect(getActionLog()).toEqual([makeAction()]);
+    expect(getActionLog()).toEqual([action]);
   });
 
   test("does not record actions for other nicknames", () => {

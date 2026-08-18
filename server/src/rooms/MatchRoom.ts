@@ -198,7 +198,6 @@ export class MatchRoom extends Room<MatchState> {
     });
 
     this.onMessage("pressButton", (client, message: { color: Color }) => {
-      this.logAction(client, "pressButton", message.color);
       this.handlePressButton(client, message.color);
     });
 
