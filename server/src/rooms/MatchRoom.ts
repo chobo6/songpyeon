@@ -2,7 +2,7 @@ import { Room, Client, type AuthContext, type Delayed } from "colyseus";
 import { ItemUseTracker, applyDoughAttack, applyTimeReduce, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState, type NicknameEffect, type NicknameParticle } from "./MatchState";
-import { generateSequence } from "../game/sequence";
+import { generateSequence, generateSingleRoleSequence } from "../game/sequence";
 import { sequenceLengthForRound } from "../game/sequenceLength";
 import { attemptPress } from "../game/turnOrder";
 import { loseMortar, isEliminated, STARTING_MORTARS, gainMortar } from "../game/mortar";
@@ -866,8 +866,15 @@ export class MatchRoom extends Room<MatchState> {
   private startTurn() {
     this.superMortarActiveThisTurn = false;
 
-    const length = sequenceLengthForRound(this.state.round);
-    let sequence = generateSequence(length, Math.random, this.state.round);
+    const startingRows =
+      this.gameMode === "beginner" ? 2 : this.gameMode === "pigOnly" ? 4 : this.gameMode === "rabbitOnly" ? 2 : 3;
+    const length = sequenceLengthForRound(this.state.round, startingRows);
+    let sequence =
+      this.gameMode === "pigOnly"
+        ? generateSingleRoleSequence(length, Math.random, "pig")
+        : this.gameMode === "rabbitOnly"
+          ? generateSingleRoleSequence(length, Math.random, "rabbit")
+          : generateSequence(length, Math.random, this.state.round);
     if (this.pendingItemsForNextTurn.has("doughAttack")) {
       sequence = applyDoughAttack(sequence);
     }

@@ -2947,5 +2947,64 @@ describe("MatchRoom", () => {
 
       expect(room.state.players.get(client.sessionId)!.role).toBe("rabbit");
     });
+
+    test("pigOnly round 1 sequence is 24 buttons (4 rows) and contains only pig colors", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "pigOnly",
+        teamCount: 2,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      for (const i of [0, 1]) {
+        const client = await connectAsUser(colyseus, room, `돼지길이${i}`);
+        client.send("chooseRole", { role: "pig" });
+      }
+      await flush();
+      await waitForCountdown();
+
+      expect(room.state.sequence).toHaveLength(24);
+      const pigColors = ["red", "orange", "yellow", "purple"];
+      room.state.sequence.forEach((color) => {
+        expect(pigColors).toContain(color as string);
+      });
+    });
+
+    test("rabbitOnly round 1 sequence is 12 buttons (2 rows) and contains only rabbit colors", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "rabbitOnly",
+        teamCount: 2,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      for (const i of [0, 1]) {
+        const client = await connectAsUser(colyseus, room, `토끼길이${i}`);
+        client.send("chooseRole", { role: "rabbit" });
+      }
+      await flush();
+      await waitForCountdown();
+
+      expect(room.state.sequence).toHaveLength(12);
+      const rabbitColors = ["mint", "green", "blue", "pink"];
+      room.state.sequence.forEach((color) => {
+        expect(rabbitColors).toContain(color as string);
+      });
+    });
+
+    test("beginner round 1 sequence is 12 buttons (2 rows)", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "beginner",
+        teamCount: 1,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      for (const [i, role] of (["pig", "rabbit"] as const).entries()) {
+        const client = await connectAsUser(colyseus, room, `초보${i}`);
+        client.send("chooseRole", { role });
+      }
+      await flush();
+      await waitForCountdown();
+
+      expect(room.state.sequence).toHaveLength(12);
+    });
   });
 });
