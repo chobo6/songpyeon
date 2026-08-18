@@ -1,4 +1,5 @@
 import type { Color, Role } from "./colors";
+import type { GameMode } from "./gameMode";
 import type { NicknameEffect, NicknameParticle } from "./nicknameStyle";
 
 // Manually mirrors server/src/rooms/MatchState.ts — client and server are
@@ -51,6 +52,7 @@ export interface SpectatorState {
 
 export interface MatchState {
   phase: Phase;
+  gameMode: GameMode;
   countdownSecondsLeft: number;
   round: number;
   players: Map<string, PlayerState>;
