@@ -11,6 +11,7 @@ import styles from "./RoleSelect.module.css";
 export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: () => void }) {
   const me = room.state.players.get(room.sessionId);
   const myRole = me?.role;
+  const gameMode = room.state.gameMode;
   const teams = room.state.teams;
   const lobbyChat = room.state.lobbyChat;
   const unassignedPlayers = Array.from(room.state.players.values()).filter((p) => p.role === "");
@@ -88,22 +89,26 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
         )}
       </div>
       <div className={styles.choices}>
-        <button
-          className={`${styles.roleButton} ${styles.pigButton} ${myRole === "pig" ? styles.selected : ""} ${myRole && myRole !== "pig" ? styles.dimmed : ""}`}
-          onClick={() => choose("pig")}
-          disabled={room.state.countdownSecondsLeft > 0}
-        >
-          <img className={styles.roleIcon} src="/game-assets/ui/thanksgiving_room_start_player_pig.png" alt="" />
-          <span>돼지</span>
-        </button>
-        <button
-          className={`${styles.roleButton} ${styles.rabbitButton} ${myRole === "rabbit" ? styles.selected : ""} ${myRole && myRole !== "rabbit" ? styles.dimmed : ""}`}
-          onClick={() => choose("rabbit")}
-          disabled={room.state.countdownSecondsLeft > 0}
-        >
-          <img className={styles.roleIcon} src="/game-assets/ui/thanksgiving_room_start_player_rabbit.png" alt="" />
-          <span>토끼</span>
-        </button>
+        {gameMode !== "rabbitOnly" && (
+          <button
+            className={`${styles.roleButton} ${styles.pigButton} ${myRole === "pig" ? styles.selected : ""} ${myRole && myRole !== "pig" ? styles.dimmed : ""}`}
+            onClick={() => choose("pig")}
+            disabled={room.state.countdownSecondsLeft > 0}
+          >
+            <img className={styles.roleIcon} src="/game-assets/ui/thanksgiving_room_start_player_pig.png" alt="" />
+            <span>돼지{gameMode === "pigOnly" ? "로 참가" : ""}</span>
+          </button>
+        )}
+        {gameMode !== "pigOnly" && (
+          <button
+            className={`${styles.roleButton} ${styles.rabbitButton} ${myRole === "rabbit" ? styles.selected : ""} ${myRole && myRole !== "rabbit" ? styles.dimmed : ""}`}
+            onClick={() => choose("rabbit")}
+            disabled={room.state.countdownSecondsLeft > 0}
+          >
+            <img className={styles.roleIcon} src="/game-assets/ui/thanksgiving_room_start_player_rabbit.png" alt="" />
+            <span>토끼{gameMode === "rabbitOnly" ? "로 참가" : ""}</span>
+          </button>
+        )}
       </div>
       <ChatBox
         messages={lobbyChat}
@@ -127,34 +132,36 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
           );
           return (
             <div key={team.id} className={styles.rosterTeam}>
-              {team.pigSessionId ? (
-                <button
-                  className={`${styles.rosterName} ${pigEffect.className}`}
-                  style={pigEffect.style}
-                  onClick={() => setProfileNickname(nicknameFor(team.pigSessionId))}
-                >
-                  {nicknameFor(team.pigSessionId)}
-                  {pigEffect.particles.map((d) => (
-                    <span key={d.key} className={d.className} style={d.style} />
-                  ))}
-                </button>
-              ) : (
-                <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
-              )}
-              {team.rabbitSessionId ? (
-                <button
-                  className={`${styles.rosterName} ${rabbitEffect.className}`}
-                  style={rabbitEffect.style}
-                  onClick={() => setProfileNickname(nicknameFor(team.rabbitSessionId))}
-                >
-                  {nicknameFor(team.rabbitSessionId)}
-                  {rabbitEffect.particles.map((d) => (
-                    <span key={d.key} className={d.className} style={d.style} />
-                  ))}
-                </button>
-              ) : (
-                <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
-              )}
+              {gameMode !== "rabbitOnly" &&
+                (team.pigSessionId ? (
+                  <button
+                    className={`${styles.rosterName} ${pigEffect.className}`}
+                    style={pigEffect.style}
+                    onClick={() => setProfileNickname(nicknameFor(team.pigSessionId))}
+                  >
+                    {nicknameFor(team.pigSessionId)}
+                    {pigEffect.particles.map((d) => (
+                      <span key={d.key} className={d.className} style={d.style} />
+                    ))}
+                  </button>
+                ) : (
+                  <span className={styles.rosterName}>{nicknameFor(team.pigSessionId)}</span>
+                ))}
+              {gameMode !== "pigOnly" &&
+                (team.rabbitSessionId ? (
+                  <button
+                    className={`${styles.rosterName} ${rabbitEffect.className}`}
+                    style={rabbitEffect.style}
+                    onClick={() => setProfileNickname(nicknameFor(team.rabbitSessionId))}
+                  >
+                    {nicknameFor(team.rabbitSessionId)}
+                    {rabbitEffect.particles.map((d) => (
+                      <span key={d.key} className={d.className} style={d.style} />
+                    ))}
+                  </button>
+                ) : (
+                  <span className={styles.rosterName}>{nicknameFor(team.rabbitSessionId)}</span>
+                ))}
             </div>
           );
         })}
