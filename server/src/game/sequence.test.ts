@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { generateSequence } from "./sequence";
-import type { Color } from "./colors";
+import { generateSequence, generateSingleRoleSequence } from "./sequence";
+import type { Color, Role } from "./colors";
 
 function queueRng(values: number[]): () => number {
   let i = 0;
@@ -91,6 +91,40 @@ describe("generateSequence", () => {
       const rngAt30 = queueRng([0, 0, 0.8, 0]);
       const rngAt60 = queueRng([0, 0, 0.8, 0]);
       expect(generateSequence(4, rngAt30, 30)).toEqual(generateSequence(4, rngAt60, 60));
+    });
+  });
+});
+
+describe("generateSingleRoleSequence", () => {
+  test("pig role only ever produces base-color + purple pig fragments", () => {
+    // 돼지 역할의 fragmentChoicesForRole은 선택지가 항상 1개뿐이라 pick(choices, rng)가
+    // 값을 소비해도 결과는 항상 고정(0번째)이다 — 그래도 rng() 호출 자체는 일어난다.
+    // 조각 하나(길이 2)당: [choice-pick(결과 무시, 0번 고정), base-color pick] 순서로 rng
+    // 2번 소비. 4길이 = 조각 2개 = rng 4번: [0(choice, 무시), 0(red), 0.5(choice, 무시), 0(red)]
+    const rng = queueRng([0, 0, 0.5, 0]);
+    expect(generateSingleRoleSequence(4, rng, "pig")).toEqual(["red", "purple", "red", "purple"]);
+  });
+
+  test("rabbit role only ever produces mint runs or rabbit-pair fragments, never pig colors", () => {
+    const sequence = generateSingleRoleSequence(300, Math.random, "rabbit");
+    const validRabbitColors: Color[] = ["mint", "green", "blue", "pink"];
+    sequence.forEach((color) => {
+      expect(validRabbitColors).toContain(color);
+    });
+  });
+
+  test("produces exactly the requested length for both roles", () => {
+    expect(generateSingleRoleSequence(24, Math.random, "pig")).toHaveLength(24);
+    expect(generateSingleRoleSequence(24, Math.random, "rabbit")).toHaveLength(24);
+    expect(generateSingleRoleSequence(12, Math.random, "rabbit")).toHaveLength(12);
+  });
+
+  test("every pig base color is immediately followed by purple", () => {
+    const sequence = generateSingleRoleSequence(300, Math.random, "pig");
+    sequence.forEach((color, i) => {
+      if (color === "red" || color === "orange" || color === "yellow") {
+        expect(sequence[i + 1]).toBe("purple");
+      }
     });
   });
 });

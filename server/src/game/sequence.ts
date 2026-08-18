@@ -1,5 +1,5 @@
-import type { Color } from "./colors";
-import { generatePigFragment, generateRabbitPairFragment, mintRun, MINT_RUN_LENGTHS } from "./fragments";
+import type { Color, Role } from "./colors";
+import { generatePigFragment, generateRabbitPairFragment, MINT_RUN_LENGTHS, mintRun } from "./fragments";
 import { pick, type Rng } from "./rng";
 
 type FragmentChoice = () => Color[];
@@ -78,6 +78,36 @@ export function generateSequence(totalLength: number, rng: Rng, round: number): 
     sequence.push(...fragment);
     remaining -= fragment.length;
     previousRole = isPig ? "pig" : "rabbit";
+  }
+
+  return sequence;
+}
+
+// 돼지전/토끼전 전용 — 한 역할의 조각만으로 시퀀스를 채운다. 정상모드 generateSequence와
+// 달리 역할 전환/스티키니스 개념 자체가 없다(팀에 반대 역할 플레이어가 없으므로).
+function fragmentChoicesForRole(remaining: number, rng: Rng, role: Role): FragmentChoice[] {
+  if (role === "pig") {
+    return [() => generatePigFragment(rng)];
+  }
+
+  const choices: FragmentChoice[] = [];
+  const validMintLengths = MINT_RUN_LENGTHS.filter((length) => length <= remaining);
+  if (validMintLengths.length > 0) {
+    choices.push(() => mintRun(pick(validMintLengths, rng)));
+  }
+  choices.push(() => generateRabbitPairFragment(rng));
+  return choices;
+}
+
+export function generateSingleRoleSequence(totalLength: number, rng: Rng, role: Role): Color[] {
+  const sequence: Color[] = [];
+  let remaining = totalLength;
+
+  while (remaining > 0) {
+    const choices = fragmentChoicesForRole(remaining, rng, role);
+    const fragment = pick(choices, rng)();
+    sequence.push(...fragment);
+    remaining -= fragment.length;
   }
 
   return sequence;
