@@ -2884,26 +2884,26 @@ describe("MatchRoom", () => {
         gameMode: "beginner",
         roomTitle: "제목",
       });
-      expect((beginner.metadata as { roomTitle?: string })?.roomTitle).toBe("(초보모드) 제목");
+      expect((beginner.metadata as { roomTitle?: string })?.roomTitle).toBe("(초보) 제목");
 
       const pigOnly = await colyseus.createRoom<MatchState>("match", {
         gameMode: "pigOnly",
         roomTitle: "제목",
       });
-      expect((pigOnly.metadata as { roomTitle?: string })?.roomTitle).toBe("(돼지전) 제목");
+      expect((pigOnly.metadata as { roomTitle?: string })?.roomTitle).toBe("(돼지) 제목");
 
       const rabbitOnly = await colyseus.createRoom<MatchState>("match", {
         gameMode: "rabbitOnly",
         roomTitle: "제목",
       });
-      expect((rabbitOnly.metadata as { roomTitle?: string })?.roomTitle).toBe("(토끼전) 제목");
+      expect((rabbitOnly.metadata as { roomTitle?: string })?.roomTitle).toBe("(토끼) 제목");
 
       const both = await colyseus.createRoom<MatchState>("match", {
         gameMode: "beginner",
         aiPracticeMode: true,
         roomTitle: "제목",
       });
-      expect((both.metadata as { roomTitle?: string })?.roomTitle).toBe("(연습모드) (초보모드) 제목");
+      expect((both.metadata as { roomTitle?: string })?.roomTitle).toBe("(연습) (초보) 제목");
     });
 
     test("pigOnly room auto-assigns the pig role and starts once every slot fills, with no explicit chooseRole", async () => {

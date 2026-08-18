@@ -197,11 +197,11 @@ export class MatchRoom extends Room<MatchState> {
     // hostNickname) shallow-merge on top of this, not over it.
     const roomTitle = sanitizeRoomTitle(options.roomTitle);
     const gameModePrefix =
-      this.gameMode === "beginner" ? "(초보모드) " :
-      this.gameMode === "pigOnly" ? "(돼지전) " :
-      this.gameMode === "rabbitOnly" ? "(토끼전) " : "";
+      this.gameMode === "beginner" ? "(초보) " :
+      this.gameMode === "pigOnly" ? "(돼지) " :
+      this.gameMode === "rabbitOnly" ? "(토끼) " : "";
     // AI 연습모드/게임모드 방은 로비 목록에서 한눈에 구분되도록 제목 앞에 표시를 붙인다.
-    this.roomTitle = (this.aiPracticeMode ? "(연습모드) " : "") + gameModePrefix + (roomTitle || "이름 없는 방");
+    this.roomTitle = (this.aiPracticeMode ? "(연습) " : "") + gameModePrefix + (roomTitle || "이름 없는 방");
     await this.setMetadata({
       roomTitle: this.roomTitle,
       playerCapacity: this.playerCapacity,

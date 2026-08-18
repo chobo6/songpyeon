@@ -96,7 +96,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             disabled={room.state.countdownSecondsLeft > 0}
           >
             <img className={styles.roleIcon} src="/game-assets/ui/thanksgiving_room_start_player_pig.png" alt="" />
-            <span>돼지{gameMode === "pigOnly" ? "로 참가" : ""}</span>
+            <span>돼지</span>
           </button>
         )}
         {gameMode !== "pigOnly" && (
@@ -106,7 +106,7 @@ export function RoleSelect({ room, onExit }: { room: Room<MatchState>; onExit: (
             disabled={room.state.countdownSecondsLeft > 0}
           >
             <img className={styles.roleIcon} src="/game-assets/ui/thanksgiving_room_start_player_rabbit.png" alt="" />
-            <span>토끼{gameMode === "rabbitOnly" ? "로 참가" : ""}</span>
+            <span>토끼</span>
           </button>
         )}
       </div>

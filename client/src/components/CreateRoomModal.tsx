@@ -10,8 +10,8 @@ const MIN_SINGLE_ROLE_HEADCOUNT = 2;
 const GAME_MODE_LABEL: Record<GameMode, string> = {
   normal: "일반",
   beginner: "초보",
-  pigOnly: "돼지전",
-  rabbitOnly: "토끼전",
+  pigOnly: "돼지",
+  rabbitOnly: "토끼",
 };
 
 export function CreateRoomModal({
@@ -71,22 +71,11 @@ export function CreateRoomModal({
     <div className={styles.overlay} onClick={onClose}>
       <form className={styles.modal} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <h2 className={styles.heading}>방 만들기</h2>
-        <label className={styles.field}>
-          <span>방 제목</span>
-          <input
-            className={styles.input}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={MAX_TITLE_LENGTH}
-            placeholder="방 제목을 입력하세요"
-            autoFocus
-          />
-        </label>
         <div className={styles.field}>
           <span>게임 모드</span>
-          <div className={styles.checkboxField}>
+          <div className={styles.modeGroup}>
             {(Object.keys(GAME_MODE_LABEL) as GameMode[]).map((mode) => (
-              <label key={mode} className={styles.checkboxField}>
+              <label key={mode} className={styles.modeOption}>
                 <input
                   type="radio"
                   name="gameMode"
@@ -98,6 +87,17 @@ export function CreateRoomModal({
             ))}
           </div>
         </div>
+        <label className={styles.field}>
+          <span>방 제목</span>
+          <input
+            className={styles.input}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={MAX_TITLE_LENGTH}
+            placeholder="방 제목을 입력하세요"
+            autoFocus
+          />
+        </label>
         <label className={styles.field}>
           <span>{isSingleRoleMode ? `인원수 (${MIN_SINGLE_ROLE_HEADCOUNT}~${MAX_TEAM_COUNT})` : "팀 수 (1~4)"}</span>
           <input

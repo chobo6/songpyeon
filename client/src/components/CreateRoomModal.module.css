@@ -47,6 +47,21 @@
   opacity: 0.9;
 }
 
+.modeGroup {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.modeOption {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
 .input {
   padding: 0.6rem 0.8rem;
   border-radius: 0.5rem;
