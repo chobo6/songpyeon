@@ -2905,5 +2905,47 @@ describe("MatchRoom", () => {
       });
       expect((both.metadata as { roomTitle?: string })?.roomTitle).toBe("(연습모드) (초보모드) 제목");
     });
+
+    test("pigOnly room auto-assigns the pig role and starts once every slot fills, with no explicit chooseRole", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "pigOnly",
+        teamCount: 2,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      const clients: ClientRoom<MatchState>[] = [];
+      for (const i of [0, 1]) {
+        const client = await connectAsUser(colyseus, room, `돼지전${i}`);
+        // rabbit을 보내도 서버가 무시하고 pig로 강제해야 한다.
+        client.send("chooseRole", { role: "rabbit" });
+        clients.push(client);
+      }
+      await flush();
+
+      room.state.players.forEach((p) => {
+        expect(p.role).toBe("pig");
+      });
+      room.state.teams.forEach((t) => {
+        expect(t.pigSessionId).not.toBe("");
+        expect(t.rabbitSessionId).toBe("");
+      });
+
+      await waitForCountdown();
+      expect(room.state.phase).toBe("playing");
+    });
+
+    test("rabbitOnly room forces the rabbit role regardless of what the client sends", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "rabbitOnly",
+        teamCount: 2,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      const client = await connectAsUser(colyseus, room, "토끼전0");
+      client.send("chooseRole", { role: "pig" });
+      await flush();
+
+      expect(room.state.players.get(client.sessionId)!.role).toBe("rabbit");
+    });
   });
 });

@@ -590,6 +590,11 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   private handleChooseRole(client: Client, role: "pig" | "rabbit") {
+    // 돼지전/토끼전은 역할이 방 전체에 고정돼 있다 — 클라이언트가 뭘 보내든 서버가
+    // 무시하고 강제한다(스푸핑 방지, 서버 권위 원칙).
+    if (this.gameMode === "pigOnly") role = "pig";
+    else if (this.gameMode === "rabbitOnly") role = "rabbit";
+
     // Once the pre-game countdown starts every slot is already full (that's
     // what triggers it) — block further swaps so the roster shown for "3...
     // 2... 1..." is the one that actually plays. Exception: in aiPracticeMode,
@@ -675,7 +680,13 @@ export class MatchRoom extends Room<MatchState> {
   }
 
   private async maybeStartGame() {
-    const ready = this.state.teams.every((t) => t.pigSessionId !== "" && t.rabbitSessionId !== "");
+    const ready = this.state.teams.every((t) =>
+      this.gameMode === "pigOnly"
+        ? t.pigSessionId !== ""
+        : this.gameMode === "rabbitOnly"
+          ? t.rabbitSessionId !== ""
+          : t.pigSessionId !== "" && t.rabbitSessionId !== "",
+    );
     if (!ready || this.state.countdownSecondsLeft > 0) return;
 
     // setPrivate (not lock()) to keep this room out of joinOrCreate's
