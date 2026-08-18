@@ -1,9 +1,18 @@
 import { useState, type FormEvent } from "react";
+import type { GameMode } from "../game/gameMode";
 import styles from "./CreateRoomModal.module.css";
 
 const MAX_TITLE_LENGTH = 20;
 const MIN_TEAM_COUNT = 1;
 const MAX_TEAM_COUNT = 4;
+const MIN_SINGLE_ROLE_HEADCOUNT = 2;
+
+const GAME_MODE_LABEL: Record<GameMode, string> = {
+  normal: "일반",
+  beginner: "초보",
+  pigOnly: "돼지전",
+  rabbitOnly: "토끼전",
+};
 
 export function CreateRoomModal({
   onCreate,
@@ -15,6 +24,7 @@ export function CreateRoomModal({
     allowSpectators: boolean,
     itemsEnabled: boolean,
     aiPracticeMode: boolean,
+    gameMode: GameMode,
   ) => void;
   onClose: () => void;
 }) {
@@ -23,29 +33,38 @@ export function CreateRoomModal({
   const [allowSpectators, setAllowSpectators] = useState(true);
   const [itemsEnabled, setItemsEnabled] = useState(true);
   const [aiPracticeMode, setAiPracticeMode] = useState(false);
+  const [gameMode, setGameMode] = useState<GameMode>("normal");
 
-  // Digits only, then clamp to the valid range — 5+ becomes 4, 0 (or an
-  // emptied field) becomes 1. The field always displays an existing digit
-  // (never truly empty), so without selecting it first, typing "3" appends
-  // to "2" instead of replacing it (raw becomes "23", not "3") — taking
-  // just the last digit typed handles that the same way a single-digit
-  // field should, regardless of whether the browser happened to select the
-  // old value first.
+  const isSingleRoleMode = gameMode === "pigOnly" || gameMode === "rabbitOnly";
+
+  // 정상/초보모드는 "팀 수"(1~4), 돼지전/토끼전은 "인원수"(2~4, 팀=1인)라는 다른 의미를
+  // 같은 입력칸이 표현한다 — 모드를 바꾸면 현재 값을 그 모드의 유효 범위로 다시 클램프한다.
+  function handleGameModeChange(next: GameMode) {
+    setGameMode(next);
+    const nextIsSingleRole = next === "pigOnly" || next === "rabbitOnly";
+    if (nextIsSingleRole) {
+      setAiPracticeMode(false);
+      setTeamCount((prev) => Math.max(MIN_SINGLE_ROLE_HEADCOUNT, prev));
+    }
+  }
+
+  // Digits only, then clamp to the valid range for the current mode.
   function handleTeamCountChange(raw: string) {
     const digits = raw.replace(/\D/g, "");
+    const min = isSingleRoleMode ? MIN_SINGLE_ROLE_HEADCOUNT : MIN_TEAM_COUNT;
     if (!digits) {
-      setTeamCount(MIN_TEAM_COUNT);
+      setTeamCount(min);
       return;
     }
     const lastDigit = Number(digits[digits.length - 1]);
-    setTeamCount(Math.min(MAX_TEAM_COUNT, Math.max(MIN_TEAM_COUNT, lastDigit)));
+    setTeamCount(Math.min(MAX_TEAM_COUNT, Math.max(min, lastDigit)));
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    onCreate(trimmed, teamCount, allowSpectators, itemsEnabled, aiPracticeMode);
+    onCreate(trimmed, teamCount, allowSpectators, itemsEnabled, aiPracticeMode, gameMode);
   }
 
   return (
@@ -63,8 +82,24 @@ export function CreateRoomModal({
             autoFocus
           />
         </label>
+        <div className={styles.field}>
+          <span>게임 모드</span>
+          <div className={styles.checkboxField}>
+            {(Object.keys(GAME_MODE_LABEL) as GameMode[]).map((mode) => (
+              <label key={mode} className={styles.checkboxField}>
+                <input
+                  type="radio"
+                  name="gameMode"
+                  checked={gameMode === mode}
+                  onChange={() => handleGameModeChange(mode)}
+                />
+                <span>{GAME_MODE_LABEL[mode]}</span>
+              </label>
+            ))}
+          </div>
+        </div>
         <label className={styles.field}>
-          <span>팀 수 (1~4)</span>
+          <span>{isSingleRoleMode ? `인원수 (${MIN_SINGLE_ROLE_HEADCOUNT}~${MAX_TEAM_COUNT})` : "팀 수 (1~4)"}</span>
           <input
             className={styles.input}
             type="text"
@@ -88,17 +123,19 @@ export function CreateRoomModal({
           <input type="checkbox" checked={itemsEnabled} onChange={(e) => setItemsEnabled(e.target.checked)} />
           <span>아이템전</span>
         </label>
-        <label className={styles.checkboxField}>
-          <input
-            type="checkbox"
-            checked={aiPracticeMode}
-            onChange={(e) => {
-              setAiPracticeMode(e.target.checked);
-              if (e.target.checked) setTeamCount(1);
-            }}
-          />
-          <span>AI 연습모드</span>
-        </label>
+        {!isSingleRoleMode && (
+          <label className={styles.checkboxField}>
+            <input
+              type="checkbox"
+              checked={aiPracticeMode}
+              onChange={(e) => {
+                setAiPracticeMode(e.target.checked);
+                if (e.target.checked) setTeamCount(1);
+              }}
+            />
+            <span>AI 연습모드</span>
+          </label>
+        )}
         <div className={styles.actions}>
           <button type="button" className={styles.cancelButton} onClick={onClose}>
             취소
