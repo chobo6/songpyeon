@@ -1,5 +1,6 @@
 import { Client, type Room } from "colyseus.js";
 import type { NicknameEffect, NicknameParticle } from "./game/nicknameStyle";
+import type { GameMode } from "./game/gameMode";
 
 // PROD builds always derive the endpoint from the page's own origin — both
 // the real deploy (behind Caddy) and a local `npm run sync-public` test on
@@ -72,6 +73,7 @@ export type JoinSpec =
       allowSpectators: boolean;
       itemsEnabled: boolean;
       aiPracticeMode: boolean;
+      gameMode: GameMode;
     }
   | { type: "joinById"; roomId: string }
   | { type: "reconnect" };
@@ -114,6 +116,7 @@ async function connectToMatch<T>(spec: JoinSpec): Promise<Room<T>> {
       allowSpectators: spec.allowSpectators,
       itemsEnabled: spec.itemsEnabled,
       aiPracticeMode: spec.aiPracticeMode,
+      gameMode: spec.gameMode,
     });
     storeReconnectToken(room);
     return room;
