@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listRooms, type RoomListEntry } from "../colyseus";
 import { getFriends, getReceivedRequests } from "../game/friends";
 import { dismissInvite, getPendingInvite, type PendingInvite } from "../game/invites";
+import type { GameMode } from "../game/gameMode";
 import { nicknameStyle, type NicknameEffect, type NicknameParticle } from "../game/nicknameStyle";
 import { CreateRoomModal } from "./CreateRoomModal";
 import { RankingModal } from "./RankingModal";
@@ -48,6 +49,7 @@ export function RoomList({
     allowSpectators: boolean,
     itemsEnabled: boolean,
     aiPracticeMode: boolean,
+    gameMode: GameMode,
   ) => void;
   onJoinRoom: (roomId: string) => void;
   onExit: () => void;
@@ -251,9 +253,9 @@ export function RoomList({
       {showCreateModal && (
         <CreateRoomModal
           onClose={() => setShowCreateModal(false)}
-          onCreate={(title, teamCount, allowSpectators, itemsEnabled, aiPracticeMode) => {
+          onCreate={(title, teamCount, allowSpectators, itemsEnabled, aiPracticeMode, gameMode) => {
             setShowCreateModal(false);
-            onCreateRoom(title, teamCount, allowSpectators, itemsEnabled, aiPracticeMode);
+            onCreateRoom(title, teamCount, allowSpectators, itemsEnabled, aiPracticeMode, gameMode);
           }}
         />
       )}
