@@ -51,6 +51,33 @@ describe("applyDoughAttack", () => {
     applyDoughAttack(sequence);
     expect(sequence).toEqual(["red", "purple"]);
   });
+
+  test('an explicit "rabbit" role still prepends a row of 6 mint tokens (same as no role arg)', () => {
+    const sequence: Color[] = ["red", "purple"];
+    expect(applyDoughAttack(sequence, "rabbit")).toEqual([
+      "mint", "mint", "mint", "mint", "mint", "mint",
+      "red", "purple",
+    ]);
+  });
+
+  // pigOnly 방은 참가자 전원이 돼지 역할이라 민트(토끼 색)를 아무도 누를 수 없다 —
+  // role: "pig"일 땐 민트 대신 돼지가 처리 가능한 색(빨강/주황/노랑/보라)으로
+  // 6버튼을 채워야 그 턴이 실제로 풀릴 수 있다.
+  test('role: "pig" prepends 6 pig-colored buttons instead of mint', () => {
+    const sequence: Color[] = ["red", "purple"];
+    const pigColors = ["red", "orange", "yellow", "purple"];
+    const result = applyDoughAttack(sequence, "pig");
+    expect(result).toHaveLength(8);
+    expect(result.slice(0, 6).every((c) => pigColors.includes(c))).toBe(true);
+    expect(result.slice(0, 6)).not.toContain("mint");
+    expect(result.slice(6)).toEqual(["red", "purple"]);
+  });
+
+  test('role: "pig" does not mutate the original array', () => {
+    const sequence: Color[] = ["red", "purple"];
+    applyDoughAttack(sequence, "pig");
+    expect(sequence).toEqual(["red", "purple"]);
+  });
 });
 
 describe("applyTimeReduce", () => {

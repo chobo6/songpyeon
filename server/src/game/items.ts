@@ -1,5 +1,5 @@
-import type { Color } from "./colors";
-import { mintRun } from "./fragments";
+import type { Color, Role } from "./colors";
+import { mintRun, generatePigFragment } from "./fragments";
 
 export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore";
 
@@ -30,8 +30,20 @@ export class ItemUseTracker {
   }
 }
 
-// 반죽공격: 시퀀스 맨 앞에 민트 6개(1줄)를 붙인다. 원본 배열은 건드리지 않음.
-export function applyDoughAttack(sequence: Color[]): Color[] {
+// 반죽공격: 시퀀스 맨 앞에 6버튼(1줄)을 붙인다. 원본 배열은 건드리지 않음.
+// role은 이 반죽이 누구에게 떨어지는지 — 정상/초보/토끼전은 토끼(민트 6개, 기존 그대로),
+// 돼지전은 방 전체가 돼지 역할이라 민트를 아무도 못 누르므로 돼지 조각 3개(색+보라 ×3
+// = 6버튼)로 대신한다. 그 방의 유일한 역할이 처리 가능한 색으로 붙여야 턴이 실제로
+// 풀릴 수 있다.
+export function applyDoughAttack(sequence: Color[], role: Role = "rabbit"): Color[] {
+  if (role === "pig") {
+    const pigPrefix = [
+      ...generatePigFragment(Math.random),
+      ...generatePigFragment(Math.random),
+      ...generatePigFragment(Math.random),
+    ];
+    return [...pigPrefix, ...sequence];
+  }
   return [...mintRun(6), ...sequence];
 }
 

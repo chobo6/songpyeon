@@ -3007,14 +3007,75 @@ describe("MatchRoom", () => {
       expect(room.state.sequence).toHaveLength(12);
     });
 
+    // Regression test for the doughAttack/pigOnly bug: doughAttack used to
+    // unconditionally prepend 6 mint (rabbit-colored) buttons, but a pigOnly
+    // room has nobody who can legally press mint (attemptPress rejects any
+    // press whose color's role doesn't match the pressing player's role) —
+    // so the next turn was guaranteed to fail. Fixed by applyDoughAttack
+    // taking a role param so pigOnly gets pig-colored buttons instead.
+    test("doughAttack in a pigOnly room prepends pig-colored buttons to the NEXT turn's sequence, not mint", async () => {
+      const room = await colyseus.createRoom<MatchState>("match", {
+        gameMode: "pigOnly",
+        teamCount: 2,
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        countdownTickMs: COUNTDOWN_TICK_MS,
+        bonusItemRng: NEVER_BONUS_RNG,
+      });
+      const clients: ClientRoom<MatchState>[] = [];
+      for (const i of [0, 1]) {
+        const client = await connectAsUser(colyseus, room, `반죽돼지${i}`);
+        client.send("chooseRole", { role: "pig" });
+        clients.push(client);
+      }
+      await flush();
+      await waitForCountdown();
+
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "doughAttack");
+
+      actingClient.send("useItem", { itemId: "doughAttack" });
+      await flush();
+
+      const lengthBefore = room.state.sequence.length;
+
+      // No press loop — same reasoning as the normal-mode doughAttack test
+      // above: let the current turn fail via its own unmodified timeout, so
+      // this exercises the NEXT team's startTurn() with the dough prefix
+      // applied, regardless of how the current turn resolves.
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+
+      const newSequence = Array.from(room.state.sequence);
+      const pigColors = ["red", "orange", "yellow", "purple"];
+      const prefix = newSequence.slice(0, 6);
+      expect(prefix.every((c) => pigColors.includes(c as string))).toBe(true);
+      expect(prefix).not.toContain("mint");
+      expect(newSequence.length).toBe(lengthBefore + 6);
+    });
+
+    // pigOnly's round-1 sequence is 24 buttons, and completeActiveTurn spaces
+    // presses 70ms apart (24 * 70 = 1680ms) — a much tighter margin against
+    // PRESS_HEAVY_TURN_MS's 3000ms budget than the 18-button normal-mode
+    // tests get (1260ms/3000ms). The beginner-mode room added to these same
+    // two tests below connects even more clients/messages, so use a larger,
+    // locally-scoped duration for all three modes here to remove the timing
+    // race instead of tightening PRESS_HEAVY_TURN_MS globally.
+    const REWARD_TEST_TURN_MS = 5000;
+
     test(
       "beginner/pigOnly/rabbitOnly pay 10 won per team instead of 20, but still credit play count",
-      { timeout: 30000 },
+      // 30000 -> 60000: now also completes a beginner-mode room's turn on
+      // top of the pigOnly one, at REWARD_TEST_TURN_MS (5000ms) instead of
+      // PRESS_HEAVY_TURN_MS.
+      { timeout: 60000 },
       async () => {
         const room = await colyseus.createRoom<MatchState>("match", {
           gameMode: "pigOnly",
           teamCount: 2,
-          turnDurationMs: PRESS_HEAVY_TURN_MS,
+          turnDurationMs: REWARD_TEST_TURN_MS,
           countdownTickMs: COUNTDOWN_TICK_MS,
           bonusItemRng: NEVER_BONUS_RNG,
         });
@@ -3027,7 +3088,7 @@ describe("MatchRoom", () => {
         await flush();
         await waitForCountdown();
 
-        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        await completeActiveTurn(room, clients, REWARD_TEST_TURN_MS);
 
         const row = db
           .prepare(`SELECT game_money, pig_play_count FROM users WHERE nickname = ?`)
@@ -3035,17 +3096,51 @@ describe("MatchRoom", () => {
         // 2팀 방이므로 10 * 2 = 20원.
         expect(row.game_money).toBe(20);
         expect(row.pig_play_count).toBe(1);
+
+        // beginner도 정상모드와 같은 팀 구성(팀당 돼지+토끼 2명)이지만 요율은
+        // pigOnly/rabbitOnly와 마찬가지로 10원이어야 한다 — 두 역할 각각 확인.
+        const beginnerRoom = await colyseus.createRoom<MatchState>("match", {
+          gameMode: "beginner",
+          teamCount: 2,
+          turnDurationMs: REWARD_TEST_TURN_MS,
+          countdownTickMs: COUNTDOWN_TICK_MS,
+          bonusItemRng: NEVER_BONUS_RNG,
+        });
+        const beginnerClients: ClientRoom<MatchState>[] = [];
+        for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+          const client = await connectAsUser(colyseus, beginnerRoom, `초보보상${i}`);
+          client.send("chooseRole", { role });
+          beginnerClients.push(client);
+        }
+        await flush();
+        await waitForCountdown();
+
+        await completeActiveTurn(beginnerRoom, beginnerClients, REWARD_TEST_TURN_MS);
+
+        const pigRow = db
+          .prepare(`SELECT game_money, pig_play_count FROM users WHERE nickname = ?`)
+          .get("초보보상0") as { game_money: number; pig_play_count: number };
+        expect(pigRow.game_money).toBe(20);
+        expect(pigRow.pig_play_count).toBe(1);
+
+        const rabbitRow = db
+          .prepare(`SELECT game_money, rabbit_play_count FROM users WHERE nickname = ?`)
+          .get("초보보상1") as { game_money: number; rabbit_play_count: number };
+        expect(rabbitRow.game_money).toBe(20);
+        expect(rabbitRow.rabbit_play_count).toBe(1);
       },
     );
 
     test(
       "beginner/pigOnly/rabbitOnly never credit ranking (max_round)",
-      { timeout: 30000 },
+      // 30000 -> 60000: now completes two full turns each for both a
+      // rabbitOnly room AND a beginner room, at REWARD_TEST_TURN_MS (5000ms).
+      { timeout: 60000 },
       async () => {
         const room = await colyseus.createRoom<MatchState>("match", {
           gameMode: "rabbitOnly",
           teamCount: 2,
-          turnDurationMs: PRESS_HEAVY_TURN_MS,
+          turnDurationMs: REWARD_TEST_TURN_MS,
           countdownTickMs: COUNTDOWN_TICK_MS,
           bonusItemRng: NEVER_BONUS_RNG,
         });
@@ -3063,13 +3158,41 @@ describe("MatchRoom", () => {
         // room needs both teams' turns completed before round 1 is credited,
         // so a single completeActiveTurn() call wouldn't actually exercise
         // the guard being tested here.
-        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
-        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        await completeActiveTurn(room, clients, REWARD_TEST_TURN_MS);
+        await completeActiveTurn(room, clients, REWARD_TEST_TURN_MS);
 
         const maxRound = (
           db.prepare(`SELECT max_round FROM users WHERE nickname = ?`).get("랭킹제외0") as { max_round: number }
         ).max_round;
         expect(maxRound).toBe(0);
+
+        // beginner도 정상모드와 같은 팀 구성이지만 creditRound 자체가
+        // gameMode !== "normal"이면 전부 건너뛰므로 랭킹에 반영되면 안 된다.
+        const beginnerRoom = await colyseus.createRoom<MatchState>("match", {
+          gameMode: "beginner",
+          teamCount: 2,
+          turnDurationMs: REWARD_TEST_TURN_MS,
+          countdownTickMs: COUNTDOWN_TICK_MS,
+          bonusItemRng: NEVER_BONUS_RNG,
+        });
+        const beginnerClients: ClientRoom<MatchState>[] = [];
+        for (const [i, role] of (["pig", "rabbit", "pig", "rabbit"] as const).entries()) {
+          const client = await connectAsUser(colyseus, beginnerRoom, `초보랭킹제외${i}`);
+          client.send("chooseRole", { role });
+          beginnerClients.push(client);
+        }
+        await flush();
+        await waitForCountdown();
+
+        await completeActiveTurn(beginnerRoom, beginnerClients, REWARD_TEST_TURN_MS);
+        await completeActiveTurn(beginnerRoom, beginnerClients, REWARD_TEST_TURN_MS);
+
+        const beginnerMaxRound = (
+          db.prepare(`SELECT max_round FROM users WHERE nickname = ?`).get("초보랭킹제외0") as {
+            max_round: number;
+          }
+        ).max_round;
+        expect(beginnerMaxRound).toBe(0);
       },
     );
   });
