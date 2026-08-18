@@ -3006,5 +3006,71 @@ describe("MatchRoom", () => {
 
       expect(room.state.sequence).toHaveLength(12);
     });
+
+    test(
+      "beginner/pigOnly/rabbitOnly pay 10 won per team instead of 20, but still credit play count",
+      { timeout: 30000 },
+      async () => {
+        const room = await colyseus.createRoom<MatchState>("match", {
+          gameMode: "pigOnly",
+          teamCount: 2,
+          turnDurationMs: PRESS_HEAVY_TURN_MS,
+          countdownTickMs: COUNTDOWN_TICK_MS,
+          bonusItemRng: NEVER_BONUS_RNG,
+        });
+        const clients: ClientRoom<MatchState>[] = [];
+        for (const i of [0, 1]) {
+          const client = await connectAsUser(colyseus, room, `보상${i}`);
+          client.send("chooseRole", { role: "pig" });
+          clients.push(client);
+        }
+        await flush();
+        await waitForCountdown();
+
+        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+        const row = db
+          .prepare(`SELECT game_money, pig_play_count FROM users WHERE nickname = ?`)
+          .get("보상0") as { game_money: number; pig_play_count: number };
+        // 2팀 방이므로 10 * 2 = 20원.
+        expect(row.game_money).toBe(20);
+        expect(row.pig_play_count).toBe(1);
+      },
+    );
+
+    test(
+      "beginner/pigOnly/rabbitOnly never credit ranking (max_round)",
+      { timeout: 30000 },
+      async () => {
+        const room = await colyseus.createRoom<MatchState>("match", {
+          gameMode: "rabbitOnly",
+          teamCount: 2,
+          turnDurationMs: PRESS_HEAVY_TURN_MS,
+          countdownTickMs: COUNTDOWN_TICK_MS,
+          bonusItemRng: NEVER_BONUS_RNG,
+        });
+        const clients: ClientRoom<MatchState>[] = [];
+        for (const i of [0, 1]) {
+          const client = await connectAsUser(colyseus, room, `랭킹제외${i}`);
+          client.send("chooseRole", { role: "rabbit" });
+          clients.push(client);
+        }
+        await flush();
+        await waitForCountdown();
+
+        // creditRound only fires once every team still alive has taken its
+        // turn this round (advanceToNextTurn's round++ branch) — a 2-team
+        // room needs both teams' turns completed before round 1 is credited,
+        // so a single completeActiveTurn() call wouldn't actually exercise
+        // the guard being tested here.
+        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+        await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+        const maxRound = (
+          db.prepare(`SELECT max_round FROM users WHERE nickname = ?`).get("랭킹제외0") as { max_round: number }
+        ).max_round;
+        expect(maxRound).toBe(0);
+      },
+    );
   });
 });

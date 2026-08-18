@@ -1119,7 +1119,7 @@ export class MatchRoom extends Room<MatchState> {
   // doesn't apply mid-match, but a slot freed by a drop and not yet
   // refilled still shouldn't crash this).
   private creditRound(team: TeamState, round: number) {
-    if (this.aiPracticeMode) return;
+    if (this.aiPracticeMode || this.gameMode !== "normal") return;
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) recordRoundAchievement(userId, round);
@@ -1131,7 +1131,8 @@ export class MatchRoom extends Room<MatchState> {
   // 동일한 이유로 playerUserIds에 없으면(빈 슬롯) 조용히 건너뛴다.
   private creditTurnSuccess(team: TeamState) {
     if (this.aiPracticeMode) return;
-    const reward = 20 * this.state.teams.length;
+    const rate = this.gameMode === "normal" ? 20 : 10;
+    const reward = rate * this.state.teams.length;
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) addGameMoney(userId, reward);
