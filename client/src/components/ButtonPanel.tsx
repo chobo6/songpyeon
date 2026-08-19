@@ -179,7 +179,9 @@ export const ButtonPanel = memo(function ButtonPanel({
 
   return (
     <div className={panelBg.panelBg}>
-      <div className={styles.panel}>
+      {/* 색상/아이템 버튼은 턴마다 계속 눌리는 게임 진행 조작이라 렌아 행동 로그
+          대상에서 제외한다 — client/src/game/actionLogging.ts 참고. */}
+      <div className={styles.panel} data-skip-action-log>
         {(() => {
           let emptySlotIndex = 0;
           return SLOT_ORDER.map((position) => {

@@ -8,6 +8,10 @@ function nearestButtonLabel(target: EventTarget | null): string | null {
   if (!(target instanceof Element)) return null;
   const el = target.closest("button, a, [role='button']");
   if (!el) return null;
+  // ButtonPanel.tsx의 색상/아이템 버튼은 턴마다 여러 번 눌리는 게임 진행 조작이라
+  // 로그가 급격히 쌓인다 — data-skip-action-log로 표시된 버튼(또는 그 조상)은
+  // 이 전역 리스너의 대상에서 제외한다.
+  if (el.closest("[data-skip-action-log]")) return null;
   const label = (el.getAttribute("aria-label") ?? el.textContent ?? "").trim();
   return label || "(라벨 없음)";
 }
