@@ -168,6 +168,7 @@
    엘리먼트에 안 먹을 수 있어(브라우저마다 다름) inline-block으로 강제해둔다. */
 .glitch.glitch {
   display: inline-block;
+  background: none;
   color: #eef0ff;
   animation: glitch-jolt 3.6s infinite;
 }
