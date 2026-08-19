@@ -401,9 +401,7 @@ export function useMegaphone(userId: number): UseMegaphoneResult {
 
 export type ShopEffect = Exclude<NicknameEffect, "none">;
 
-// 임시 가격 — 나중에 이 숫자들만 바꾸면 됨. glitch는 SHOP_SALE_EFFECTS에 아직 없어서 상점에서
-// 실제로 팔리진 않지만(관리자 지급 전용, 당분간), 나중에 상점에 올릴 때 가격만 바로 쓸 수
-// 있게 미리 넣어둔다.
+// 임시 가격 — 나중에 이 숫자들만 바꾸면 됨.
 export const SHOP_PRICES: Record<ShopEffect, number> = {
   rainbow: 1500000,
   shine: 500000,
@@ -411,12 +409,20 @@ export const SHOP_PRICES: Record<ShopEffect, number> = {
   pulse: 500000,
   neon: 500000,
   chrome: 600000,
-  glitch: 600000,
+  glitch: 800000,
 };
 
 // 상점에서 실제로 판매 중인 효과 — purchaseEffect가 이 목록으로 막아야 클라이언트가 상점
 // UI에서 안 보여주는 것만으로 끝나지 않고 /api/shop/purchase 직접 호출도 막힌다.
-export const SHOP_SALE_EFFECTS: readonly ShopEffect[] = ["rainbow", "shine", "hologram", "pulse", "neon", "chrome"];
+export const SHOP_SALE_EFFECTS: readonly ShopEffect[] = [
+  "rainbow",
+  "shine",
+  "hologram",
+  "pulse",
+  "neon",
+  "chrome",
+  "glitch",
+];
 
 export function getOwnedEffects(userId: number): NicknameEffect[] {
   const rows = db.prepare(`SELECT effect FROM owned_nickname_effects WHERE user_id = ?`).all(userId) as {
