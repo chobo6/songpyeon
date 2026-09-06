@@ -77,13 +77,16 @@ describe("generateSequence", () => {
     });
 
     test("a late round makes staying rabbit after a rabbit fragment more likely — a roll that would have switched to pig at round 1 now stays rabbit", () => {
-      // step1: roll 0.99 (>=0.7) -> rabbit; choice roll 0.99 -> mint run;
-      // length roll 0 -> 2 ("mint","mint"), remaining now 2.
+      // step1: roll 0.99 (>=0.7) -> rabbit; remaining=4 so choices are
+      // [pair, mint, bracket4] (bracket6 needs remaining>=6) — choice roll
+      // 0.5 -> floor(0.5*3)=1 -> mint run; length roll 0 -> 2 ("mint","mint"),
+      // remaining now 2.
       // step2: roll 0.65 -> at round 1 the pig threshold after a rabbit
       // fragment is still 0.7, so 0.65 would switch to pig; at round 30 it
       // drops to 0.65 (0.7-0.05), so 0.65 no longer clears it and stays
-      // rabbit — choice roll 0 -> pair fragment, color rolls 0,0 -> green,green.
-      const rng = queueRng([0.99, 0.99, 0, 0.65, 0, 0, 0]);
+      // rabbit — remaining=2 so brackets aren't offered ([pair, mint] only) —
+      // choice roll 0 -> pair fragment, color rolls 0,0 -> green,green.
+      const rng = queueRng([0.99, 0.5, 0, 0.65, 0, 0, 0]);
       expect(generateSequence(4, rng, 30)).toEqual(["mint", "mint", "green", "green"]);
     });
 
@@ -91,6 +94,45 @@ describe("generateSequence", () => {
       const rngAt30 = queueRng([0, 0, 0.8, 0]);
       const rngAt60 = queueRng([0, 0, 0.8, 0]);
       expect(generateSequence(4, rngAt30, 30)).toEqual(generateSequence(4, rngAt60, 60));
+    });
+  });
+
+  describe("the two new bracket fragments (button-mint-mint-button / button-mint*4-button) — row-boundary and adjacency rules", () => {
+    // Every fragment length is even (pig/pair=2, mint=2/4/6, bracket4=4,
+    // bracket6=6), so a fragment can only ever START at an even column
+    // (0, 2, or 4 of the 6-wide row) — column 4 is reachable but neither
+    // bracket may start there (bracket4: only 0 or 2; bracket6: only 0).
+    test("column 4 (reachable, but not an allowed bracket start) excludes both brackets even with plenty of room left", () => {
+      // Two rabbit-pair fragments walk the column from 0 -> 2 -> 4.
+      // step1 (remaining=10, col0): choices are [pair, mint, bracket4, bracket6]
+      // (4-way) — choice roll 0 -> pair; colors 0,0 -> green,green. remaining=8.
+      // step2 (remaining=8, col2): choices are [pair, mint, bracket4] (bracket6
+      // needs col0) — choice roll 0 -> pair; colors 0,0 -> green,green. remaining=6.
+      // step3 (remaining=6, col4): col4 permits neither bracket, so choices
+      // collapse to [pair, mint] even though remaining=6 would otherwise allow
+      // bracket6 — choice roll 0.99 -> floor(0.99*2)=1 -> mint; length roll
+      // 0.99 -> floor(0.99*3)=2 -> the longest valid run (6).
+      const rng = queueRng([0.99, 0, 0, 0, 0.99, 0, 0, 0, 0.99, 0.99, 0.99]);
+      expect(generateSequence(10, rng, 1)).toEqual([
+        "green", "green", "green", "green", "mint", "mint", "mint", "mint", "mint", "mint",
+      ]);
+    });
+
+    test("right after a bracket4 fragment, the next fragment excludes both brackets even at column 0, where they'd otherwise be allowed", () => {
+      // step1 (remaining=12, col0): choice roll 0 -> pair; colors 0,0 ->
+      // green,green. remaining=10.
+      // step2 (remaining=10, col2): choices are [pair, mint, bracket4] (col2
+      // excludes bracket6) — choice roll 0.99 -> floor(0.99*3)=2 -> bracket4;
+      // buttons 0,0.99 -> green,pink. remaining=6. Ends exactly at the row
+      // boundary, so the next fragment starts at col0.
+      // step3 (remaining=6, col0): col0 alone would permit both brackets, but
+      // the previous fragment WAS a bracket, so choices collapse to
+      // [pair, mint] regardless — choice roll 0.99 -> floor(0.99*2)=1 -> mint;
+      // length roll 0.99 -> floor(0.99*3)=2 -> the longest valid run (6).
+      const rng = queueRng([0.99, 0, 0, 0, 0.99, 0.99, 0, 0.99, 0.99, 0.99, 0.99]);
+      expect(generateSequence(12, rng, 1)).toEqual([
+        "green", "green", "green", "mint", "mint", "pink", "mint", "mint", "mint", "mint", "mint", "mint",
+      ]);
     });
   });
 });

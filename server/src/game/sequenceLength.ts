@@ -1,4 +1,4 @@
-const BUTTONS_PER_ROW = 6;
+export const BUTTONS_PER_ROW = 6;
 const DEFAULT_STARTING_ROWS = 3;
 const ROUNDS_PER_ROW_INCREASE = 10;
 

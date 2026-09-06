@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { generatePigFragment, generateRabbitMintFragment, generateRabbitPairFragment } from "./fragments";
+import {
+  generatePigFragment,
+  generateRabbitMintBracket4Fragment,
+  generateRabbitMintBracket6Fragment,
+  generateRabbitMintFragment,
+  generateRabbitPairFragment,
+} from "./fragments";
 
 function queueRng(values: number[]): () => number {
   let i = 0;
@@ -31,5 +37,19 @@ describe("generateRabbitMintFragment", () => {
 describe("generateRabbitPairFragment", () => {
   test("draws two colors independently from green/blue/pink", () => {
     expect(generateRabbitPairFragment(queueRng([0, 0.99]))).toEqual(["green", "pink"]);
+  });
+});
+
+describe("generateRabbitMintBracket4Fragment", () => {
+  test("button - mint - mint - button, drawing the two buttons independently", () => {
+    expect(generateRabbitMintBracket4Fragment(queueRng([0, 0.99]))).toEqual(["green", "mint", "mint", "pink"]);
+  });
+});
+
+describe("generateRabbitMintBracket6Fragment", () => {
+  test("button - mint x4 - the same button again", () => {
+    expect(generateRabbitMintBracket6Fragment(queueRng([0.99]))).toEqual([
+      "pink", "mint", "mint", "mint", "mint", "pink",
+    ]);
   });
 });
