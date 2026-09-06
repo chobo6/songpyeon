@@ -3,7 +3,7 @@ import { db, sqliteBool } from "../db/connection";
 import { sanitizeNickname } from "../game/nickname";
 import { recordNicknameChange } from "./nicknameHistory";
 
-export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome" | "glitch";
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome" | "glitch" | "frost";
 export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
   "none",
   "rainbow",
@@ -13,17 +13,17 @@ export const NICKNAME_EFFECTS: readonly NicknameEffect[] = [
   "neon",
   "chrome",
   "glitch",
+  "frost",
 ];
 
-export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow" | "heart" | "shootingStar";
+export type NicknameParticle = "none" | "twinkle" | "rising" | "snow" | "heart" | "petal";
 export const NICKNAME_PARTICLES: readonly NicknameParticle[] = [
   "none",
   "twinkle",
   "rising",
-  "orbit",
   "snow",
   "heart",
-  "shootingStar",
+  "petal",
 ];
 
 let oauthClient: OAuth2Client | null = null;
@@ -410,6 +410,7 @@ export const SHOP_PRICES: Record<ShopEffect, number> = {
   neon: 500000,
   chrome: 600000,
   glitch: 800000,
+  frost: 600000,
 };
 
 // 상점에서 실제로 판매 중인 효과 — purchaseEffect가 이 목록으로 막아야 클라이언트가 상점
@@ -422,6 +423,7 @@ export const SHOP_SALE_EFFECTS: readonly ShopEffect[] = [
   "neon",
   "chrome",
   "glitch",
+  "frost",
 ];
 
 export function getOwnedEffects(userId: number): NicknameEffect[] {

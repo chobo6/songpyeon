@@ -40,6 +40,28 @@
   opacity: 0.9;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tabButton {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: #374151;
+  color: #fff;
+  opacity: 0.6;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabButtonActive {
+  opacity: 1;
+  background: #4b5563;
+}
+
 .loading,
 .error {
   text-align: center;

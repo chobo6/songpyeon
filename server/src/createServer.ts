@@ -365,7 +365,7 @@ export function createGameServer(): Server {
       return;
     }
     if (typeof particle !== "string" || !NICKNAME_PARTICLES.includes(particle as NicknameParticle)) {
-      res.status(400).json({ error: "particle은 'none'|'twinkle'|'rising'|'orbit'|'snow' 중 하나여야 합니다." });
+      res.status(400).json({ error: "particle은 'none'|'twinkle'|'rising'|'snow'|'petal' 중 하나여야 합니다." });
       return;
     }
     setNicknameEffect(userId, effect as NicknameEffect, glow, particle as NicknameParticle);

@@ -5,8 +5,8 @@ import type { GameMode } from "../game/gameMode";
 export type Phase = "lobby" | "playing";
 export type RoleChoice = "pig" | "rabbit" | "";
 export type TurnOutcome = "pending" | "success" | "fail";
-export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome";
-export type NicknameParticle = "none" | "twinkle" | "rising" | "orbit" | "snow";
+export type NicknameEffect = "none" | "rainbow" | "shine" | "hologram" | "pulse" | "neon" | "chrome" | "glitch" | "frost";
+export type NicknameParticle = "none" | "twinkle" | "rising" | "snow" | "heart" | "petal";
 
 export class PlayerState extends Schema {
   @type("string") sessionId: string = "";

@@ -22,6 +22,7 @@ const SHOP_EFFECTS: Exclude<NicknameEffect, "none">[] = [
   "neon",
   "chrome",
   "glitch",
+  "frost",
 ];
 const EFFECT_LABELS: Record<Exclude<NicknameEffect, "none">, string> = {
   rainbow: "레인보우",
@@ -31,6 +32,7 @@ const EFFECT_LABELS: Record<Exclude<NicknameEffect, "none">, string> = {
   neon: "네온사인",
   chrome: "크롬",
   glitch: "글리치",
+  frost: "서리",
 };
 
 export function ShopModal({
@@ -48,6 +50,7 @@ export function ShopModal({
   onClose: () => void;
   onProfileChanged: () => void;
 }) {
+  const [category, setCategory] = useState<"effect" | "etc">("effect");
   const [shop, setShop] = useState<ShopState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyEffect, setBusyEffect] = useState<string | null>(null);
@@ -152,6 +155,23 @@ export function ShopModal({
         {shop && (
           <>
             <p className={styles.money}>🪙 {shop.gameMoney.toLocaleString("ko-KR")}원</p>
+
+            <div className={styles.tabs}>
+              <button
+                className={`${styles.tabButton} ${category === "effect" ? styles.tabButtonActive : ""}`}
+                onClick={() => setCategory("effect")}
+              >
+                이펙트
+              </button>
+              <button
+                className={`${styles.tabButton} ${category === "etc" ? styles.tabButtonActive : ""}`}
+                onClick={() => setCategory("etc")}
+              >
+                기타
+              </button>
+            </div>
+
+            {category === "effect" && (
             <div className={styles.grid}>
               {[...SHOP_EFFECTS].sort((a, b) => shop.prices[a] - shop.prices[b]).map((effect) => {
                 const isOwned = shop.owned.includes(effect);
@@ -198,6 +218,10 @@ export function ShopModal({
                 </button>
               </div>
             </div>
+            )}
+
+            {category === "etc" && (
+            <>
             <div className={styles.rerollCard}>
               <span className={styles.effectName}>닉네임 색 변경</span>
               <button
@@ -260,6 +284,8 @@ export function ShopModal({
                 </button>
               )}
             </div>
+            </>
+            )}
           </>
         )}
         <button className={styles.closeButton} onClick={onClose}>

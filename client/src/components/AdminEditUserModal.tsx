@@ -298,6 +298,7 @@ export function AdminEditUserModal({
               <option value="neon">네온사인</option>
               <option value="chrome">크롬</option>
               <option value="glitch">글리치</option>
+              <option value="frost">서리</option>
             </select>
             <label className={styles.checkboxLabel}>
               <input
@@ -316,10 +317,9 @@ export function AdminEditUserModal({
               <option value="none">파티클 없음</option>
               <option value="twinkle">반짝임</option>
               <option value="rising">상승</option>
-              <option value="orbit">궤도</option>
               <option value="snow">눈</option>
               <option value="heart">하트</option>
-              <option value="shootingStar">별똥별</option>
+              <option value="petal">벚꽃</option>
             </select>
           </div>
         </section>
