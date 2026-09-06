@@ -112,6 +112,10 @@ npm run lint   # oxlint
   줄에서 글자와 겹치는 기존 한계와 같은 범주로 묶어 알려진 한계로 남김. 설계:
   `docs/superpowers/specs/2026-07-30-nickname-particle-effects-design.md`, 구현 계획:
   `docs/superpowers/plans/2026-07-30-nickname-particle-effects.md`.
+- **메인 로비 "윷놀이" 링크 버튼** (2026-09~): `ModeSelect.tsx`(온라인/혼자 연습 선택 화면)의 "혼자 연습" 버튼
+  아래에 별도 프로젝트인 윷놀이 웹 게임(별개 리포지토리/별개 EC2 인스턴스)으로 이동하는 외부 링크 버튼 추가.
+  `target="_blank"`로 새 탭에서 열리며, songpyeon과 코드/배포 파이프라인은 완전히 독립적 — 이 프로젝트 쪽에서
+  관리할 일은 없고 링크 URL만 하드코딩돼 있음.
 - **로비 안내 버튼** (2026-07-28~): 메인 로비 화면(`RoomList.tsx`) 좌측 하단의 "안내" 버튼 →
   `WelcomeModal.tsx`. 표시 문구는 `WELCOME_MESSAGE` 상수를 직접 수정(자유 텍스트, 줄바꿈 그대로 반영).
 - **관전 모드 / 랭킹 / 콤보·평균속도 HUD / 문의하기** (친구·닉네임효과 시스템보다 이전에 구현된 기존
@@ -147,10 +151,10 @@ npm run lint   # oxlint
   직전 버튼 입력(색 무관)으로부터 역할별 임계값 미만이면 해당 입력을 조용히 무시(`MatchRoom.handlePressButton`)
   — 절구 감점도, 클라이언트 메시지도, 관리자 로그도 없음. 씹힌 시도를 포함해 매 입력마다 기준 시각을 갱신하는
   자기-차단 구조라 빠른 연타가 계속되면 계속 막힘. 역할별로 대상/임계값이 다름:
-  - **토끼**: 민트 버튼만 대상(`MINT_SPAM_THRESHOLD_MS`, 현재 35ms) — 이 게임에서 같은 버튼을 반복해서 눌러야
+  - **토끼**: 민트 버튼만 대상(`MINT_SPAM_THRESHOLD_MS`, 값은 `inputSpamGuard.ts` 참고) — 이 게임에서 같은 버튼을 반복해서 눌러야
     하는 유일한 패턴이 민트 런이라, 손가락 재입력 속도의 한계가 가장 잘 드러나는 자리이기 때문. 다른 토끼 색은
     대상 아님.
-  - **돼지**: 4색 전부 대상(`PIG_SPAM_THRESHOLD_MS`, 현재 5ms) — 돼지 조각(`[색상, 보라]`)은 같은 색이 연속으로
+  - **돼지**: 4색 전부 대상(`PIG_SPAM_THRESHOLD_MS`, 값은 `inputSpamGuard.ts` 참고) — 돼지 조각(`[색상, 보라]`)은 같은 색이 연속으로
     나오는 패턴 자체가 없어서, "같은 버튼 연타"가 아니라 "색이 바뀌었는데도 인식·반응하기엔 너무 빠른 입력"을
     잡는 용도라 훨씬 타이트한 임계값을 씀.
 
@@ -175,7 +179,7 @@ npm run lint   # oxlint
   전체 공개. **집 인터넷이 유동 IP라 IP가 바뀌면 관리자 페이지가 403으로 막힘** — 그럴 땐
   `ssh songpyeon-ec2`로 들어가 Caddyfile의 `remote_ip` 목록을 새 IP로 갱신하고
   `docker restart caddy`. 현재 값 백업은 같은 디렉토리에 `Caddyfile.bak-YYYYMMDD`로 남겨둠.
-- **배포**: AWS EC2 단일 인스턴스, Docker 컨테이너(`songpyeon`) + Caddy(`caddy`, HTTPS 리버스 프록시, `songpyeon-net` 도커 네트워크로 연결) — 재배포는 수동 flow(로컬 `docker build` → `docker save` → `scp` → EC2에서 `docker load` 후 컨테이너 교체, Caddy/네트워크는 그대로 둠). GitHub Actions 등 CI/CD 없음, 이미지 레지스트리도 안 씀(저작권 있는 `game-assets/`가 이미지에 포함되므로 제3자 서버 경유 안 함). 절차 상세는 `docs/superpowers/specs/2026-07-15-aws-light-deploy-test-design.md` 참고. **EC2 재시작으로 퍼블릭 IP가 바뀌면 접속 주소(nip.io, IP가 호스트네임에 그대로 박힘)도 통째로 바뀜** — 컨테이너는 `--restart unless-stopped`로 자동 복구되지만 `/home/ec2-user/caddy/Caddyfile`(호스트 bind mount)의 옛 호스트네임은 수동으로 갱신하고 `docker restart caddy`로 새 Let's Encrypt 인증서를 다시 받아야 함 (`docs/TROUBLESHOOTING.md` #18).
+- **배포**: AWS EC2 단일 인스턴스, Docker 컨테이너(`songpyeon`) + Caddy(`caddy`, HTTPS 리버스 프록시, `songpyeon-net` 도커 네트워크로 연결). GitHub Actions 등 CI/CD 없음, 이미지 레지스트리도 안 씀(저작권 있는 `game-assets/`가 이미지에 포함되므로 제3자 서버 경유 안 함). **실제 재배포 방식(2026-09~)**: 로컬에 EC2 소스 체크아웃이 따로 없으므로, 로컬 프로젝트 루트에서 소스 트리를 tar로 압축해(`node_modules`/`.git`/`server/public`/`server/data`/`.env*` 제외) `ssh songpyeon-ec2`로 스트리밍하면서 EC2 위에서 바로 `docker build --build-arg VITE_GOOGLE_CLIENT_ID=...`를 실행 — 로컬 Docker Desktop은 안 쓰고, 전송량이 완성 이미지(700MB대) 대신 소스코드(수 MB)뿐이라 EC2의 기존 빌드 캐시까지 재사용돼 훨씬 빠름(문서에 남아있던 `docker save`+`scp`+`docker load` 방식은 실제로는 안 씀). 빌드 후 `docker stop songpyeon && docker rm songpyeon`으로 기존 컨테이너를 내리고, 아래 named volume/bind mount 항목의 `docker run` 커맨드로 동일한 env/네트워크/볼륨을 재사용해 새로 띄움. **EC2 자체가 매우 작음**(디스크 8GB, 메모리 912MB, 2 vCPU) — 이 방식대로면 재배포할 때마다 옛 이미지가 `<none>` 태그로 그대로 쌓여 디스크를 갉아먹으므로, 배포 후 `docker image prune -f`로 정리하는 걸 습관화할 것(방치 시 디스크 66%까지 찬 적 있음). 절차 상세는 `docs/superpowers/specs/2026-07-15-aws-light-deploy-test-design.md` 참고(단, 위 실제 방식과 다른 옛 계획임 — 참고용). **EC2 재시작으로 퍼블릭 IP가 바뀌면 접속 주소(nip.io, IP가 호스트네임에 그대로 박힘)도 통째로 바뀜** — 컨테이너는 `--restart unless-stopped`로 자동 복구되지만 `/home/ec2-user/caddy/Caddyfile`(호스트 bind mount)의 옛 호스트네임은 수동으로 갱신하고 `docker restart caddy`로 새 Let's Encrypt 인증서를 다시 받아야 함 (`docs/TROUBLESHOOTING.md` #18).
 
 ## Key docs
 

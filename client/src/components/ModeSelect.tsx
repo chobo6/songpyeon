@@ -48,6 +48,14 @@ export function ModeSelect({
         <button className={`${styles.modeButton} ${styles.offline}`} onClick={onSelectOffline}>
           혼자 연습
         </button>
+        <a
+          className={`${styles.modeButton} ${styles.yutnori}`}
+          href="https://43-201-71-99.nip.io/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          윷놀이
+        </a>
       </div>
     </div>
   );

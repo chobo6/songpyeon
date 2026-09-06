@@ -89,3 +89,10 @@
 .offline {
   background: linear-gradient(135deg, #2ec4b6, #3b82f6);
 }
+
+.yutnori {
+  display: block;
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  text-decoration: none;
+  box-sizing: border-box;
+}
