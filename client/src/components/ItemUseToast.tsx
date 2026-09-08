@@ -9,6 +9,7 @@ const ITEM_LABEL: Record<ItemId, string> = {
   doughAttack: "반죽 공격",
   superMortar: "슈퍼 절구",
   mortarRestore: "절구 회복",
+  goblinMagic: "도깨비 요술",
 };
 
 // seq is the trigger, not itemId — the same item used twice in a row still

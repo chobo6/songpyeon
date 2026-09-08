@@ -1,7 +1,7 @@
 import type { Color, Role } from "./colors";
 import { mintRun, generatePigFragment } from "./fragments";
 
-export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore";
+export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore" | "goblinMagic";
 
 const MIN_TURN_DURATION_MS = 1000;
 
@@ -52,4 +52,14 @@ export function applyDoughAttack(sequence: Color[], role: Role = "rabbit"): Colo
 // 그대로 1초를 빼면 음수/0 타이머가 되어 즉시 만료되거나 setTimeout이 오작동할 수 있음.
 export function applyTimeReduce(durationMs: number): number {
   return Math.max(MIN_TURN_DURATION_MS, durationMs - 1000);
+}
+
+// 도깨비 요술: 대상 팀의 돼지/토끼 담당(sessionId)을 서로 바꾼다. 실제로 역할을 바꿔
+// 태우는 건(PlayerState.role까지 같이 바꾸는 것) 호출부(MatchRoom)의 몫 — 이 함수는
+// 값 스왑 자체만 담당하는 순수 함수.
+export function applyGoblinMagic(
+  pigSessionId: string,
+  rabbitSessionId: string,
+): { pigSessionId: string; rabbitSessionId: string } {
+  return { pigSessionId: rabbitSessionId, rabbitSessionId: pigSessionId };
 }

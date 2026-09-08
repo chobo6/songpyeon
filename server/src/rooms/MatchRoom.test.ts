@@ -2349,6 +2349,50 @@ describe("MatchRoom", () => {
       expect(remaining).toBeLessThan(2400);
     });
 
+    test("goblinMagic swaps the pig/rabbit roles of the team whose turn comes up next, for that turn only", async () => {
+      const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
+      const activeTeamIndexBefore = room.state.activeTeamIndex;
+      const { actingClient } = actingClientFor(room, clients);
+      grantItem(room, actingClient.sessionId, "goblinMagic");
+
+      const targetTeam = room.state.teams[1 - activeTeamIndexBefore];
+      const originalPigSessionId = targetTeam.pigSessionId;
+      const originalRabbitSessionId = targetTeam.rabbitSessionId;
+
+      actingClient.send("useItem", { itemId: "goblinMagic" });
+      await flush();
+
+      // Not applied yet — queued for the target team's own next turn, same as doughAttack/timeReduce.
+      expect(targetTeam.pigSessionId).toBe(originalPigSessionId);
+      expect(targetTeam.rabbitSessionId).toBe(originalRabbitSessionId);
+
+      await waitUntil(
+        () => room.state.activeTeamIndex !== activeTeamIndexBefore,
+        PRESS_HEAVY_TURN_MS + 1000,
+      );
+
+      // The target team's turn is now active — pig/rabbit assignments swapped,
+      // in both the team's sessionId slots and each player's own role field.
+      expect(targetTeam.pigSessionId).toBe(originalRabbitSessionId);
+      expect(targetTeam.rabbitSessionId).toBe(originalPigSessionId);
+      expect(room.state.players.get(originalPigSessionId)!.role).toBe("rabbit");
+      expect(room.state.players.get(originalRabbitSessionId)!.role).toBe("pig");
+
+      // completeActiveTurn presses through using each player's CURRENT
+      // (swapped) role, then waits out the full hand-off into the next turn.
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+      // That one turn is over — the swap reverts before any future turn.
+      expect(targetTeam.pigSessionId).toBe(originalPigSessionId);
+      expect(targetTeam.rabbitSessionId).toBe(originalRabbitSessionId);
+      expect(room.state.players.get(originalPigSessionId)!.role).toBe("pig");
+      expect(room.state.players.get(originalRabbitSessionId)!.role).toBe("rabbit");
+      // Explicit timeout: this test waits out two real turns back to back
+      // (the initial hand-off, then completeActiveTurn's own full press loop
+      // + trailing turnDurationMs+200 wait) — comfortably past vitest's
+      // 5000ms default.
+    }, 12000);
+
     test("useItem is a no-op if the sending player doesn't hold that item", async () => {
       const { room, clients } = await fillRolesAndStart({ turnDurationMs: PRESS_HEAVY_TURN_MS });
       const { dueColor, actingClient } = actingClientFor(room, clients);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { applyDoughAttack, applyTimeReduce, ItemUseTracker } from "./items";
+import { applyDoughAttack, applyGoblinMagic, applyTimeReduce, ItemUseTracker } from "./items";
 import type { Color } from "./colors";
 
 describe("ItemUseTracker", () => {
@@ -91,5 +91,20 @@ describe("applyTimeReduce", () => {
 
   test("lands exactly on the floor without going negative", () => {
     expect(applyTimeReduce(2000)).toBe(1000);
+  });
+});
+
+describe("applyGoblinMagic", () => {
+  test("swaps the pig and rabbit sessionIds", () => {
+    expect(applyGoblinMagic("pig-session", "rabbit-session")).toEqual({
+      pigSessionId: "rabbit-session",
+      rabbitSessionId: "pig-session",
+    });
+  });
+
+  test("applying it twice restores the original assignment", () => {
+    const once = applyGoblinMagic("pig-session", "rabbit-session");
+    const twice = applyGoblinMagic(once.pigSessionId, once.rabbitSessionId);
+    expect(twice).toEqual({ pigSessionId: "pig-session", rabbitSessionId: "rabbit-session" });
   });
 });

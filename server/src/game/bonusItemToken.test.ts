@@ -7,7 +7,7 @@ function queueRng(values: number[]): () => number {
   return () => values[i++];
 }
 
-const ALL_ITEM_IDS: ItemId[] = ["timeAdd", "timeReduce", "doughAttack", "superMortar", "mortarRestore"];
+const ALL_ITEM_IDS: ItemId[] = ["timeAdd", "timeReduce", "doughAttack", "superMortar", "mortarRestore", "goblinMagic"];
 
 describe("rollBonusItemIndex", () => {
   test("returns null when the chance roll misses (>= BONUS_ITEM_CHANCE)", () => {
@@ -20,7 +20,7 @@ describe("rollBonusItemIndex", () => {
     expect(rollBonusItemIndex(18, rng)).toBeNull();
   });
 
-  test("on a hit, returns a valid index and one of the 5 known item ids", () => {
+  test("on a hit, returns a valid index and one of the 6 known item ids", () => {
     // chance roll hits (0), index roll picks position 0 of 18, item roll picks index 0 -> "timeAdd"
     const rng = queueRng([0, 0, 0]);
     expect(rollBonusItemIndex(18, rng)).toEqual({ index: 0, itemId: "timeAdd" });
@@ -28,21 +28,21 @@ describe("rollBonusItemIndex", () => {
 
   test("the index roll is scaled to sequence length and floored", () => {
     // chance hits (0), index roll 0.5 of a 20-length sequence -> floor(0.5*20)=10,
-    // item roll 0.5 of 5 items -> floor(0.5*5)=2 -> "doughAttack"
+    // item roll 0.5 of 6 items -> floor(0.5*6)=3 -> "superMortar"
     const rng = queueRng([0, 0.5, 0.5]);
-    expect(rollBonusItemIndex(20, rng)).toEqual({ index: 10, itemId: "doughAttack" });
+    expect(rollBonusItemIndex(20, rng)).toEqual({ index: 10, itemId: "superMortar" });
   });
 
-  test("the item roll picks the LAST item id (mortarRestore) for a roll just under 1", () => {
-    // chance hits (0), index roll 0 -> position 0, item roll 0.999999 of 5 ->
-    // floor(0.999999*5)=4 -> ALL_ITEM_IDS[4] = "mortarRestore"
+  test("the item roll picks the LAST item id (goblinMagic) for a roll just under 1", () => {
+    // chance hits (0), index roll 0 -> position 0, item roll 0.999999 of 6 ->
+    // floor(0.999999*6)=5 -> ALL_ITEM_IDS[5] = "goblinMagic"
     const rng = queueRng([0, 0, 0.999999]);
-    expect(rollBonusItemIndex(10, rng)).toEqual({ index: 0, itemId: "mortarRestore" });
+    expect(rollBonusItemIndex(10, rng)).toEqual({ index: 0, itemId: "goblinMagic" });
   });
 
-  test("every possible item roll maps to one of the 5 known ids", () => {
-    for (let i = 0; i < 5; i++) {
-      const rng = queueRng([0, 0, i / 5]);
+  test("every possible item roll maps to one of the 6 known ids", () => {
+    for (let i = 0; i < 6; i++) {
+      const rng = queueRng([0, 0, i / 6]);
       const result = rollBonusItemIndex(10, rng);
       expect(ALL_ITEM_IDS).toContain(result?.itemId);
     }

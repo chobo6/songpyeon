@@ -6,4 +6,5 @@ export const ITEM_ICON: Record<ItemId, string> = {
   doughAttack: "/game-assets/items/dough_attack.png",
   superMortar: "/game-assets/items/super_mortar.png",
   mortarRestore: "/game-assets/ui/thanksgiving_room_heart.png",
+  goblinMagic: "/game-assets/items/goblin_magic.png",
 };

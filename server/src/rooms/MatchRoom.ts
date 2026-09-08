@@ -1,5 +1,5 @@
 import { Room, Client, type AuthContext, type Delayed } from "colyseus";
-import { ItemUseTracker, applyDoughAttack, applyTimeReduce, type ItemId } from "../game/items";
+import { ItemUseTracker, applyDoughAttack, applyGoblinMagic, applyTimeReduce, type ItemId } from "../game/items";
 import type { ArraySchema } from "@colyseus/schema";
 import { MatchState, PlayerState, TeamState, ChatMessage, SpectatorState, type NicknameEffect, type NicknameParticle } from "./MatchState";
 import { generateSequence, generateSingleRoleSequence } from "../game/sequence";
@@ -129,6 +129,11 @@ export class MatchRoom extends Room<MatchState> {
   // 진행 중인 턴을 건드리지 않고, 다음 startTurn()이 호출되는 시점에 소비된다.
   // doughAttack(Task 5)도 같은 트래커를 공유한다.
   private pendingItemsForNextTurn = new ItemUseTracker();
+  // goblinMagic으로 역할이 뒤바뀐 팀의 id — 그 팀의 "한 턴 동안만" 효과가 유지되도록,
+  // 다음 startTurn() 시작 시점에 이 값이 있으면 원래대로 되돌리고 지운다(applyGoblinMagicSwap을
+  // 다시 호출하면 되돌려짐 — 스왑은 자기 자신의 역함수). 어느 팀 차례든 다음 startTurn() 한
+  // 번이면 반드시 되돌려지므로 팀 인덱스가 아니라 이 값 하나로 충분하다.
+  private goblinMagicSwappedTeamId: string | null = null;
   private forcedBonusItem?: BonusItemRoll;
   private bonusItem: BonusItemRoll | null = null;
   private bonusItemRng: Rng = Math.random;
@@ -853,6 +858,7 @@ export class MatchRoom extends Room<MatchState> {
     }
     this.superMortarActiveThisTurn = false;
     this.pendingItemsForNextTurn.reset();
+    this.goblinMagicSwappedTeamId = null;
     this.bonusItem = null;
 
     // maybeStartGame()'s setPrivate(true) from the match that just ended is
@@ -865,6 +871,21 @@ export class MatchRoom extends Room<MatchState> {
 
   private startTurn() {
     this.superMortarActiveThisTurn = false;
+
+    // 직전 턴 동안 goblinMagic으로 뒤바뀐 팀이 있다면, 그 "한 턴"이 이제 끝났으니
+    // 이번 새 턴이 시작되기 전에 원래대로 되돌린다 — 지금 차례인 팀이 그 팀이든
+    // 아니든(다음 팀이 바로 다시 그 팀일 수도 있음) 상관없이 한 번의 startTurn()으로
+    // 정확히 원복된다.
+    if (this.goblinMagicSwappedTeamId !== null) {
+      const swappedTeam = this.state.teams.find((t) => t.id === this.goblinMagicSwappedTeamId);
+      if (swappedTeam) this.applyGoblinMagicSwap(swappedTeam);
+      this.goblinMagicSwappedTeamId = null;
+    }
+
+    const activeTeam = this.state.teams[this.state.activeTeamIndex];
+    if (this.pendingItemsForNextTurn.has("goblinMagic") && this.applyGoblinMagicSwap(activeTeam)) {
+      this.goblinMagicSwappedTeamId = activeTeam.id;
+    }
 
     const startingRows =
       this.gameMode === "beginner" ? 2 : this.gameMode === "pigOnly" ? 4 : this.gameMode === "rabbitOnly" ? 2 : 3;
@@ -909,6 +930,25 @@ export class MatchRoom extends Room<MatchState> {
     }, duration);
 
     this.maybeTriggerBotPress();
+  }
+
+  // team.pigSessionId/rabbitSessionId와 그 두 PlayerState.role을 함께 바꾼다 — 이 둘은
+  // 항상 같은 값을 가리키도록 유지되는 불변식이라(chooseRole 참고), 같이 바꿔야 프레스
+  // 판정(resolvePress의 player.role)·봇 AI(maybeTriggerBotPress의 team.pigSessionId)·
+  // 클라이언트 렌더링(모두 player.role 기준)이 전부 자연스럽게 뒤바뀐 대로 따라온다.
+  // 스왑은 자기 자신의 역함수라 원복도 이 메서드를 그대로 다시 호출하면 된다. 한쪽
+  // 슬롯이 비어있으면(플레이어 이탈 등) 바꿀 대상이 없으므로 아무 것도 안 하고 false.
+  private applyGoblinMagicSwap(team: TeamState): boolean {
+    const pig = this.state.players.get(team.pigSessionId);
+    const rabbit = this.state.players.get(team.rabbitSessionId);
+    if (!pig || !rabbit) return false;
+
+    pig.role = "rabbit";
+    rabbit.role = "pig";
+    const swapped = applyGoblinMagic(team.pigSessionId, team.rabbitSessionId);
+    team.pigSessionId = swapped.pigSessionId;
+    team.rabbitSessionId = swapped.rabbitSessionId;
+    return true;
   }
 
   private handleUseItem(client: Client, itemId: ItemId) {
@@ -956,6 +996,10 @@ export class MatchRoom extends Room<MatchState> {
       }
       case "doughAttack": {
         this.pendingItemsForNextTurn.tryUse("doughAttack");
+        break;
+      }
+      case "goblinMagic": {
+        this.pendingItemsForNextTurn.tryUse("goblinMagic");
         break;
       }
       case "mortarRestore": {

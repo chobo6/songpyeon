@@ -8,7 +8,7 @@ import type { NicknameEffect, NicknameParticle } from "./nicknameStyle";
 export type Phase = "lobby" | "playing";
 export type RoleChoice = Role | "";
 export type TurnOutcome = "pending" | "success" | "fail";
-export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore";
+export type ItemId = "timeAdd" | "timeReduce" | "doughAttack" | "superMortar" | "mortarRestore" | "goblinMagic";
 
 export interface PlayerState {
   sessionId: string;
