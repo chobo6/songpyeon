@@ -900,11 +900,15 @@ export class MatchRoom extends Room<MatchState> {
       sequence = applyDoughAttack(sequence, this.gameMode === "pigOnly" ? "pig" : "rabbit");
     }
 
+    // 돼지전/토끼전은 팀에 반대 역할이 애초에 없어서 goblinMagic이 써도 아무
+    // 효과가 없다(뒤바꿀 상대가 없음) — 풀에서 아예 뺀다.
+    const excludedBonusItems: ItemId[] =
+      this.gameMode === "pigOnly" || this.gameMode === "rabbitOnly" ? ["goblinMagic"] : [];
     this.bonusItem = !this.itemsEnabled
       ? null
       : this.forcedBonusItem !== undefined
         ? this.forcedBonusItem
-        : rollBonusItemIndex(sequence.length, this.bonusItemRng);
+        : rollBonusItemIndex(sequence.length, this.bonusItemRng, excludedBonusItems);
     this.state.bonusItemIndex = this.bonusItem?.index ?? -1;
     this.state.bonusItemId = this.bonusItem?.itemId ?? "";
 
