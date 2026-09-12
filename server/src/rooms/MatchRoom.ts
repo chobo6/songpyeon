@@ -20,6 +20,7 @@ import { recordAction } from "../admin/actionLog";
 import { recordChatLog } from "../admin/chatLog";
 import { notifyPress } from "../admin/pressMonitor";
 import { addGameMoney, getUserById, recordRolePlayed, recordRoundAchievement } from "../auth/googleAuth";
+import { isHotTime, HOT_TIME_MULTIPLIER } from "../game/hotTime";
 import { getCookieValue, SESSION_COOKIE_NAME, verifySession } from "../auth/session";
 
 const DEFAULT_TURN_DURATION_MS = 4000;
@@ -85,6 +86,10 @@ interface MatchRoomOptions {
   // 있으면 이 rng는 아예 호출되지 않는다. production에서는 항상 undefined
   // (Math.random 사용).
   bonusItemRng?: Rng;
+  // 테스트 전용 — creditTurnSuccess의 핫타임 판정에 쓰는 현재 시각을 고정하기
+  // 위함(실제 토/일 23시대에 테스트를 돌리면 보상 금액 단정이 깨지는 걸 방지).
+  // production에서는 항상 undefined(실제 Date.now() 사용).
+  now?: () => Date;
 }
 
 export class MatchRoom extends Room<MatchState> {
@@ -137,6 +142,7 @@ export class MatchRoom extends Room<MatchState> {
   private forcedBonusItem?: BonusItemRoll;
   private bonusItem: BonusItemRoll | null = null;
   private bonusItemRng: Rng = Math.random;
+  private now: () => Date = () => new Date();
   // 실제 봇 신원의 유일한 판정 근거 — addBot()에서 채워지고, 봇 PlayerState를
   // 지울 때(syncBotForTeam, handleRematch)마다 같이 지운다. BOT_SESSION_PREFIX에
   // 대한 startsWith 검사는 우연히 "bot-"로 시작하는 진짜 sessionId를 봇으로
@@ -159,6 +165,7 @@ export class MatchRoom extends Room<MatchState> {
       this.forcedBonusItem = options.forcedBonusItem;
     }
     if (options.bonusItemRng) this.bonusItemRng = options.bonusItemRng;
+    if (options.now) this.now = options.now;
 
     // Colyseus's default patch rate is 50ms (20/s) — state changes (cursor
     // advancing, turnOutcome, a new turn starting) only reach clients on
@@ -1176,12 +1183,15 @@ export class MatchRoom extends Room<MatchState> {
 
   // 팀이 자기 차례(턴)를 성공적으로 완료할 때마다 호출 — 팀 소속 두 플레이어
   // (돼지, 토끼) 각각에게 "1인당 요율 × 이 방의 팀 수"를 지급한다. 요율은
-  // normal 20원, beginner/pigOnly/rabbitOnly 10원. creditRound와 동일한
-  // 이유로 playerUserIds에 없으면(빈 슬롯) 조용히 건너뛴다.
+  // normal 20원, beginner/pigOnly/rabbitOnly 10원. 매주 토/일 23시~24시(KST)
+  // 핫타임엔 게임모드 무관하게 2배 — 유일한 지급 지점이라 여기 한 곳만 고치면
+  // 모든 모드에 다 적용됨. creditRound와 동일한 이유로 playerUserIds에
+  // 없으면(빈 슬롯) 조용히 건너뛴다.
   private creditTurnSuccess(team: TeamState) {
     if (this.aiPracticeMode) return;
     const rate = this.gameMode === "normal" ? 20 : 10;
-    const reward = rate * this.state.teams.length;
+    const multiplier = isHotTime(this.now()) ? HOT_TIME_MULTIPLIER : 1;
+    const reward = rate * this.state.teams.length * multiplier;
     for (const sessionId of [team.pigSessionId, team.rabbitSessionId]) {
       const userId = this.playerUserIds.get(sessionId);
       if (userId) addGameMoney(userId, reward);

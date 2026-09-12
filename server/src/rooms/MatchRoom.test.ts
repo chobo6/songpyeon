@@ -2883,6 +2883,37 @@ describe("MatchRoom", () => {
     });
   });
 
+  describe("hot time reward", () => {
+    test("doubles turn-success money on Saturday 23:00 KST, in a normal-mode room", async () => {
+      // 2026-09-12T14:00:00Z == 2026-09-12 23:00 KST (토요일, 핫타임 시작).
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        now: () => new Date("2026-09-12T14:00:00Z"),
+      });
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+      const row = db.prepare(`SELECT game_money FROM users WHERE nickname = ?`).get("플레이어0") as {
+        game_money: number;
+      };
+      // 정상모드 2팀: 평소엔 20*2=40원, 핫타임엔 2배인 80원.
+      expect(row.game_money).toBe(80);
+    });
+
+    test("does not double money outside the Sat/Sun 23:00-24:00 KST window", async () => {
+      // 2026-09-14T14:00:00Z == 2026-09-14 23:00 KST (월요일, 평일).
+      const { room, clients } = await fillRolesAndStart({
+        turnDurationMs: PRESS_HEAVY_TURN_MS,
+        now: () => new Date("2026-09-14T14:00:00Z"),
+      });
+      await completeActiveTurn(room, clients, PRESS_HEAVY_TURN_MS);
+
+      const row = db.prepare(`SELECT game_money FROM users WHERE nickname = ?`).get("플레이어0") as {
+        game_money: number;
+      };
+      expect(row.game_money).toBe(40);
+    });
+  });
+
   describe("game modes", () => {
     test("gameMode defaults to normal and matches the requested mode otherwise", async () => {
       const normalRoom = await colyseus.createRoom<MatchState>("match");
