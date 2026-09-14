@@ -11,6 +11,7 @@ import { DuoBoardModal } from "./DuoBoardModal";
 import { FriendsModal } from "./FriendsModal";
 import { ProfileModal } from "./ProfileModal";
 import { ShopModal } from "./ShopModal";
+import { AnnouncementModal } from "./AnnouncementModal";
 import styles from "./RoomList.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -64,6 +65,7 @@ export function RoomList({
   const [showInquiryMenu, setShowInquiryMenu] = useState(false);
   const [showFriendsModal, setShowFriendsModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showOwnProfile, setShowOwnProfile] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -196,6 +198,15 @@ export function RoomList({
           나가기
         </button>
       </div>
+      <div className={styles.announcementRow}>
+        <button
+          className={styles.announcementButton}
+          onClick={() => setShowAnnouncementModal(true)}
+          aria-label="공지"
+        >
+          ✉️
+        </button>
+      </div>
       <div className={styles.inquiryRow}>
         <button className={styles.shopButton} onClick={() => setShowShopModal(true)}>
           상점
@@ -272,6 +283,7 @@ export function RoomList({
           }}
         />
       )}
+      {showAnnouncementModal && <AnnouncementModal onClose={() => setShowAnnouncementModal(false)} />}
       {showShopModal && (
         <ShopModal
           nickname={nickname}
